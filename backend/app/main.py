@@ -11,7 +11,10 @@ from app.core.rate_limiter import limiter
 from app.db.base import init_db, AsyncSessionLocal
 from app.models.models import User
 from app.core.security import hash_password
-from app.routers import auth, users, projects, iterations, stories, import_export, ingest, chat, ai_drafts, documents
+from app.routers import (
+    auth, users, projects, iterations, stories, import_export,
+    ingest, chat, ai_drafts, documents, qa, qas, jira, uat, audit
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -79,6 +82,11 @@ app.include_router(ingest.router, prefix=settings.API_V1_STR)
 app.include_router(chat.router, prefix=settings.API_V1_STR)
 app.include_router(ai_drafts.router, prefix=settings.API_V1_STR)
 app.include_router(documents.router, prefix=settings.API_V1_STR)
+app.include_router(qa.router, prefix=settings.API_V1_STR)
+app.include_router(qas.router, prefix=settings.API_V1_STR)
+app.include_router(jira.router, prefix=settings.API_V1_STR)
+app.include_router(uat.router, prefix=settings.API_V1_STR)
+app.include_router(audit.router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
