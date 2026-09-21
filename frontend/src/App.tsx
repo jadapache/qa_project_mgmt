@@ -5,11 +5,16 @@ import { useAuthStore } from './stores/authStore';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import ProjectsPage from './pages/ProjectsPage';
+import TestExecutionsPage from './pages/TestExecutionsPage';
+import DefectsPage from './pages/DefectsPage';
+import QaSPage from './pages/QaSPage';
+import UATSessionsPage from './pages/UATSessionsPage';
 import ChatPage from './pages/ChatPage';
 import IngestPage from './pages/IngestPage';
 import AIReviewPage from './pages/AIReviewPage';
 import DocumentsPage from './pages/DocumentsPage';
 import ImportExportPage from './pages/ImportExportPage';
+import AuditLogPage from './pages/AuditLogPage';
 import UsersPage from './pages/UsersPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -31,6 +36,42 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ProjectsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/test-executions"
+          element={
+            <ProtectedRoute>
+              <TestExecutionsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/defects"
+          element={
+            <ProtectedRoute>
+              <DefectsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/qas"
+          element={
+            <ProtectedRoute>
+              <QaSPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/uat"
+          element={
+            <ProtectedRoute>
+              <UATSessionsPage />
             </ProtectedRoute>
           }
         />
@@ -76,6 +117,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ImportExportPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/audit-log"
+          element={
+            <ProtectedRoute>
+              <AuditLogPage />
             </ProtectedRoute>
           }
         />

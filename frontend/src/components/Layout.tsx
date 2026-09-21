@@ -4,7 +4,8 @@ import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
 import { 
   FolderKanban, MessageSquare, FileUp, Sparkles, FileText, 
-  FileSpreadsheet, Users, LogOut, Shield 
+  FileSpreadsheet, Users, LogOut, Shield, PlaySquare, Bug, 
+  Award, UserCheck, ShieldCheck 
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -23,11 +24,16 @@ export default function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { to: '/projects', label: 'Proyectos', icon: FolderKanban, roles: ['Administrador', 'Líder_QA', 'Analista_QA', 'UAT_Tester', 'Observador'] },
+    { to: '/test-executions', label: 'Ejecuciones QA', icon: PlaySquare, roles: ['Administrador', 'Líder_QA', 'Analista_QA'] },
+    { to: '/defects', label: 'Defectos & Jira', icon: Bug, roles: ['Administrador', 'Líder_QA', 'Analista_QA'] },
+    { to: '/qas', label: 'Certificación QaS', icon: Award, roles: ['Administrador', 'Líder_QA', 'Observador'] },
+    { to: '/uat', label: 'Sesiones UAT', icon: UserCheck, roles: ['Administrador', 'Líder_QA', 'UAT_Tester', 'Observador'] },
     { to: '/chat', label: 'Asistente RAG', icon: MessageSquare, roles: ['Administrador', 'Líder_QA', 'Analista_QA'] },
     { to: '/ingest', label: 'Ingesta RAG', icon: FileUp, roles: ['Administrador', 'Líder_QA'] },
     { to: '/ai-review', label: 'Revisión IA', icon: Sparkles, roles: ['Administrador', 'Líder_QA'] },
     { to: '/documents', label: 'Documentos', icon: FileText, roles: ['Administrador', 'Líder_QA', 'Analista_QA', 'UAT_Tester', 'Observador'] },
     { to: '/import-export', label: 'Import / Export', icon: FileSpreadsheet, roles: ['Administrador', 'Líder_QA'] },
+    { to: '/audit-log', label: 'Audit Log', icon: ShieldCheck, roles: ['Administrador', 'Líder_QA'] },
     { to: '/admin/users', label: 'Usuarios & Roles', icon: Users, roles: ['Administrador'] },
   ];
 
