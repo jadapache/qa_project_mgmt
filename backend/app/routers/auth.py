@@ -53,7 +53,11 @@ async def login(request: Request, login_data: LoginRequest, db: AsyncSession = D
     if not user or not verify_password(login_data.password, user.password_hash):
         # Registrar intento fallido
         window_start = now - timedelta(minutes=10)
-        if not attempt_record or attempt_record.window_start < window_start:
+        rec_window = attempt_record.window_start if attempt_record else None
+        if rec_window and rec_window.tzinfo is None:
+            rec_window = rec_window.replace(tzinfo=timezone.utc)
+
+        if not attempt_record or rec_window < window_start:
             if not attempt_record:
                 attempt_record = LoginAttempt(username=username, attempt_count=1, window_start=now)
                 db.add(attempt_record)

@@ -10,15 +10,21 @@ from app.core.config import settings
 _in_memory_revoked_tokens: Dict[str, datetime] = {}
 _in_memory_user_revocations: Dict[str, float] = {}
 
-redis_client = None
+_redis_checked = False
+_cached_redis = None
 
 async def _get_redis():
+    global _redis_checked, _cached_redis
+    if _redis_checked:
+        return _cached_redis
     try:
-        client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        client = aioredis.from_url(settings.REDIS_URL, decode_responses=True, socket_connect_timeout=0.2, socket_timeout=0.2)
         await client.ping()
-        return client
+        _cached_redis = client
     except Exception:
-        return None
+        _cached_redis = None
+    _redis_checked = True
+    return _cached_redis
 
 def hash_password(password: str) -> str:
     pwd_bytes = password.encode('utf-8')[:72]

@@ -1,4 +1,5 @@
 import io
+import uuid
 from typing import Dict, Any, List, Tuple
 import openpyxl
 from fastapi import HTTPException, status
@@ -60,8 +61,9 @@ async def validate_and_import_xlsx(
             if row_errors:
                 errors.append({"row": row_idx, "errors": row_errors})
             else:
+                target_uuid = uuid.UUID(str(iteration_id)) if isinstance(iteration_id, str) else iteration_id
                 items_to_create.append({
-                    "iteration_id": iteration_id,
+                    "iteration_id": target_uuid,
                     "description": desc,
                     "acceptance_criteria": criteria,
                     "priority": priority,
@@ -88,8 +90,9 @@ async def validate_and_import_xlsx(
             if row_errors:
                 errors.append({"row": row_idx, "errors": row_errors})
             else:
+                target_uuid = uuid.UUID(str(iteration_id)) if isinstance(iteration_id, str) else iteration_id
                 items_to_create.append({
-                    "story_id": iteration_id, # story_id
+                    "story_id": target_uuid, # story_id
                     "title": title,
                     "preconditions": precond,
                     "input_data": input_d,

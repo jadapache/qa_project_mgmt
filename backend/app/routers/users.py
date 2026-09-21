@@ -21,6 +21,12 @@ async def list_users(
     result = await db.execute(select(User).order_by(User.created_at.desc()))
     return result.scalars().all()
 
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_profile(
+    current_user: User = Depends(get_current_user)
+):
+    return current_user
+
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_detail(
     user_id: uuid.UUID,

@@ -1,3 +1,4 @@
+import uuid
 from typing import List, Callable
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -42,7 +43,8 @@ async def get_current_user(
                 detail="El rol del usuario ha sido modificado. Vuelva a iniciar sesión."
             )
 
-        result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
+        user_uuid = uuid.UUID(str(user_id)) if isinstance(user_id, str) else user_id
+        result = await db.execute(select(User).where(User.id == user_uuid, User.is_active == True))
         user = result.scalars().first()
         if not user:
             raise HTTPException(

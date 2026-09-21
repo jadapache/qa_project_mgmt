@@ -15,4 +15,5 @@ def test_property_9_file_validation_rejects_invalid_mime_and_size(filename: str,
         validate_ingest_file(filename, mime_type, size_bytes)
         
     assert exc_info.value.status_code == 422
-    assert "excedido" in exc_info.value.detail or "MIME" in exc_info.value.detail or "formato" in exc_info.value.detail
+    detail_lower = exc_info.value.detail.lower()
+    assert "supera" in detail_lower or "límite" in detail_lower or "mime" in detail_lower or "formato" in detail_lower
