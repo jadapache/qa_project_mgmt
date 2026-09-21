@@ -60,7 +60,98 @@ export const api = {
     return res.data;
   },
 
-  // RAG Chat
+  // QA & Test Cases
+  createTestCase: async (storyId: string, data: { title: string; preconditions?: string; input_data?: string; expected_result?: string }) => {
+    const res = await httpClient.post(`/stories/${storyId}/test-cases?title=${encodeURIComponent(data.title)}${data.preconditions ? `&preconditions=${encodeURIComponent(data.preconditions)}` : ''}${data.input_data ? `&input_data=${encodeURIComponent(data.input_data)}` : ''}${data.expected_result ? `&expected_result=${encodeURIComponent(data.expected_result)}` : ''}`);
+    return res.data;
+  },
+  getStoryTestCases: async (storyId: string) => {
+    const res = await httpClient.get(`/stories/${storyId}/test-cases`);
+    return res.data;
+  },
+  executeTestCase: async (testCaseId: string, result_status: string, comments?: string) => {
+    const res = await httpClient.post(`/test-cases/${testCaseId}/executions?result_status=${result_status}${comments ? `&comments=${encodeURIComponent(comments)}` : ''}`);
+    return res.data;
+  },
+  uploadEvidence: async (executionId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await httpClient.post(`/executions/${executionId}/evidences`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
+  // Defects
+  createDefect: async (executionId: string, data: { title: string; description?: string; steps_to_reproduce?: string; severity: string }) => {
+    const res = await httpClient.post(`/executions/${executionId}/defects?title=${encodeURIComponent(data.title)}&severity=${data.severity}${data.description ? `&description=${encodeURIComponent(data.description)}` : ''}${data.steps_to_reproduce ? `&steps_to_reproduce=${encodeURIComponent(data.steps_to_reproduce)}` : ''}`);
+    return res.data;
+  },
+  getProjectDefects: async (projectId: string) => {
+    const res = await httpClient.get(`/projects/${projectId}/defects`);
+    return res.data;
+  },
+
+  // QaS Certifications
+  createQasCycle: async (projectId: string, data: { name: string; start_date: string; end_date: string }) => {
+    const res = await httpClient.post(`/projects/${projectId}/qas-cycles?name=${encodeURIComponent(data.name)}&start_date=${data.start_date}&end_date=${data.end_date}`);
+    return res.data;
+  },
+  getQasCycles: async (projectId: string) => {
+    const res = await httpClient.get(`/projects/${projectId}/qas-cycles`);
+    return res.data;
+  },
+  createCertification: async (cycleId: string) => {
+    const res = await httpClient.post(`/qas-cycles/${cycleId}/certifications`);
+    return res.data;
+  },
+  getCertifications: async (cycleId: string) => {
+    const res = await httpClient.get(`/qas-cycles/${cycleId}/certifications`);
+    return res.data;
+  },
+
+  // Jira Integration
+  saveJiraConfig: async (projectId: string, data: { jira_url: string; user_email: string; api_token: string }) => {
+    const res = await httpClient.post(`/projects/${projectId}/jira-config?jira_url=${encodeURIComponent(data.jira_url)}&user_email=${encodeURIComponent(data.user_email)}&api_token=${encodeURIComponent(data.api_token)}`);
+    return res.data;
+  },
+  syncDefectJira: async (defectId: string) => {
+    const res = await httpClient.post(`/defects/${defectId}/sync-jira`);
+    return res.data;
+  },
+
+  // UAT Sessions
+  createUatSession: async (projectId: string, data: { name: string; start_date: string; end_date: string; description?: string }) => {
+    const res = await httpClient.post(`/projects/${projectId}/uat-sessions?name=${encodeURIComponent(data.name)}&start_date=${data.start_date}&end_date=${data.end_date}${data.description ? `&description=${encodeURIComponent(data.description)}` : ''}`);
+    return res.data;
+  },
+  getUatSessions: async (projectId: string) => {
+    const res = await httpClient.get(`/projects/${projectId}/uat-sessions`);
+    return res.data;
+  },
+  inviteUatTester: async (sessionId: string, userId: string) => {
+    const res = await httpClient.post(`/uat-sessions/${sessionId}/testers?user_id=${userId}`);
+    return res.data;
+  },
+  submitUatResult: async (sessionId: string, result_status: string, comments?: string) => {
+    const res = await httpClient.post(`/uat-sessions/${sessionId}/results?result_status=${result_status}${comments ? `&comments=${encodeURIComponent(comments)}` : ''}`);
+    return res.data;
+  },
+  getUatSummary: async (sessionId: string) => {
+    const res = await httpClient.get(`/uat-sessions/${sessionId}/summary`);
+    return res.data;
+  },
+
+  // Audit Log
+  getAuditLog: async (page = 1, page_size = 50, operation_type?: string, user_id?: string) => {
+    let url = `/audit-log?page=${page}&page_size=${page_size}`;
+    if (operation_type) url += `&operation_type=${encodeURIComponent(operation_type)}`;
+    if (user_id) url += `&user_id=${user_id}`;
+    const res = await httpClient.get(url);
+    return res.data;
+  },
+
+  // RAG Chat & Ingest
   createChatSession: async (projectId: string) => {
     const res = await httpClient.post(`/projects/${projectId}/chat-sessions`);
     return res.data;
@@ -73,8 +164,6 @@ export const api = {
     const res = await httpClient.post(`/chat-sessions/${sessionId}/messages?content=${encodeURIComponent(content)}`);
     return res.data;
   },
-
-  // RAG Ingest
   getRagDocuments: async (projectId: string) => {
     const res = await httpClient.get(`/projects/${projectId}/rag-documents`);
     return res.data;
@@ -88,7 +177,7 @@ export const api = {
     return res.data;
   },
 
-  // AI Drafts
+  // AI Drafts & Documents
   getAiDrafts: async (projectId: string) => {
     const res = await httpClient.get(`/projects/${projectId}/ai-drafts`);
     return res.data;
@@ -101,8 +190,6 @@ export const api = {
     const res = await httpClient.patch(`/ai-drafts/${draftId}/approve`);
     return res.data;
   },
-
-  // Versioned Documents
   getDocTemplates: async () => {
     const res = await httpClient.get('/doc-templates');
     return res.data;
