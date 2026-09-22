@@ -1,3 +1,3 @@
-export const DEFAULT_DISPLAY_NAME = 'Arsema'
+export const DEFAULT_DISPLAY_NAME = 'PM'
 
-export const toolsGroupLabel = (displayName: string) => `${displayName} Tools`
+export const toolsGroupLabel = (displayName: string) => `Herramientas ${displayName || 'PM'}`

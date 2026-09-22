@@ -11,7 +11,7 @@ const SOURCE_OPTIONS = [
   { id: 'jira', label: 'Jira' },
   { id: 'github', label: 'GitHub' },
   { id: 'gitlab', label: 'GitLab' },
-  { id: 'knowledge', label: 'Knowledge library' },
+  { id: 'knowledge', label: 'Biblioteca de Conocimiento' },
 ]
 
 export const ChangeImpactPage = () => {
@@ -20,11 +20,11 @@ export const ChangeImpactPage = () => {
   return (
     <FeatureWorkspace
       eyebrow={toolsGroupLabel(displayName)}
-      title="Change Impact"
-      description="Describe a change in chat, upload related specs or tickets, and pull live context from Jira, GitHub, or GitLab to map impact."
+      title="Impacto de Cambios"
+      description="Describe un cambio propuesto, sube especificaciones o tickets relacionados y consolida datos en vivo de Jira, GitHub o GitLab para evaluar el impacto."
       uploadTags="change_impact,spec"
-      placeholder="We're removing guest checkout. Which tickets, PRs, and docs are affected?"
-      defaultQuery="Analyze change impact from uploaded files and connected sources."
+      placeholder="Vamos a eliminar el proceso de compra como invitado. ¿Qué tickets, PRs y documentos se ven afectados?"
+      defaultQuery="Analizar el impacto de cambio basándose en los archivos cargados y fuentes conectadas."
       showSourceToggles
       sourceOptions={SOURCE_OPTIONS}
       defaultSources={['jira', 'github', 'knowledge']}

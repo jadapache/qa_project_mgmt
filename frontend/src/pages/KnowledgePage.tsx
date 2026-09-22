@@ -27,13 +27,13 @@ export const KnowledgePage = () => {
   }, [])
 
   useEffect(() => {
-    void load().catch((err) => setError(err instanceof Error ? err.message : 'Failed to load documents'))
+    void load().catch((err) => setError(err instanceof Error ? err.message : 'Error al cargar los documentos'))
   }, [load])
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!selectedFile) {
-      setError('Choose a file first, then click Upload & ingest.')
+      setError('Selecciona un archivo primero, luego haz clic en Cargar e procesar.')
       return
     }
     setBusy(true)
@@ -44,16 +44,16 @@ export const KnowledgePage = () => {
       setSelectedFile(null)
       event.currentTarget.reset()
       await load()
-      setMessage(`"${uploaded.document.filename}" ingested with ${uploaded.document.chunk_count} chunks.`)
+      setMessage(`"${uploaded.document.filename}" procesado con ${uploaded.document.chunk_count} fragmentos.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      setError(err instanceof Error ? err.message : 'Falló la carga')
     } finally {
       setBusy(false)
     }
   }
 
   const handleDelete = async (doc: KnowledgeDocument) => {
-    const confirmed = window.confirm(`Remove "${doc.filename}" from the grounding library?`)
+    const confirmed = window.confirm(`¿Eliminar "${doc.filename}" de la biblioteca?`)
     if (!confirmed) {
       return
     }
@@ -63,9 +63,9 @@ export const KnowledgePage = () => {
     try {
       await api.deleteDocument(doc.id)
       await load()
-      setMessage(`Removed "${doc.filename}".`)
+      setMessage(`Se eliminó "${doc.filename}".`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Falló la eliminación')
     } finally {
       setBusy(false)
     }
@@ -82,7 +82,7 @@ export const KnowledgePage = () => {
       const data = await api.retrieve(query, active)
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Retrieve failed')
+      setError(err instanceof Error ? err.message : 'Falló la recuperación de información')
     } finally {
       setBusy(false)
     }
@@ -99,10 +99,10 @@ export const KnowledgePage = () => {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">Knowledge</p>
-        <h1 className="font-[family-name:var(--font-display)] text-5xl">Grounding library</h1>
+        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">Conocimiento</p>
+        <h1 className="font-[family-name:var(--font-display)] text-5xl">Biblioteca de Documentos</h1>
         <p className="max-w-2xl text-[var(--color-ink-muted)]">
-          Upload PRDs and docs. They are chunked and stored locally for BM25 retrieval in PM and QA features.
+          Sube PRDs y especificaciones. Se dividen en fragmentos y se almacenan localmente para búsquedas BM25 en las herramientas de PM y QA.
         </p>
       </header>
 
@@ -110,55 +110,55 @@ export const KnowledgePage = () => {
       {error ? <p className="alert-error" role="alert">{error}</p> : null}
 
       <form onSubmit={(event) => void handleUpload(event)} className="space-y-4 rounded-xl border border-[var(--color-border)] bg-white/60 p-5">
-        <h2 className="text-lg font-semibold">Upload document</h2>
+        <h2 className="text-lg font-semibold">Cargar documento</h2>
         <p className="text-sm text-[var(--color-ink-muted)]">
-          Supported: PDF, Word, Markdown, text, JSON, HTML. Select a file, then click Upload &amp; ingest.
+          Soportados: PDF, Word, Markdown, texto, JSON, HTML. Selecciona un archivo y haz clic en Cargar e procesar.
         </p>
         <input
           name="file"
           type="file"
           accept={ACCEPTED_TYPES}
-          aria-label="Upload document"
+          aria-label="Cargar documento"
           className="block w-full text-sm"
           onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
         />
         {selectedFile ? (
           <p className="text-sm">
-            Selected: <span className="font-medium">{selectedFile.name}</span> ({Math.round(selectedFile.size / 1024)} KB)
+            Seleccionado: <span className="font-medium">{selectedFile.name}</span> ({Math.round(selectedFile.size / 1024)} KB)
           </p>
         ) : null}
         <label className="block text-sm">
-          <span className="mb-1 block text-[var(--color-ink-muted)]">Tags (comma-separated)</span>
+          <span className="mb-1 block text-[var(--color-ink-muted)]">Etiquetas (separadas por comas)</span>
           <input
             value={tags}
             onChange={(event) => setTags(event.target.value)}
             className="input-field"
-            aria-label="Document tags"
+            aria-label="Etiquetas del documento"
           />
         </label>
         <button type="submit" disabled={busy || !selectedFile} className="btn-primary disabled:opacity-50">
-          {busy ? 'Uploading…' : 'Upload & ingest'}
+          {busy ? 'Cargando…' : 'Cargar e procesar'}
         </button>
       </form>
 
       <section className="space-y-4 rounded-xl border border-[var(--color-border)] bg-white/60 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Stored documents ({documents.length})</h2>
+          <h2 className="text-lg font-semibold">Documentos almacenados ({documents.length})</h2>
           <button
             type="button"
             onClick={() => void load()}
             disabled={loadingDocs || busy}
             className="btn-secondary text-sm disabled:opacity-50"
           >
-            Refresh
+            Actualizar
           </button>
         </div>
 
         {loadingDocs ? (
-          <p className="text-sm text-[var(--color-ink-muted)]">Loading documents…</p>
+          <p className="text-sm text-[var(--color-ink-muted)]">Cargando documentos…</p>
         ) : documents.length === 0 ? (
           <p className="text-sm text-[var(--color-ink-muted)]">
-            No documents stored yet. Upload a file above — it will appear here and be available for context retrieval.
+            Aún no hay documentos almacenados. Sube un archivo arriba para que aparezca aquí y esté disponible para búsquedas.
           </p>
         ) : (
           <ul className="divide-y divide-[var(--color-border)]">
@@ -167,7 +167,7 @@ export const KnowledgePage = () => {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{doc.filename}</p>
                   <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
-                    {doc.chunk_count} chunks · {doc.tags.join(', ') || 'untagged'} · uploaded {formatDate(doc.uploaded_at)}
+                    {doc.chunk_count} fragmentos · {doc.tags.join(', ') || 'sin etiqueta'} · cargado {formatDate(doc.uploaded_at)}
                   </p>
                 </div>
                 <button
@@ -175,9 +175,9 @@ export const KnowledgePage = () => {
                   disabled={busy}
                   className="text-sm text-[var(--color-bad)] disabled:opacity-50"
                   onClick={() => void handleDelete(doc)}
-                  aria-label={`Delete ${doc.filename}`}
+                  aria-label={`Eliminar ${doc.filename}`}
                 >
-                  Remove
+                  Eliminar
                 </button>
               </li>
             ))}
@@ -186,9 +186,9 @@ export const KnowledgePage = () => {
       </section>
 
       <form onSubmit={(event) => void handleRetrieve(event)} className="space-y-4 rounded-xl border border-[var(--color-border)] bg-white/60 p-5">
-        <h2 className="text-lg font-semibold">Test retrieval</h2>
+        <h2 className="text-lg font-semibold">Probar recuperación de información</h2>
         <fieldset className="flex flex-wrap gap-4 text-sm">
-          <legend className="sr-only">Sources</legend>
+          <legend className="sr-only">Fuentes</legend>
           {(['knowledge', 'jira', 'github'] as const).map((key) => (
             <label key={key} className="inline-flex items-center gap-2">
               <input
@@ -196,29 +196,29 @@ export const KnowledgePage = () => {
                 checked={sources[key]}
                 onChange={(event) => setSources((prev) => ({ ...prev, [key]: event.target.checked }))}
               />
-              {key}
+              {key === 'knowledge' ? 'Biblioteca' : key}
             </label>
           ))}
         </fieldset>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="What should retrieval find?"
+          placeholder="¿Qué consulta deseas probar?"
           className="input-field"
-          aria-label="Retrieval query"
+          aria-label="Consulta de recuperación"
           required
         />
         <button type="submit" disabled={busy} className="btn-primary">
-          Retrieve
+          Buscar fragmentos
         </button>
       </form>
 
       {result ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Chunks</h2>
+          <h2 className="text-lg font-semibold">Fragmentos recuperados</h2>
           <p className="text-sm text-[var(--color-ink-muted)]">
-            Used: {((result.used_sources as string[]) || []).join(', ') || 'none'} · Missing:{' '}
-            {((result.missing_sources as string[]) || []).join(', ') || 'none'}
+            Utilizados: {((result.used_sources as string[]) || []).join(', ') || 'ninguno'} · Faltantes:{' '}
+            {((result.missing_sources as string[]) || []).join(', ') || 'ninguno'}
           </p>
           <div className="space-y-3">
             {((result.chunks as Array<Record<string, unknown>>) || []).map((chunk, index) => (

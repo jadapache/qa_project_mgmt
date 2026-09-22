@@ -16,7 +16,7 @@ export const PmToolsPage = () => {
       const response = await api.generateStandup()
       setResult(response)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Standup failed')
+      setError(err instanceof Error ? err.message : 'Falló la generación de Standup')
     } finally {
       setBusy(false)
     }
@@ -25,19 +25,19 @@ export const PmToolsPage = () => {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">PM Tools</p>
-        <h1 className="font-[family-name:var(--font-display)] text-5xl">Product workflows</h1>
+        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">Herramientas PM</p>
+        <h1 className="font-[family-name:var(--font-display)] text-5xl">Flujos de trabajo de Producto</h1>
         <p className="max-w-2xl text-[var(--color-ink-muted)]">
-          Standup uses Jira + GitHub only. If those sources are missing, it refuses instead of guessing.
+          Standup utiliza únicamente Jira y GitHub. Rechaza responder si faltan datos en lugar de adivinar.
         </p>
       </header>
 
       <section className="rounded-xl border border-[var(--color-line)] bg-white/60 p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold">Standup</h2>
+            <h2 className="text-2xl font-semibold">Standup Diario</h2>
             <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
-              Allowed sources: Jira, GitHub. Prompt + rubric are editable in Settings.
+              Fuentes permitidas: Jira, GitHub. El prompt y la rúbrica son editables en Configuración.
             </p>
           </div>
           <button
@@ -46,7 +46,7 @@ export const PmToolsPage = () => {
             disabled={busy}
             className="rounded-md bg-[var(--color-sea)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {busy ? 'Generating…' : 'Generate Standup'}
+            {busy ? 'Generando…' : 'Generar Standup'}
           </button>
         </div>
 
@@ -64,23 +64,25 @@ export const PmToolsPage = () => {
       <section className="grid gap-4 md:grid-cols-2">
         {[
           {
-            title: 'PRD Checker',
-            body: 'Next: upload/paste a PRD and score it against your rubric with Knowledge retrieval.',
+            title: 'Revisor de PRD',
+            body: 'Sube o pega un PRD para evaluarlo con tu rúbrica y la biblioteca de conocimiento.',
+            to: '/pm/prd-checker',
           },
           {
-            title: 'Change Impact',
-            body: 'Next: plain-language change → affected tickets, files, docs, and stakeholders.',
+            title: 'Impacto de Cambios',
+            body: 'Mapea cambios en lenguaje natural hacia tickets, archivos, docs y partes interesadas.',
+            to: '/pm/change-impact',
           },
         ].map((item) => (
-          <article key={item.title} className="border-l-2 border-[var(--color-line)] pl-4">
-            <h3 className="font-semibold">{item.title}</h3>
+          <Link key={item.title} to={item.to} className="border-l-2 border-[var(--color-line)] pl-4 hover:border-violet-600 transition-colors">
+            <h3 className="font-semibold text-[var(--color-ink)]">{item.title}</h3>
             <p className="mt-1 text-sm text-[var(--color-ink-muted)]">{item.body}</p>
-          </article>
+          </Link>
         ))}
       </section>
 
       <p className="text-sm text-[var(--color-ink-muted)]">
-        Need docs for later PM tools? Upload them in <Link className="underline" to="/knowledge">Knowledge</Link>.
+        ¿Necesitas documentos para tus flujos de PM? Cárgalos en <Link className="underline" to="/knowledge">Conocimiento</Link>.
       </p>
     </div>
   )
