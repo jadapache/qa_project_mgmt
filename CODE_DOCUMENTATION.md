@@ -1,12 +1,12 @@
 # Code Documentation
 
-Technical specification and architectural guide for **PMQA Copilot**.
+Technical specification and architectural guide for **QA Project MGMT**.
 
 ---
 
 ## 1. Architecture Overview
 
-PMQA Copilot is structured as a decoupled client-server application optimized for local or containerized execution:
+QA Project MGMT is structured as a decoupled client-server application optimized for local or containerized execution:
 
 ```mermaid
 graph TD

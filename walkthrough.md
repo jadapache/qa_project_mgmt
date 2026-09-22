@@ -1,6 +1,6 @@
-# Walkthrough: Replicación Completa de PMQA Copilot
+# Walkthrough: Replicación Completa de QA Project MGMT
 
-Se ha completado la replicación integral del proyecto **PMQA Copilot** en la raíz del repositorio [`qa_project_mgmt`](file:///c:/Dev/FCV/qa_project_mgmt). 
+Se ha completado la replicación integral del proyecto **QA Project MGMT** en la raíz del repositorio [`qa_project_mgmt`](file:///c:/Dev/FCV/qa_project_mgmt). 
 
 El código monolítico anterior (basado en SQLite, Alembic y modelos relacionales pesados) ha sido archivado de forma segura en `_legacy_archive/` y sustituido por el **Command Center local para PM y QA con IA**, almacenamiento cifrado y arquitectura desacoplada por adaptadores.
 
@@ -71,7 +71,7 @@ npm run dev
 ### Backend
 - Importación limpia de módulos y validación de `app.main:app`.
 - Verificación mediante `TestClient`:
-  - `GET /api/health` -> `{"status": "ok", "app": "PMQA Copilot"}`
+  - `GET /api/health` -> `{"status": "ok", "app": "QA Project MGMT"}`
   - `GET /api/settings` -> `200 OK`
   - `GET /api/integrations` -> `200 OK`
 - Compatibilidad completa de dependencias en Python 3.14 con `keyring`, `rank-bm25`, `pypdf`, `python-docx`, `cryptography`, `pydantic` y `fastapi`.

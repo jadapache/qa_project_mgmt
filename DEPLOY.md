@@ -1,4 +1,4 @@
-# Deploy PMQA Copilot (full live app)
+# Deploy QA Project MGMT (full live app)
 
 This app is **React + FastAPI (Python)**. It does **not** run as a normal PHP site on shared cPanel.
 
@@ -72,11 +72,11 @@ Without a volume: reconnect integrations and re-upload docs after each redeploy.
 
 | Goal | Works on shared cPanel? |
 | --- | --- |
-| Full PMQA Copilot (API + AI + integrations) | **No** — needs a long-running Python process |
+| Full QA Project MGMT (API + AI + integrations) | **No** — needs a long-running Python process |
 | Static HTML showcase only | Yes (upload a single `.html` file) |
 | MySQL database | **Not required** for this app |
 
-Keep using cPanel for WordPress / PHP sites. Put PMQA Copilot on Railway/Render.
+Keep using cPanel for WordPress / PHP sites. Put QA Project MGMT on Railway/Render.
 
 ## Local production smoke test
 

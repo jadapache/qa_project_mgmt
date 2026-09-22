@@ -1,4 +1,4 @@
-# Design Philosophy: PMQA Copilot
+# Design Philosophy: QA Project MGMT
 
 ---
 
@@ -14,13 +14,13 @@ Traditional software engineering tooling for Product Managers and QA Engineers h
 ## 2. Our Guiding Principles
 
 ### Principle 1: Local-First & Privacy by Default
-- **Your Data Remains Yours**: Engineering documents, PRDs, and Jira tickets often contain confidential intellectual property. PMQA Copilot prioritizes **local AI models (via Ollama)** and **on-device BM25 search**.
-- **No Remote Database**: Instead of forcing a relational database setup (which introduces schema drift, migration headaches, and connection pooling issues), PMQA Copilot uses a clean, file-based local storage system under `local/`.
+- **Your Data Remains Yours**: Engineering documents, PRDs, and Jira tickets often contain confidential intellectual property. QA Project MGMT prioritizes **local AI models (via Ollama)** and **on-device BM25 search**.
+- **No Remote Database**: Instead of forcing a relational database setup (which introduces schema drift, migration headaches, and connection pooling issues), QA Project MGMT uses a clean, file-based local storage system under `local/`.
 - **Hardware-Backed Encryption**: Credentials, OAuth refresh tokens, and Personal Access Tokens are encrypted with Fernet symmetric cryptography, anchored in the operating system's native keychain (`keyring`).
 
 ### Principle 2: Pragmatic Grounding Over Hallucination (Zero-Bullshit AI)
 - Generic LLM chatbots provide surface-level advice that ignores specific team architecture and product constraints.
-- PMQA Copilot grounds every response in your team's real documentation using local RAG (Retrieval-Augmented Generation).
+- QA Project MGMT grounds every response in your team's real documentation using local RAG (Retrieval-Augmented Generation).
 - If the knowledge base does not contain the answer, the system is designed to state what is missing rather than inventing facts.
 
 ### Principle 3: Pluggable Adapters, Zero Lock-In
@@ -43,4 +43,4 @@ The previous iteration attempted to build a centralized, multi-tenant relational
 2. It spent excessive effort maintaining database state rather than delivering high-leverage AI workflows.
 3. Database locking and external broker requirements (like Celery/Redis) broke the local developer experience.
 
-**PMQA Copilot replaces this with an agile, local-first Command Center that works out of the box in under 5 minutes.**
+**QA Project MGMT replaces this with an agile, local-first Command Center that works out of the box in under 5 minutes.**

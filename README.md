@@ -1,4 +1,4 @@
-# PMQA Copilot
+# QA Project MGMT
 
 > Local AI-powered Command Center for Product Managers & QA Engineers with grounded RAG, encrypted storage, and pluggable issue tracker integrations.
 
