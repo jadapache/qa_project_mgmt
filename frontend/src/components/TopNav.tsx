@@ -14,6 +14,7 @@ import {
   GitCompareArrows,
   Layers,
   LayoutDashboard,
+  LogOut,
   Plug,
   Rocket,
   Settings,
@@ -26,6 +27,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { toolsGroupLabel } from '../constants/app'
+import { useAuth } from '../context/AuthContext'
+
 
 type NavItem = {
   to: string
@@ -273,6 +276,9 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
     }
   }, [open])
 
+  const { user, isAuthenticated, logout } = useAuth()
+  const activeName = user?.full_name || user?.username || displayName
+
   const handleToggle = () => {
     if (!open) updateMenuPosition()
     setOpen((prev) => !prev)
@@ -289,11 +295,11 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
         <div className="px-3 py-2 border-b border-[var(--color-border)]">
           <p className="text-sm font-semibold text-[var(--color-ink)] truncate flex items-center gap-1.5">
             <User className="h-3.5 w-3.5 text-[#002777]" />
-            {displayName}
+            {activeName}
           </p>
           <p className="text-[11px] text-[var(--color-ink-muted)] flex items-center gap-1.5 mt-0.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
-            Modo Local Activo
+            {isAuthenticated ? `Rol: ${user?.role || 'user'}` : 'Modo Local Activo'}
           </p>
         </div>
         <div className="py-1">
@@ -329,6 +335,17 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
             <Settings className="h-4 w-4 shrink-0 text-[#002777]" />
             <span>Configuración</span>
           </NavLink>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              logout()
+            }}
+            className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Cerrar Sesión</span>
+          </button>
         </div>
       </div>,
       document.body,
@@ -342,13 +359,14 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
         type="button"
         onClick={handleToggle}
         className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#002777] to-[#004497] text-xs font-bold text-white shadow-md ring-2 ring-blue-100 transition-transform hover:scale-105 hover:ring-blue-300 focus:outline-none focus:ring-2 focus:ring-[#004497]"
-        title={`${displayName} - Menú de opciones`}
-        aria-label={`Menú de usuario para ${displayName}`}
+        title={`${activeName} - Menú de opciones`}
+        aria-label={`Menú de usuario para ${activeName}`}
         aria-haspopup="true"
         aria-expanded={open}
       >
-        {displayName.charAt(0).toUpperCase()}
+        {activeName.charAt(0).toUpperCase()}
       </button>
+
       {menu}
     </>
   )
@@ -398,3 +416,4 @@ export const TopNav = ({ displayName }: TopNavProps) => {
     </header>
   )
 }
+
