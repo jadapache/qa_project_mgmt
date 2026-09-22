@@ -22,7 +22,7 @@ export const IntegrationTile = ({
     <article
       className={[
         'group relative overflow-hidden rounded-2xl border bg-white p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg',
-        connected ? 'border-emerald-200 hover:shadow-emerald-100/50' : 'border-[var(--color-border)] hover:border-violet-200 hover:shadow-violet-100/40',
+        connected ? 'border-emerald-200 hover:shadow-emerald-100/50' : 'border-[var(--color-border)] hover:border-[#004497]/30 hover:shadow-blue-900/10',
       ].join(' ')}
     >
       <div className="flex items-start gap-4">
@@ -56,7 +56,7 @@ export const IntegrationTile = ({
           <p className="mt-1.5 truncate text-sm text-[var(--color-ink-muted)]">{detail}</p>
           <Link
             to={manageHref}
-            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-600 transition hover:text-violet-700"
+            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#002777] transition hover:text-[#004497]"
           >
             Configure
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>

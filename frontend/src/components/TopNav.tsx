@@ -91,7 +91,7 @@ const navLinkClass = (isActive: boolean) =>
   [
     'flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all duration-200',
     isActive
-      ? 'bg-violet-50 text-violet-700 shadow-sm ring-1 ring-violet-200'
+      ? 'bg-blue-50 text-[#002777] shadow-sm ring-1 ring-blue-200'
       : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)] hover:shadow-sm',
   ].join(' ')
 
@@ -163,7 +163,7 @@ const NavDropdown = ({ group }: { group: NavGroup }) => {
     ? createPortal(
       <div
         id={`nav-menu-${group.label}`}
-        className="min-w-[220px] rounded-xl border border-[var(--color-border)] bg-white py-1.5 shadow-xl shadow-violet-100/40"
+        className="min-w-[220px] rounded-xl border border-[var(--color-border)] bg-white py-1.5 shadow-xl shadow-blue-900/10"
         style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
         role="menu"
       >
@@ -180,7 +180,7 @@ const NavDropdown = ({ group }: { group: NavGroup }) => {
                 [
                   'mx-1.5 flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
                   isActive
-                    ? 'bg-violet-50 font-medium text-violet-700'
+                    ? 'bg-blue-50 font-medium text-[#002777]'
                     : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
                 ].join(' ')
               }
@@ -210,7 +210,7 @@ const NavDropdown = ({ group }: { group: NavGroup }) => {
         className={[
           'flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all duration-200',
           open || isChildActive
-            ? 'bg-violet-50 text-violet-700 shadow-sm ring-1 ring-violet-200'
+            ? 'bg-blue-50 text-[#002777] shadow-sm ring-1 ring-blue-200'
             : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)] hover:shadow-sm',
         ].join(' ')}
         aria-haspopup="true"
@@ -282,13 +282,13 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
     ? createPortal(
       <div
         id="user-avatar-dropdown-menu"
-        className="w-56 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-2xl shadow-violet-200/50"
+        className="w-56 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-2xl shadow-blue-900/15"
         style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
         role="menu"
       >
         <div className="px-3 py-2 border-b border-[var(--color-border)]">
           <p className="text-sm font-semibold text-[var(--color-ink)] truncate flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 text-violet-600" />
+            <User className="h-3.5 w-3.5 text-[#002777]" />
             {displayName}
           </p>
           <p className="text-[11px] text-[var(--color-ink-muted)] flex items-center gap-1.5 mt-0.5">
@@ -305,12 +305,12 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
               [
                 'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-violet-50 text-violet-700'
+                  ? 'bg-blue-50 text-[#002777]'
                   : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
               ].join(' ')
             }
           >
-            <Plug className="h-4 w-4 shrink-0 text-violet-600" />
+            <Plug className="h-4 w-4 shrink-0 text-[#002777]" />
             <span>Integraciones</span>
           </NavLink>
           <NavLink
@@ -321,12 +321,12 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
               [
                 'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-violet-50 text-violet-700'
+                  ? 'bg-blue-50 text-[#002777]'
                   : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
               ].join(' ')
             }
           >
-            <Settings className="h-4 w-4 shrink-0 text-violet-600" />
+            <Settings className="h-4 w-4 shrink-0 text-[#002777]" />
             <span>Configuración</span>
           </NavLink>
         </div>
@@ -341,7 +341,7 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white shadow-md ring-2 ring-violet-100 transition-transform hover:scale-105 hover:ring-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-400"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#002777] to-[#004497] text-xs font-bold text-white shadow-md ring-2 ring-blue-100 transition-transform hover:scale-105 hover:ring-blue-300 focus:outline-none focus:ring-2 focus:ring-[#004497]"
         title={`${displayName} - Menú de opciones`}
         aria-label={`Menú de usuario para ${displayName}`}
         aria-haspopup="true"
@@ -360,7 +360,7 @@ export const TopNav = ({ displayName }: TopNavProps) => {
   return (
     <header className="sticky top-0 z-40 overflow-visible border-b border-[var(--color-border)] bg-white/90 backdrop-blur-xl">
       <div
-        className="h-0.5 w-full bg-gradient-to-r from-violet-600 via-purple-500 to-cyan-400"
+        className="h-0.5 w-full bg-gradient-to-r from-[#002777] via-[#004497] to-cyan-400"
         aria-hidden
       />
 
@@ -370,12 +370,12 @@ export const TopNav = ({ displayName }: TopNavProps) => {
           className="group flex shrink-0 items-center gap-2.5"
           aria-label="QA Project MGMT home"
         >
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-300/40 transition-transform duration-300 group-hover:scale-105">
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#002777] to-[#004497] text-white shadow-lg shadow-[#002777]/30 transition-transform duration-300 group-hover:scale-105">
             <Sparkles className="h-4 w-4" aria-hidden />
             <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-cyan-400 ring-2 ring-white animate-pulse-soft" aria-hidden />
           </div>
           <span className="text-sm font-bold tracking-tight text-[var(--color-ink)]">
-            QA Project <span className="font-normal text-violet-600">MGMT</span>
+            QA Project <span className="font-normal text-[var(--color-primary-accent)]">MGMT</span>
           </span>
         </NavLink>
 
