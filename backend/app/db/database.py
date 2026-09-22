@@ -30,6 +30,8 @@ async def init_db() -> None:
                 email TEXT,
                 full_name TEXT,
                 role TEXT DEFAULT 'user',
+                password_hash TEXT,
+                password_salt TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)

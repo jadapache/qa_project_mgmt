@@ -29,3 +29,25 @@ class SqliteUserRepository(BaseSqliteRepository, IUserRepository):
             "role": role,
         }
         return await self.add(entity)
+
+    async def create_user_with_password(
+        self,
+        username: str,
+        password_hash: str,
+        password_salt: str,
+        email: str = "",
+        full_name: str = "",
+        role: str = "user",
+    ) -> Dict[str, Any]:
+        user_id = str(uuid.uuid4())
+        entity = {
+            "id": user_id,
+            "username": username,
+            "email": email,
+            "full_name": full_name,
+            "role": role,
+            "password_hash": password_hash,
+            "password_salt": password_salt,
+        }
+        return await self.add(entity)
+
