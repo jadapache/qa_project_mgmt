@@ -13,6 +13,9 @@ import { QaFeaturePage } from './pages/qa/QaFeaturePage'
 import { toolsGroupLabel } from './constants/app'
 import { QA_FEATURES } from './constants/qaFeatures'
 
+import { LevantamientoPage } from './pages/funcional/LevantamientoPage'
+import { MejorasPage } from './pages/funcional/MejorasPage'
+
 type OutletContext = {
   displayName: string
 }
@@ -69,6 +72,9 @@ export const App = () => {
           <Route path="pm/standup" element={<StandupPage />} />
           <Route path="pm/prd-checker" element={<PrdCheckerPage />} />
           <Route path="pm/change-impact" element={<ChangeImpactPage />} />
+          <Route path="funcional" element={<Navigate to="/funcional/mejoras" replace />} />
+          <Route path="funcional/levantamiento" element={<LevantamientoPage />} />
+          <Route path="funcional/mejoras" element={<MejorasPage />} />
           <Route
             path="qa"
             element={<QaOverviewPage />}

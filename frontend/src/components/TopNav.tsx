@@ -5,10 +5,14 @@ import {
   ChevronDown,
   CircleHelp,
   ClipboardCheck,
+  ClipboardList,
+  Database,
   Eye,
+  FileEdit,
   FileSearch,
   FlaskConical,
   GitCompareArrows,
+  Layers,
   LayoutDashboard,
   Plug,
   Rocket,
@@ -16,9 +20,8 @@ import {
   Sparkles,
   Sun,
   TestTube2,
-  Wrench,
-  Database,
   User,
+  Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
@@ -29,6 +32,7 @@ type NavItem = {
   label: string
   icon: LucideIcon
   end?: boolean
+  badge?: string
 }
 
 type NavGroup = {
@@ -47,6 +51,15 @@ const buildPmGroup = (displayName: string): NavGroup => ({
     { to: '/pm/change-impact', label: 'Impacto de Cambios', icon: GitCompareArrows },
   ],
 })
+
+const FUNCIONAL_GROUP: NavGroup = {
+  label: 'Funcional',
+  icon: Layers,
+  items: [
+    { to: '/funcional/levantamiento', label: 'Levantamiento', icon: ClipboardList, badge: 'Próximamente' },
+    { to: '/funcional/mejoras', label: 'Documento de Mejoras', icon: FileEdit },
+  ],
+}
 
 const QA_GROUP: NavGroup = {
   label: 'Herramientas QA',
@@ -148,38 +161,45 @@ const NavDropdown = ({ group }: { group: NavGroup }) => {
 
   const menu = open && menuPos
     ? createPortal(
-        <div
-          id={`nav-menu-${group.label}`}
-          className="min-w-[220px] rounded-xl border border-[var(--color-border)] bg-white py-1.5 shadow-xl shadow-violet-100/40"
-          style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
-          role="menu"
-        >
-          {group.items.map((item) => {
-            const ItemIcon = item.icon
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                role="menuitem"
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  [
-                    'mx-1.5 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors',
-                    isActive
-                      ? 'bg-violet-50 font-medium text-violet-700'
-                      : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
-                  ].join(' ')
-                }
-              >
+      <div
+        id={`nav-menu-${group.label}`}
+        className="min-w-[220px] rounded-xl border border-[var(--color-border)] bg-white py-1.5 shadow-xl shadow-violet-100/40"
+        style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+        role="menu"
+      >
+        {group.items.map((item) => {
+          const ItemIcon = item.icon
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                [
+                  'mx-1.5 flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                  isActive
+                    ? 'bg-violet-50 font-medium text-violet-700'
+                    : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+                ].join(' ')
+              }
+            >
+              <div className="flex items-center gap-2.5">
                 <ItemIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-                {item.label}
-              </NavLink>
-            )
-          })}
-        </div>,
-        document.body,
-      )
+                <span>{item.label}</span>
+              </div>
+              {item.badge && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                  {item.badge}
+                </span>
+              )}
+            </NavLink>
+          )
+        })}
+      </div>,
+      document.body,
+    )
     : null
 
   return (
@@ -260,59 +280,59 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
 
   const menu = open && menuPos
     ? createPortal(
-        <div
-          id="user-avatar-dropdown-menu"
-          className="w-56 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-2xl shadow-violet-200/50"
-          style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
-          role="menu"
-        >
-          <div className="px-3 py-2 border-b border-[var(--color-border)]">
-            <p className="text-sm font-semibold text-[var(--color-ink)] truncate flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-violet-600" />
-              {displayName}
-            </p>
-            <p className="text-[11px] text-[var(--color-ink-muted)] flex items-center gap-1.5 mt-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
-              Modo Local Activo
-            </p>
-          </div>
-          <div className="py-1">
-            <NavLink
-              to="/integrations"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                [
-                  'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-violet-50 text-violet-700'
-                    : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
-                ].join(' ')
-              }
-            >
-              <Plug className="h-4 w-4 shrink-0 text-violet-600" />
-              <span>Integraciones</span>
-            </NavLink>
-            <NavLink
-              to="/settings"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                [
-                  'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-violet-50 text-violet-700'
-                    : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
-                ].join(' ')
-              }
-            >
-              <Settings className="h-4 w-4 shrink-0 text-violet-600" />
-              <span>Configuración</span>
-            </NavLink>
-          </div>
-        </div>,
-        document.body,
-      )
+      <div
+        id="user-avatar-dropdown-menu"
+        className="w-56 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-2xl shadow-violet-200/50"
+        style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+        role="menu"
+      >
+        <div className="px-3 py-2 border-b border-[var(--color-border)]">
+          <p className="text-sm font-semibold text-[var(--color-ink)] truncate flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5 text-violet-600" />
+            {displayName}
+          </p>
+          <p className="text-[11px] text-[var(--color-ink-muted)] flex items-center gap-1.5 mt-0.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
+            Modo Local Activo
+          </p>
+        </div>
+        <div className="py-1">
+          <NavLink
+            to="/integrations"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-violet-50 text-violet-700'
+                  : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+              ].join(' ')
+            }
+          >
+            <Plug className="h-4 w-4 shrink-0 text-violet-600" />
+            <span>Integraciones</span>
+          </NavLink>
+          <NavLink
+            to="/settings"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-violet-50 text-violet-700'
+                  : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+              ].join(' ')
+            }
+          >
+            <Settings className="h-4 w-4 shrink-0 text-violet-600" />
+            <span>Configuración</span>
+          </NavLink>
+        </div>
+      </div>,
+      document.body,
+    )
     : null
 
   return (
@@ -335,7 +355,7 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
 }
 
 export const TopNav = ({ displayName }: TopNavProps) => {
-  const pmGroup = buildPmGroup(displayName)
+  const PM_GROUP = buildPmGroup(displayName)
 
   return (
     <header className="sticky top-0 z-40 overflow-visible border-b border-[var(--color-border)] bg-white/90 backdrop-blur-xl">
@@ -362,10 +382,11 @@ export const TopNav = ({ displayName }: TopNavProps) => {
         <nav className="flex flex-1 flex-wrap items-center gap-0.5" aria-label="Primary navigation">
           <NavLink to="/" end className={({ isActive }) => navLinkClass(isActive)}>
             <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden />
-            <span>Dashboard</span>
+            <span>Inicio</span>
           </NavLink>
 
-          <NavDropdown group={pmGroup} />
+          <NavDropdown group={PM_GROUP} />
+          <NavDropdown group={FUNCIONAL_GROUP} />
           <NavDropdown group={QA_GROUP} />
           <NavDropdown group={KNOWLEDGE_GROUP} />
         </nav>

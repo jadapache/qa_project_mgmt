@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.ai.logging import list_logs
@@ -11,6 +11,7 @@ from app.ai.runner import run_grounded_feature
 from app.ai.templates import get_prompt, get_rubric, list_prompts, list_rubrics, save_prompt, save_rubric
 from app.core.storage import load_app_settings, save_app_settings
 from app.features.standup.service import generate_standup
+from app.features.mejoras.docx_builder import create_mejoras_docx
 
 router = APIRouter(tags=["ai"])
 
@@ -220,3 +221,41 @@ async def qa_feature(feature_key: str, body: FeatureWorkspaceRequest) -> dict[st
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   except Exception as exc:
     raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+class DocxExportRequest(BaseModel):
+  markdown: str = Field(min_length=1)
+  title: str = "Documento de Mejora y Requerimientos Funcionales"
+
+
+@router.post("/features/mejoras")
+async def mejoras_doc(body: FeatureWorkspaceRequest) -> dict[str, Any]:
+  try:
+    return await run_grounded_feature(
+      feature="mejoras_doc",
+      query=body.query,
+      sources=body.sources or ["jira", "github", "gitlab", "knowledge"],
+      document_ids=body.document_ids,
+      chat_context=body.chat_context,
+    )
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  except Exception as exc:
+    raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("/features/export-docx")
+async def export_docx(body: DocxExportRequest) -> Response:
+  try:
+    docx_bytes = create_mejoras_docx(body.markdown, title=body.title)
+    filename = "Documento_de_Mejora.docx"
+    return Response(
+      content=docx_bytes,
+      media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      headers={
+        "Content-Disposition": f'attachment; filename="{filename}"'
+      },
+    )
+  except Exception as exc:
+    raise HTTPException(status_code=500, detail=f"Error al generar archivo .docx: {str(exc)}") from exc
+
