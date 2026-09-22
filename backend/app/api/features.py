@@ -3,16 +3,29 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.ai.logging import list_logs
 from app.ai.providers.factory import get_ai_settings
 from app.ai.runner import run_grounded_feature
 from app.ai.templates import get_prompt, get_rubric, list_prompts, list_rubrics, save_prompt, save_rubric
+from app.api.deps import (
+  get_chat_repository,
+  get_prd_repository,
+  get_standup_repository,
+  get_test_plan_repository,
+)
 from app.core.storage import load_app_settings, save_app_settings
+from app.db.interfaces import (
+  IChatRepository,
+  IPRDRepository,
+  IStandupRepository,
+  ITestPlanRepository,
+)
 from app.features.standup.service import generate_standup
 from app.features.mejoras.docx_builder import create_mejoras_docx
+
 
 router = APIRouter(tags=["ai"])
 
@@ -154,9 +167,19 @@ async def ai_logs(limit: int = 20) -> dict[str, Any]:
 
 
 @router.post("/features/standup")
-async def standup(body: GroundedRequest = GroundedRequest()) -> dict[str, Any]:
+async def standup(
+  body: GroundedRequest = GroundedRequest(),
+  standup_repo: IStandupRepository = Depends(get_standup_repository),
+) -> dict[str, Any]:
   try:
-    return await generate_standup(body.query)
+    res = await generate_standup(body.query)
+    if isinstance(res, dict) and "markdown" in res:
+      await standup_repo.create_standup(
+        title=f"Standup {res.get('date', '')}".strip(),
+        content=res["markdown"],
+        sources=body.sources or [],
+      )
+    return res
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   except Exception as exc:
@@ -164,17 +187,33 @@ async def standup(body: GroundedRequest = GroundedRequest()) -> dict[str, Any]:
 
 
 @router.post("/features/ask")
-async def ask_product(body: GroundedRequest) -> dict[str, Any]:
+async def ask_product(
+  body: GroundedRequest,
+  chat_repo: IChatRepository = Depends(get_chat_repository),
+) -> dict[str, Any]:
   if not body.query.strip():
     raise HTTPException(status_code=400, detail="Query is required.")
   try:
-    return await run_grounded_feature(
+    res = await run_grounded_feature(
       feature="ask_product",
       query=body.query,
       sources=body.sources,
       document_ids=body.document_ids,
       chat_context=body.chat_context,
     )
+    if isinstance(res, dict) and "markdown" in res:
+      await chat_repo.save_message(
+        session_id="default",
+        role="user",
+        content=body.query,
+      )
+      await chat_repo.save_message(
+        session_id="default",
+        role="assistant",
+        content=res["markdown"],
+        context_sources=res.get("context_sources") or [],
+      )
+    return res
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   except Exception as exc:
@@ -182,17 +221,26 @@ async def ask_product(body: GroundedRequest) -> dict[str, Any]:
 
 
 @router.post("/features/prd-checker")
-async def prd_checker(body: FeatureWorkspaceRequest) -> dict[str, Any]:
+async def prd_checker(
+  body: FeatureWorkspaceRequest,
+  prd_repo: IPRDRepository = Depends(get_prd_repository),
+) -> dict[str, Any]:
   if not body.document_ids:
     raise HTTPException(status_code=400, detail="Upload at least one PRD or spec file.")
   try:
-    return await run_grounded_feature(
+    res = await run_grounded_feature(
       feature="prd_checker",
       query=body.query,
       sources=body.sources or ["knowledge"],
       document_ids=body.document_ids,
       chat_context=body.chat_context,
     )
+    if isinstance(res, dict) and "markdown" in res:
+      await prd_repo.create_prd_review(
+        prd_title="Auditoría PRD",
+        content=res["markdown"],
+      )
+    return res
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   except Exception as exc:
@@ -239,20 +287,31 @@ QA_DEFAULT_SOURCES: dict[str, list[str]] = {
 
 
 @router.post("/features/qa/{feature_key}")
-async def qa_feature(feature_key: str, body: FeatureWorkspaceRequest) -> dict[str, Any]:
+async def qa_feature(
+  feature_key: str,
+  body: FeatureWorkspaceRequest,
+  test_plan_repo: ITestPlanRepository = Depends(get_test_plan_repository),
+) -> dict[str, Any]:
   if feature_key not in QA_FEATURE_KEYS:
     raise HTTPException(status_code=404, detail=f"Unknown QA feature: {feature_key}")
   sources = body.sources or QA_DEFAULT_SOURCES.get(feature_key, ["knowledge"])
   if not body.document_ids and not sources:
     raise HTTPException(status_code=400, detail="Upload files and/or enable live sources.")
   try:
-    return await run_grounded_feature(
+    res = await run_grounded_feature(
       feature=feature_key,
       query=body.query,
       sources=sources,
       document_ids=body.document_ids,
       chat_context=body.chat_context,
     )
+    if isinstance(res, dict) and "markdown" in res:
+      await test_plan_repo.create_test_plan(
+        feature_name=feature_key,
+        content=res["markdown"],
+        test_type=feature_key,
+      )
+    return res
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   except Exception as exc:
