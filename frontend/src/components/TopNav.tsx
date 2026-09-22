@@ -18,6 +18,7 @@ import {
   TestTube2,
   Wrench,
   Database,
+  User,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
@@ -68,12 +69,6 @@ const KNOWLEDGE_GROUP: NavGroup = {
     { to: '/knowledge/ask', label: 'Consultar Producto', icon: CircleHelp },
   ],
 }
-
-const STANDALONE_NAV: NavItem[] = [
-  { to: '/', label: 'Panel Principal', icon: LayoutDashboard, end: true },
-  { to: '/integrations', label: 'Integraciones', icon: Plug },
-  { to: '/settings', label: 'Configuración', icon: Settings },
-]
 
 type TopNavProps = {
   displayName: string
@@ -216,6 +211,129 @@ const NavDropdown = ({ group }: { group: NavGroup }) => {
   )
 }
 
+const UserDropdown = ({ displayName }: { displayName: string }) => {
+  const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  const updateMenuPosition = () => {
+    if (!buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    setMenuPos({ top: rect.bottom + 8, left: Math.max(10, rect.right - 220) })
+  }
+
+  useEffect(() => {
+    if (!open) return
+
+    updateMenuPosition()
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (buttonRef.current?.contains(target)) return
+      const menu = document.getElementById('user-avatar-dropdown-menu')
+      if (menu?.contains(target)) return
+      setOpen(false)
+    }
+
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    const handleScroll = () => updateMenuPosition()
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    window.addEventListener('resize', handleScroll)
+    window.addEventListener('scroll', handleScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+      window.removeEventListener('resize', handleScroll)
+      window.removeEventListener('scroll', handleScroll, true)
+    }
+  }, [open])
+
+  const handleToggle = () => {
+    if (!open) updateMenuPosition()
+    setOpen((prev) => !prev)
+  }
+
+  const menu = open && menuPos
+    ? createPortal(
+        <div
+          id="user-avatar-dropdown-menu"
+          className="w-56 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-2xl shadow-violet-200/50"
+          style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+          role="menu"
+        >
+          <div className="px-3 py-2 border-b border-[var(--color-border)]">
+            <p className="text-sm font-semibold text-[var(--color-ink)] truncate flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5 text-violet-600" />
+              {displayName}
+            </p>
+            <p className="text-[11px] text-[var(--color-ink-muted)] flex items-center gap-1.5 mt-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
+              Modo Local Activo
+            </p>
+          </div>
+          <div className="py-1">
+            <NavLink
+              to="/integrations"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-violet-50 text-violet-700'
+                    : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+                ].join(' ')
+              }
+            >
+              <Plug className="h-4 w-4 shrink-0 text-violet-600" />
+              <span>Integraciones</span>
+            </NavLink>
+            <NavLink
+              to="/settings"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-violet-50 text-violet-700'
+                    : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+                ].join(' ')
+              }
+            >
+              <Settings className="h-4 w-4 shrink-0 text-violet-600" />
+              <span>Configuración</span>
+            </NavLink>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={handleToggle}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white shadow-md ring-2 ring-violet-100 transition-transform hover:scale-105 hover:ring-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-400"
+        title={`${displayName} - Menú de opciones`}
+        aria-label={`Menú de usuario para ${displayName}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
+        {displayName.charAt(0).toUpperCase()}
+      </button>
+      {menu}
+    </>
+  )
+}
+
 export const TopNav = ({ displayName }: TopNavProps) => {
   const pmGroup = buildPmGroup(displayName)
 
@@ -250,30 +368,10 @@ export const TopNav = ({ displayName }: TopNavProps) => {
           <NavDropdown group={pmGroup} />
           <NavDropdown group={QA_GROUP} />
           <NavDropdown group={KNOWLEDGE_GROUP} />
-
-          {STANDALONE_NAV.slice(1).map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => navLinkClass(isActive)}>
-                <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                <span>{item.label}</span>
-              </NavLink>
-            )
-          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2.5">
-          <span className="hidden items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600 md:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse-soft" aria-hidden />
-            Local
-          </span>
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white shadow-md ring-2 ring-violet-100 transition-transform hover:scale-105"
-            title={displayName}
-            aria-label={`Signed in as ${displayName}`}
-          >
-            {displayName.charAt(0).toUpperCase()}
-          </div>
+          <UserDropdown displayName={displayName} />
         </div>
       </div>
     </header>

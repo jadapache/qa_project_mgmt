@@ -89,7 +89,7 @@ export const DashboardPage = () => {
               {getGreeting()}, {displayName}
             </h1>
             <p className="mt-2 max-w-xl text-sm text-violet-100 md:text-base">
-              Obtén contexto en tiempo real de Jira, GitHub y tus documentos para responder con referencias precisas sin alucinaciones.
+              Obtiene contexto en tiempo real de Jira, GitHub y tus documentos para responder con referencias precisas sin alucinaciones.
             </p>
           </div>
 
