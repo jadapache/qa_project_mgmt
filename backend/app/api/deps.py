@@ -1,3 +1,5 @@
+from fastapi import Depends, Header
+
 from app.db.interfaces import (
     IUserRepository,
     ISettingsRepository,
@@ -44,3 +46,29 @@ def get_prd_repository() -> IPRDRepository:
 def get_test_plan_repository() -> ITestPlanRepository:
     """Proveedor de inyección de dependencias para el repositorio de Planes de Prueba."""
     return SqliteTestPlanRepository()
+
+
+async def get_current_user(
+    authorization: str | None = Header(default=None),
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> dict:
+    from fastapi import HTTPException, status
+    from app.core.security import decode_access_token
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se proporcionó token de autorización.",
+        )
+    token = authorization.split(" ")[1]
+    payload = decode_access_token(token)
+    if not payload or "username" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de autorización inválido o expirado.",
+        )
+    user = await user_repo.get_by_username(payload["username"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+    return {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
+
