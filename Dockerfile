@@ -28,8 +28,6 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 RUN mkdir -p local/connections local/cache local/settings local/knowledge local/ai/logs
 
-VOLUME ["/app/local"]
-
 WORKDIR /app/backend
 EXPOSE 8000
 
