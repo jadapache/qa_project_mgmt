@@ -54,6 +54,7 @@ export type AISettings = {
   model: string
   openai_api_key_set: boolean
   claude_api_key_set: boolean
+  groq_api_key_set: boolean
   ollama_base_url: string
 }
 

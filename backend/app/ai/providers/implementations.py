@@ -90,3 +90,32 @@ class OllamaProvider(AIProvider):
       body = response.json()
     text = (body.get("message") or {}).get("content") or ""
     return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
+
+
+class GroqProvider(AIProvider):
+  id = "groq"
+  name = "Groq"
+
+  def __init__(self, api_key: str, default_model: str = "llama-3.3-70b-versatile") -> None:
+    self.api_key = api_key
+    self.default_model = default_model
+
+  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
+    chosen = model or self.default_model
+    async with httpx.AsyncClient(timeout=90.0) as client:
+      response = await client.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={
+          "Authorization": f"Bearer {self.api_key}",
+          "Content-Type": "application/json",
+        },
+        json={
+          "model": chosen,
+          "messages": [message.model_dump() for message in messages],
+          "temperature": 0.2,
+        },
+      )
+      response.raise_for_status()
+      body = response.json()
+    text = body["choices"][0]["message"]["content"]
+    return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
