@@ -21,6 +21,7 @@ class AISettingsUpdate(BaseModel):
   model: str | None = None
   openai_api_key: str | None = None
   claude_api_key: str | None = None
+  groq_api_key: str | None = None
   ollama_base_url: str | None = None
 
 
@@ -56,6 +57,7 @@ async def ai_settings() -> dict[str, Any]:
     "model": config.get("model") or "",
     "openai_api_key_set": bool(config.get("openai_api_key")),
     "claude_api_key_set": bool(config.get("claude_api_key")),
+    "groq_api_key_set": bool(config.get("groq_api_key")),
     "ollama_base_url": config.get("ollama_base_url"),
   }
 

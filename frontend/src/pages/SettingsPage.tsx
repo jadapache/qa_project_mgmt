@@ -17,6 +17,7 @@ export const SettingsPage = () => {
   const [model, setModel] = useState('')
   const [openaiKey, setOpenaiKey] = useState('')
   const [claudeKey, setClaudeKey] = useState('')
+  const [groqKey, setGroqKey] = useState('')
   const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434')
   const [standupRubric, setStandupRubric] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -57,10 +58,12 @@ export const SettingsPage = () => {
     }
     if (openaiKey.trim()) payload.openai_api_key = openaiKey.trim()
     if (claudeKey.trim()) payload.claude_api_key = claudeKey.trim()
+    if (groqKey.trim()) payload.groq_api_key = groqKey.trim()
     const updated = await api.updateAiSettings(payload)
     setAi(updated)
     setOpenaiKey('')
     setClaudeKey('')
+    setGroqKey('')
     setMessage('Configuración de IA guardada localmente.')
   }
 
@@ -113,6 +116,7 @@ export const SettingsPage = () => {
           Actual: {ai?.provider || 'ninguno'}
           {ai?.openai_api_key_set ? ' · Clave OpenAI configurada' : ''}
           {ai?.claude_api_key_set ? ' · Clave Claude configurada' : ''}
+          {ai?.groq_api_key_set ? ' · Clave Groq configurada' : ''}
         </p>
         <label className="block text-sm">
           <span className="mb-1 block text-[var(--color-ink-muted)]">Proveedor</span>
@@ -122,6 +126,7 @@ export const SettingsPage = () => {
             className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2"
           >
             <option value="">Seleccionar…</option>
+            <option value="groq">Groq</option>
             <option value="openai">OpenAI</option>
             <option value="claude">Claude (Anthropic)</option>
             <option value="ollama">Ollama (local)</option>
@@ -132,8 +137,18 @@ export const SettingsPage = () => {
           <input
             value={model}
             onChange={(event) => setModel(event.target.value)}
-            placeholder="gpt-4o-mini / claude-3-5-haiku-latest / llama3.2"
+            placeholder="llama-3.3-70b-versatile / gpt-4o-mini / claude-3-5-haiku-latest / llama3.2"
             className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1 block text-[var(--color-ink-muted)]">Groq API key</span>
+          <input
+            type="password"
+            value={groqKey}
+            onChange={(event) => setGroqKey(event.target.value)}
+            className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2"
+            placeholder={ai?.groq_api_key_set ? '•••• guardada' : ''}
           />
         </label>
         <label className="block text-sm">
