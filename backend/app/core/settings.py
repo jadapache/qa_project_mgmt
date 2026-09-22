@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -5,7 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-LOCAL_DIR = ROOT_DIR / "local"
+_custom_local = os.getenv("DATA_DIR") or os.getenv("LOCAL_DIR")
+LOCAL_DIR = Path(_custom_local) if _custom_local else ROOT_DIR / "local"
 CONNECTIONS_DIR = LOCAL_DIR / "connections"
 CACHE_DIR = LOCAL_DIR / "cache"
 SETTINGS_DIR = LOCAL_DIR / "settings"
