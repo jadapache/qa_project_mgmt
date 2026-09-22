@@ -31,7 +31,9 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    token: str
+    token: str | None = None
+    status: str = "approved"
+    message: str = ""
     user: dict[str, Any]
 
 
@@ -57,12 +59,27 @@ async def register(
         email=body.email,
         full_name=body.full_name or body.username,
         role=body.role,
+        status="pending",
     )
 
     clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
-    token = create_access_token({"sub": user["id"], "username": user["username"]})
+    user_status = user.get("status", "pending")
 
-    return {"token": token, "user": clean_user}
+    if user_status == "approved":
+        token = create_access_token({"sub": user["id"], "username": user["username"]})
+        return {
+            "token": token,
+            "status": "approved",
+            "message": "Cuenta creada y aprobada automáticamente como Administrador.",
+            "user": clean_user,
+        }
+
+    return {
+        "token": None,
+        "status": "pending",
+        "message": "Solicitud de acceso enviada correctamente. Un administrador debe aprobar tu cuenta antes de que puedas ingresar.",
+        "user": clean_user,
+    }
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -92,10 +109,22 @@ async def login(
             detail="Nombre de usuario o contraseña incorrectos.",
         )
 
+    user_status = user.get("status", "approved")
+    if user_status == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu solicitud de acceso está pendiente de aprobación por el administrador.",
+        )
+    elif user_status == "rejected":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu solicitud de acceso ha sido rechazada por el administrador.",
+        )
+
     clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
     token = create_access_token({"sub": user["id"], "username": user["username"]})
 
-    return {"token": token, "user": clean_user}
+    return {"token": token, "status": user_status, "message": "Inicio de sesión exitoso.", "user": clean_user}
 
 
 @router.get("/me")
@@ -123,3 +152,39 @@ async def get_me(
 
     clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
     return {"user": clean_user}
+
+
+@router.get("/access-requests")
+async def get_access_requests(
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> dict[str, Any]:
+    pending = await user_repo.get_pending_users()
+    clean_pending = [{k: v for k, v in u.items() if k not in ("password_hash", "password_salt")} for u in pending]
+    return {"requests": clean_pending}
+
+
+@router.post("/access-requests/{user_id}/approve")
+async def approve_access_request(
+    user_id: str,
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> dict[str, Any]:
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitud no encontrada.")
+    updated = await user_repo.update_user_status(user_id, "approved")
+    clean_user = {k: v for k, v in (updated or {}).items() if k not in ("password_hash", "password_salt")}
+    return {"status": "approved", "user": clean_user}
+
+
+@router.post("/access-requests/{user_id}/reject")
+async def reject_access_request(
+    user_id: str,
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> dict[str, Any]:
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitud no encontrada.")
+    updated = await user_repo.update_user_status(user_id, "rejected")
+    clean_user = {k: v for k, v in (updated or {}).items() if k not in ("password_hash", "password_salt")}
+    return {"status": "rejected", "user": clean_user}
+

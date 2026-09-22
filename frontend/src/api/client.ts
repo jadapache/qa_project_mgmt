@@ -1,6 +1,12 @@
+import { AUTH_TOKEN_KEY } from '../constants/app'
 import type { AppSettings, IntegrationInfo, TestConnectionResult } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (!response.ok) {
@@ -17,6 +23,23 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
     return undefined as T
   }
   return response.json() as Promise<T>
+}
+
+export type AuthUser = {
+  id: string
+  username: string
+  email?: string
+  full_name?: string
+  role?: string
+  status?: string
+  created_at?: string
+}
+
+export type AuthResponse = {
+  token?: string
+  status?: string
+  message?: string
+  user: AuthUser
 }
 
 export type KnowledgeDocument = {
@@ -389,5 +412,47 @@ export const api = {
     }
     return res.blob()
   },
+
+  register: (payload: { username: string; password: string; email?: string; full_name?: string }) =>
+    fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<AuthResponse>(r)),
+
+  login: (payload: { username: string; password: string }) =>
+    fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<AuthResponse>(r)),
+
+  getMe: () =>
+    fetch(`${API_BASE}/api/auth/me`, {
+      method: 'GET',
+      headers: { ...getAuthHeaders() },
+    }).then((r) => handleResponse<{ user: AuthUser }>(r)),
+
+  getAccessRequests: () =>
+    fetch(`${API_BASE}/api/auth/access-requests`, {
+      method: 'GET',
+      headers: { ...getAuthHeaders() },
+    }).then((r) => handleResponse<{ requests: AuthUser[] }>(r)),
+
+  approveAccessRequest: (userId: string) =>
+    fetch(`${API_BASE}/api/auth/access-requests/${userId}/approve`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders() },
+    }).then((r) => handleResponse<{ status: string; user: AuthUser }>(r)),
+
+  rejectAccessRequest: (userId: string) =>
+    fetch(`${API_BASE}/api/auth/access-requests/${userId}/reject`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders() },
+    }).then((r) => handleResponse<{ status: string; user: AuthUser }>(r)),
 }
+
+export const apiClient = api
+
+
 
