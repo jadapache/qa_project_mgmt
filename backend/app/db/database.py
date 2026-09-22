@@ -32,9 +32,17 @@ async def init_db() -> None:
                 role TEXT DEFAULT 'user',
                 password_hash TEXT,
                 password_salt TEXT,
+                status TEXT DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+
+        # Migration helper for existing users table
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending';")
+        except Exception:
+            pass
+        await db.execute("UPDATE users SET status = 'approved' WHERE status IS NULL;")
 
         # Settings table
         await db.execute("""

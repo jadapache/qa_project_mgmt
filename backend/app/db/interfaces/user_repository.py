@@ -20,7 +20,19 @@ class IUserRepository(IGenericRepository[Dict[str, Any], str], ABC):
         email: str = "",
         full_name: str = "",
         role: str = "user",
+        status: str = "pending",
     ) -> Dict[str, Any]:
-        """Crea un usuario registrando su hash y salt de contraseña."""
+        """Crea un usuario registrando su hash y salt de contraseña, así como su estado (pending, approved, rejected)."""
         pass
+
+    @abstractmethod
+    async def get_pending_users(self) -> list[Dict[str, Any]]:
+        """Obtiene todas las solicitudes de acceso pendientes de aprobación."""
+        pass
+
+    @abstractmethod
+    async def update_user_status(self, user_id: str, status: str) -> Optional[Dict[str, Any]]:
+        """Actualiza el estado de una solicitud de acceso (approved, rejected, pending)."""
+        pass
+
 

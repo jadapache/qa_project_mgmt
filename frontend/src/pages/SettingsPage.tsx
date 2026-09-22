@@ -15,11 +15,14 @@ import {
   Lock,
   RefreshCw,
   Server,
+  ShieldCheck,
   Sparkles,
   User,
+  UserCheck,
+  UserX,
   Zap,
 } from 'lucide-react'
-import { api, type AISettings } from '../api/client'
+import { api, type AISettings, type AuthUser } from '../api/client'
 import { DEFAULT_DISPLAY_NAME } from '../constants/app'
 
 type OutletContext = {
@@ -107,6 +110,10 @@ export const SettingsPage = () => {
   const [pullStatusMsg, setPullStatusMsg] = useState<string | null>(null)
   const [checkingOllama, setCheckingOllama] = useState(false)
 
+  // Access Requests (Admin)
+  const [pendingRequests, setPendingRequests] = useState<AuthUser[]>([])
+  const [loadingRequests, setLoadingRequests] = useState(false)
+
   // Rubric & forms feedback
   const [standupRubric, setStandupRubric] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -116,6 +123,18 @@ export const SettingsPage = () => {
   useEffect(() => {
     setName(displayName)
   }, [displayName])
+
+  const loadAccessRequests = async () => {
+    setLoadingRequests(true)
+    try {
+      const res = await api.getAccessRequests()
+      setPendingRequests(res.requests || [])
+    } catch {
+      // ignore
+    } finally {
+      setLoadingRequests(false)
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -129,6 +148,8 @@ export const SettingsPage = () => {
         const rubric = await api.getRubric('standup')
         setStandupRubric(((rubric.criteria as string[]) || []).join('\n'))
 
+        void loadAccessRequests()
+
         if (settings.provider === 'ollama' || settings.ollama_base_url) {
           void checkOllamaStatus(settings.ollama_base_url || 'http://127.0.0.1:11434')
         }
@@ -138,6 +159,26 @@ export const SettingsPage = () => {
     }
     void load()
   }, [])
+
+  const handleApproveRequest = async (userId: string, uname: string) => {
+    try {
+      await api.approveAccessRequest(userId)
+      setMessage(`Acceso aprobado con éxito para el usuario '${uname}'.`)
+      void loadAccessRequests()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aprobar solicitud')
+    }
+  }
+
+  const handleRejectRequest = async (userId: string, uname: string) => {
+    try {
+      await api.rejectAccessRequest(userId)
+      setMessage(`Solicitud rechazada para el usuario '${uname}'.`)
+      void loadAccessRequests()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al rechazar solicitud')
+    }
+  }
 
   const checkOllamaStatus = async (url?: string) => {
     setCheckingOllama(true)
@@ -699,6 +740,79 @@ export const SettingsPage = () => {
           Guardar Rúbrica
         </button>
       </form>
+
+      {/* Access Requests Management Card (Admin) */}
+      <div className="card space-y-4 border border-[var(--color-border)] p-6 md:p-8">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-[#002777]" />
+            <div>
+              <h2 className="text-lg font-bold text-[var(--color-ink)]">Solicitudes de Acceso Pendientes</h2>
+              <p className="text-xs text-[var(--color-ink-muted)]">
+                Gestión de aprobaciones para usuarios que han solicitado acceso al sistema.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadAccessRequests()}
+            disabled={loadingRequests}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingRequests ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
+          </button>
+        </div>
+
+        {pendingRequests.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center text-xs text-slate-500">
+            No hay solicitudes de acceso pendientes en este momento.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingRequests.map((req) => (
+              <div
+                key={req.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-white p-4 shadow-sm"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 text-sm">{req.username}</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                      Pendiente de aprobación
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    {req.full_name || 'Sin nombre'} • {req.email || 'Sin correo electrónico'}
+                  </p>
+                  {req.created_at ? (
+                    <p className="text-[11px] text-slate-400">Solicitado: {req.created_at}</p>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => void handleApproveRequest(req.id, req.username)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold shadow-sm transition-all"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    <span>Aprobar Acceso</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRejectRequest(req.id, req.username)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-xs font-semibold shadow-sm transition-all"
+                  >
+                    <UserX className="h-4 w-4" />
+                    <span>Rechazar</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
