@@ -101,7 +101,7 @@ def connection_exists(integration_id: str) -> bool:
 
 
 DEFAULT_APP_SETTINGS: dict[str, Any] = {
-  "display_name": "Arsema",
+  "display_name": "Usuario",
   "theme": "command-center",
   "selected_repos": [],
 }

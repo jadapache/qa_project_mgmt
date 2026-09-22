@@ -7,9 +7,10 @@
   --color-surface: #ffffff;
   --color-surface-muted: #f9fafb;
   --color-border: #e5e7eb;
-  --color-primary: #7c3aed;
-  --color-primary-hover: #6d28d9;
-  --color-primary-soft: #ede9fe;
+  --color-primary: #002777;
+  --color-primary-accent: #004497;
+  --color-primary-hover: #001d5c;
+  --color-primary-soft: #e0ebfd;
   --color-accent-cyan: #06b6d4;
   --color-ok: #059669;
   --color-warn: #d97706;
@@ -84,17 +85,17 @@ select {
   justify-content: center;
   gap: 0.375rem;
   border-radius: 0.625rem;
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #002777 0%, #004497 100%);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
   color: white;
-  box-shadow: 0 1px 2px rgba(124, 58, 237, 0.2), 0 4px 12px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 1px 2px rgba(0, 39, 119, 0.25), 0 4px 12px rgba(0, 68, 151, 0.2);
   transition: all 0.2s ease;
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
+  background: linear-gradient(135deg, #001d5c 0%, #00367a 100%);
+  box-shadow: 0 4px 16px rgba(0, 39, 119, 0.35);
   transform: translateY(-1px);
 }
 .btn-primary:active:not(:disabled) {
@@ -121,8 +122,8 @@ select {
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--color-surface-muted);
-  border-color: #c4b5fd;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.08);
+  border-color: #93c5fd;
+  box-shadow: 0 2px 8px rgba(0, 68, 151, 0.1);
   transform: translateY(-1px);
 }
 
@@ -135,9 +136,8 @@ select {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .card:hover {
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 39, 119, 0.06);
 }
-
 
 .page-title {
   font-size: 1.875rem;

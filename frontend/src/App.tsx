@@ -48,9 +48,9 @@ const QaOverviewPage = () => (
           <Link
             key={feature.slug}
             to={`/qa/${feature.slug}`}
-            className="group rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
+            className="group rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-sm transition-all hover:border-[#004497]/30 hover:shadow-md"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 transition-transform group-hover:scale-105">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#002777] transition-transform group-hover:scale-105">
               <Icon className="h-5 w-5" aria-hidden />
             </div>
             <h2 className="mt-4 font-semibold text-[var(--color-ink)]">{feature.title}</h2>

@@ -203,7 +203,7 @@ export const MejorasPage = () => {
     <div className="space-y-6">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-violet-600">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#002777]">
             Módulo Funcional
           </p>
           <h1 className="page-title mt-1">Generador de Documento de Mejoras</h1>
@@ -216,7 +216,7 @@ export const MejorasPage = () => {
             type="button"
             onClick={handleDownloadDocx}
             disabled={exporting || !documentContent.trim()}
-            className="btn btn-primary flex items-center gap-2 shadow-md shadow-violet-200"
+            className="btn btn-primary flex items-center gap-2 shadow-md shadow-blue-900/20"
           >
             {exporting ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -252,11 +252,11 @@ export const MejorasPage = () => {
           {/* File Upload & Knowledge Sources */}
           <section className="card p-5 space-y-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--color-ink-muted)] flex items-center gap-2">
-              <Paperclip className="h-4 w-4 text-violet-600" />
+              <Paperclip className="h-4 w-4 text-[#002777]" />
               1. Documentos y Evidencias de Contexto
             </h2>
 
-            <div className="rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-4 text-center">
+            <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 p-4 text-center">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -271,7 +271,7 @@ export const MejorasPage = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#002777] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#001d5c] transition"
               >
                 <Upload className="h-3.5 w-3.5" />
                 Seleccionar Archivos
@@ -307,12 +307,12 @@ export const MejorasPage = () => {
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-[var(--color-ink-muted)]">Evidencias Cargadas ({uploaded.length}):</p>
                 {uploaded.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between rounded-lg bg-violet-50 px-3 py-1.5 text-xs border border-violet-100">
+                  <div key={doc.id} className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-1.5 text-xs border border-blue-100">
                     <div className="flex items-center gap-2 truncate">
-                      <FileText className="h-3.5 w-3.5 text-violet-600 shrink-0" />
-                      <span className="truncate font-medium text-violet-900">{doc.filename}</span>
+                      <FileText className="h-3.5 w-3.5 text-[#004497] shrink-0" />
+                      <span className="truncate font-medium text-blue-950">{doc.filename}</span>
                     </div>
-                    <button type="button" onClick={() => handleRemoveUploaded(doc.id)} className="text-violet-400 hover:text-red-600">
+                    <button type="button" onClick={() => handleRemoveUploaded(doc.id)} className="text-blue-400 hover:text-red-600">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -335,7 +335,7 @@ export const MejorasPage = () => {
                       type="checkbox"
                       checked={sources.includes(s.id)}
                       onChange={() => toggleSource(s.id)}
-                      className="rounded text-violet-600 focus:ring-violet-500"
+                      className="rounded text-[#002777] focus:ring-[#004497]"
                     />
                     <span>{s.label}</span>
                   </label>
@@ -352,7 +352,7 @@ export const MejorasPage = () => {
                 type="button"
                 onClick={() => handleGenerate()}
                 disabled={busy}
-                className="text-xs text-violet-600 hover:text-violet-700 font-semibold flex items-center gap-1"
+                className="text-xs text-[#004497] hover:text-[#002777] font-semibold flex items-center gap-1"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 {busy ? 'Generando...' : 'Generar / Actualizar con AI'}
@@ -371,7 +371,7 @@ export const MejorasPage = () => {
                     key={m.id}
                     className={`rounded-xl p-3 text-xs ${
                       m.role === 'user'
-                        ? 'bg-violet-600 text-white ml-6'
+                        ? 'bg-[#002777] text-white ml-6'
                         : 'bg-slate-100 text-slate-800 mr-6 border border-slate-200'
                     }`}
                   >
@@ -391,7 +391,7 @@ export const MejorasPage = () => {
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Ej: Añade criterios de aceptación para el módulo de notificaciones o especifica que el reporte debe filtrarse por fecha..."
                 rows={3}
-                className="w-full rounded-xl border border-[var(--color-border)] p-3 text-xs text-[var(--color-ink)] focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none resize-none"
+                className="w-full rounded-xl border border-[var(--color-border)] p-3 text-xs text-[var(--color-ink)] focus:border-[#004497] focus:ring-1 focus:ring-[#004497] outline-none resize-none"
               />
               <div className="flex justify-between items-center">
                 <span className="text-[11px] text-[var(--color-ink-muted)]">
@@ -412,11 +412,11 @@ export const MejorasPage = () => {
 
         {/* Right Column: Side-by-side Document Editor/Viewer (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="card p-0 overflow-hidden border border-violet-200/80 shadow-xl shadow-violet-100/40">
+          <div className="card p-0 overflow-hidden border border-blue-200/80 shadow-xl shadow-blue-900/10">
             {/* Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] bg-slate-50/80 px-4 py-3">
               <div className="flex items-center gap-2">
-                <FileEdit className="h-4 w-4 text-violet-600" />
+                <FileEdit className="h-4 w-4 text-[#002777]" />
                 <span className="text-sm font-bold text-[var(--color-ink)]">
                   Vista Previa / Editor del Documento
                 </span>
@@ -430,7 +430,7 @@ export const MejorasPage = () => {
                     onClick={() => setEditorMode('preview')}
                     className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition ${
                       editorMode === 'preview'
-                        ? 'bg-white text-violet-700 shadow-sm'
+                        ? 'bg-white text-[#002777] shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -442,7 +442,7 @@ export const MejorasPage = () => {
                     onClick={() => setEditorMode('edit')}
                     className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition ${
                       editorMode === 'edit'
-                        ? 'bg-white text-violet-700 shadow-sm'
+                        ? 'bg-white text-[#002777] shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -464,25 +464,25 @@ export const MejorasPage = () => {
                     value={documentContent}
                     onChange={(e) => setDocumentContent(e.target.value)}
                     rows={22}
-                    className="w-full rounded-xl border border-slate-300 p-4 font-mono text-xs text-slate-800 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none leading-relaxed"
+                    className="w-full rounded-xl border border-slate-300 p-4 font-mono text-xs text-slate-800 focus:border-[#004497] focus:ring-1 focus:ring-[#004497] outline-none leading-relaxed"
                   />
                 </div>
               ) : (
-                <div className="prose prose-slate max-w-none prose-headings:text-violet-950 prose-h1:text-xl prose-h2:text-base prose-h3:text-sm prose-p:text-xs prose-li:text-xs text-xs">
+                <div className="prose prose-slate max-w-none prose-headings:text-blue-950 prose-h1:text-xl prose-h2:text-base prose-h3:text-sm prose-p:text-xs prose-li:text-xs text-xs">
                   {/* Styled Rendered Markdown Preview */}
                   <div className="whitespace-pre-wrap font-sans text-slate-800 leading-relaxed space-y-3">
                     {documentContent.split('\n').map((line, idx) => {
                       const trimmed = line.trim()
                       if (trimmed.startsWith('# ')) {
                         return (
-                          <h1 key={idx} className="text-xl font-bold text-violet-900 border-b border-violet-100 pb-2 mt-4">
+                          <h1 key={idx} className="text-xl font-bold text-blue-950 border-b border-blue-100 pb-2 mt-4">
                             {trimmed.slice(2)}
                           </h1>
                         )
                       }
                       if (trimmed.startsWith('## ')) {
                         return (
-                          <h2 key={idx} className="text-base font-bold text-violet-800 mt-4 mb-1">
+                          <h2 key={idx} className="text-base font-bold text-[#002777] mt-4 mb-1">
                             {trimmed.slice(3)}
                           </h2>
                         )

@@ -121,19 +121,19 @@ export const AskProductPage = () => {
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card space-y-4">
           <div className="flex items-center gap-2">
-            <Paperclip className="h-4 w-4 text-violet-600" aria-hidden />
+            <Paperclip className="h-4 w-4 text-[#002777]" aria-hidden />
             <h2 className="text-lg font-semibold">Cargar archivos (opcional)</h2>
           </div>
           <label
-            className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/40 px-4 py-6 transition-colors hover:border-violet-400 hover:bg-violet-50/70"
+            className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/40 px-4 py-6 transition-colors hover:border-[#004497] hover:bg-blue-50/70"
             tabIndex={0}
             aria-label="Elegir archivos para cargar"
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click()
             }}
           >
-            <Upload className="mb-2 h-7 w-7 text-violet-500" aria-hidden />
-            <span className="text-sm font-medium text-violet-700">Arrastra archivos o haz clic para explorar</span>
+            <Upload className="mb-2 h-7 w-7 text-[#004497]" aria-hidden />
+            <span className="text-sm font-medium text-[#002777]">Arrastra archivos o haz clic para explorar</span>
             <span className="mt-1 text-xs text-[var(--color-ink-muted)]">Soporta múltiples archivos</span>
             <input
               ref={fileInputRef}
@@ -150,7 +150,7 @@ export const AskProductPage = () => {
               {files.map((file) => (
                 <li key={file.name} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
                   <span className="flex items-center gap-2 truncate">
-                    <FileText className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
+                    <FileText className="h-4 w-4 shrink-0 text-[#004497]" aria-hidden />
                     {file.name}
                   </span>
                   <button type="button" aria-label={`Quitar ${file.name}`} onClick={() => setFiles((prev) => prev.filter((f) => f.name !== file.name))}>

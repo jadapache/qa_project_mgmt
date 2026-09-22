@@ -75,7 +75,7 @@ export const DashboardPage = () => {
   return (
     <div className={`space-y-8 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 p-6 text-white shadow-xl shadow-violet-200/40 md:p-8">
+      <section className="relative overflow-hidden rounded-3xl border border-blue-900/30 bg-gradient-to-br from-[#002777] via-[#003685] to-[#004497] p-6 text-white shadow-xl shadow-[#002777]/30 md:p-8">
         <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl animate-float" aria-hidden />
         <div className="pointer-events-none absolute -bottom-16 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl animate-float-delayed" aria-hidden />
 
@@ -88,19 +88,19 @@ export const DashboardPage = () => {
             <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
               {getGreeting()}, {displayName}
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-violet-100 md:text-base">
+            <p className="mt-2 max-w-xl text-sm text-blue-100 md:text-base">
               Obtiene contexto en tiempo real de Jira, GitHub y tus documentos para responder con referencias precisas sin alucinaciones.
             </p>
           </div>
 
           <div className="flex shrink-0 flex-col items-start gap-3 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md md:items-end">
-            <div className="flex items-center gap-2 text-sm text-violet-100">
+            <div className="flex items-center gap-2 text-sm text-blue-100">
               <Bot className="h-4 w-4" aria-hidden />
               Estado del sistema
             </div>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-bold">{readiness}%</span>
-              <span className="mb-1 text-xs text-violet-200">listo</span>
+              <span className="mb-1 text-xs text-blue-200">listo</span>
             </div>
             <div className="h-2 w-full min-w-[180px] overflow-hidden rounded-full bg-white/20">
               <div
@@ -134,7 +134,7 @@ export const DashboardPage = () => {
           label="Proveedor de IA"
           value={aiConfigured === null ? '…' : aiConfigured ? 'Configurado' : 'Requiere config.'}
           icon={Brain}
-          accent={aiConfigured ? 'purple' : 'amber'}
+          accent={aiConfigured ? 'primary' : 'amber'}
           trend={aiConfigured ? 'Listo para ejecuciones' : 'Añade la clave en Configuración'}
           loading={aiConfigured === null}
           to="/settings"
@@ -143,7 +143,7 @@ export const DashboardPage = () => {
           label="Búsqueda RAG"
           value="BM25"
           icon={Zap}
-          accent="purple"
+          accent="primary"
           trend="Contexto en vivo y documentos"
           to="/knowledge"
         />
@@ -162,7 +162,7 @@ export const DashboardPage = () => {
             description="Ayer, hoy, bloqueos — obtenido automáticamente de Jira y GitHub."
             icon={Sun}
             badge="En vivo"
-            gradient="from-violet-600 to-purple-600"
+            gradient="from-[#002777] to-[#004497]"
           />
           <QuickActionCard
             to="/pm/prd-checker"
@@ -170,7 +170,7 @@ export const DashboardPage = () => {
             description="Analiza especificaciones, revisa vacíos y evalúa criterios."
             icon={FileSearch}
             badge="Nuevo"
-            gradient="from-purple-600 to-fuchsia-600"
+            gradient="from-[#004497] to-blue-600"
           />
           <QuickActionCard
             to="/pm/change-impact"
@@ -178,7 +178,7 @@ export const DashboardPage = () => {
             description="Mapea tickets, Pull Requests y documentos afectados por un cambio."
             icon={GitCompareArrows}
             badge="Nuevo"
-            gradient="from-indigo-600 to-violet-600"
+            gradient="from-blue-900 to-[#002777]"
           />
           <QuickActionCard
             to="/knowledge/ask"
@@ -202,7 +202,7 @@ export const DashboardPage = () => {
             title="Conectar Fuentes"
             description="Configura Jira OAuth, GitHub PAT y GitLab PAT."
             icon={GitBranch}
-            gradient="from-fuchsia-600 to-pink-600"
+            gradient="from-blue-700 to-cyan-700"
           />
         </div>
       </section>
@@ -250,7 +250,7 @@ export const DashboardPage = () => {
         <section className="xl:col-span-3">
           <div className="h-full rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#002777]">
                 <Sparkles className="h-5 w-5" aria-hidden />
               </div>
               <div>
@@ -268,9 +268,9 @@ export const DashboardPage = () => {
               ].map((item) => (
                 <li
                   key={item.step}
-                  className="flex items-start gap-3 rounded-xl border border-transparent p-3 transition-colors hover:border-violet-100 hover:bg-violet-50/50"
+                  className="flex items-start gap-3 rounded-xl border border-transparent p-3 transition-colors hover:border-blue-100 hover:bg-blue-50/50"
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold text-violet-700">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xs font-bold text-[#002777]">
                     {item.step}
                   </span>
                   <span className="text-sm text-[var(--color-ink-muted)]">{item.text}</span>

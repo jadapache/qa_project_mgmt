@@ -74,7 +74,7 @@ export const PmToolsPage = () => {
             to: '/pm/change-impact',
           },
         ].map((item) => (
-          <Link key={item.title} to={item.to} className="border-l-2 border-[var(--color-line)] pl-4 hover:border-violet-600 transition-colors">
+          <Link key={item.title} to={item.to} className="border-l-2 border-[var(--color-line)] pl-4 hover:border-[#002777] transition-colors">
             <h3 className="font-semibold text-[var(--color-ink)]">{item.title}</h3>
             <p className="mt-1 text-sm text-[var(--color-ink-muted)]">{item.body}</p>
           </Link>

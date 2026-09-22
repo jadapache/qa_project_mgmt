@@ -7,16 +7,21 @@ type StatCardProps = {
   value: ReactNode
   icon: LucideIcon
   trend?: string
-  accent?: 'purple' | 'cyan' | 'emerald' | 'amber'
+  accent?: 'primary' | 'purple' | 'cyan' | 'emerald' | 'amber'
   loading?: boolean
   to?: string
 }
 
 const accentMap = {
+  primary: {
+    icon: 'bg-blue-50 text-[#002777]',
+    glow: 'group-hover:shadow-blue-200/60',
+    bar: 'from-[#002777] to-[#004497]',
+  },
   purple: {
-    icon: 'bg-violet-100 text-violet-600',
-    glow: 'group-hover:shadow-violet-200/60',
-    bar: 'from-violet-500 to-purple-400',
+    icon: 'bg-blue-50 text-[#002777]',
+    glow: 'group-hover:shadow-blue-200/60',
+    bar: 'from-[#002777] to-[#004497]',
   },
   cyan: {
     icon: 'bg-cyan-100 text-cyan-600',
@@ -40,7 +45,7 @@ export const StatCard = ({
   value,
   icon: Icon,
   trend,
-  accent = 'purple',
+  accent = 'primary',
   loading,
   to,
 }: StatCardProps) => {
@@ -49,7 +54,7 @@ export const StatCard = ({
   const className = [
     'group relative block overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white p-5',
     'shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg',
-    to ? 'cursor-pointer hover:border-violet-200' : '',
+    to ? 'cursor-pointer hover:border-[#004497]/30' : '',
     styles.glow,
   ].join(' ')
 
