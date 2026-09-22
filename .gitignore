@@ -118,3 +118,24 @@ out/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# PMQA Copilot Local storage & secrets
+local/connections/*
+!local/connections/.gitkeep
+local/cache/*
+!local/cache/.gitkeep
+local/settings/*
+!local/settings/.gitkeep
+local/knowledge/**
+!local/knowledge/.gitkeep
+local/ai/logs/**
+!local/ai/logs/.gitkeep
+local/ai/prompts/**
+!local/ai/prompts/.gitkeep
+local/ai/rubrics/**
+!local/ai/rubrics/.gitkeep
+
+# Legacy & reference folders
+_legacy_archive/
+pm_qa_copilot/
+

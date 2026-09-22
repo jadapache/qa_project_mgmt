@@ -1,1 +1,1 @@
-# app package
+"""PMQA Copilot backend."""
