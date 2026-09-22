@@ -119,7 +119,7 @@ out/
 ehthumbs.db
 Thumbs.db
 
-# PMQA Copilot Local storage & secrets
+# Local storage & secrets
 local/connections/*
 !local/connections/.gitkeep
 local/cache/*

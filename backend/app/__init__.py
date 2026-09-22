@@ -1,1 +1,2 @@
-"""PMQA Copilot backend."""
+"""QA Project MGMT backend."""
+

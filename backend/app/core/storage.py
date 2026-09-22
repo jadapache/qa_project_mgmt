@@ -19,7 +19,7 @@ try:
 except ImportError:  # pragma: no cover
   keyring = None
 
-SERVICE_NAME = "pmqa-copilot"
+SERVICE_NAME = "qa-project-mgmt"
 KEYRING_USERNAME = "encryption-key"
 
 

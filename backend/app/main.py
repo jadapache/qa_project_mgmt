@@ -19,7 +19,7 @@ def create_app() -> FastAPI:
   settings = get_settings()
 
   app = FastAPI(
-    title="PMQA Copilot",
+    title="QA Project MGMT",
     description="Local PM + QA command center with grounded AI.",
     version="0.2.0",
   )
