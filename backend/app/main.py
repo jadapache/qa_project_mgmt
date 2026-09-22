@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -8,20 +9,28 @@ from app.api.router import api_router
 from app.api.settings import health_router
 from app.context.knowledge import ensure_knowledge_dirs
 from app.core.settings import ROOT_DIR, ensure_local_dirs, get_settings
+from app.db.database import init_db
 
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 
 
-def create_app() -> FastAPI:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
   ensure_local_dirs()
   ensure_knowledge_dirs()
   ensure_ai_files()
+  await init_db()
+  yield
+
+
+def create_app() -> FastAPI:
   settings = get_settings()
 
   app = FastAPI(
     title="QA Project MGMT",
     description="Local PM + QA command center with grounded AI.",
     version="0.2.0",
+    lifespan=lifespan,
   )
 
   app.add_middleware(
