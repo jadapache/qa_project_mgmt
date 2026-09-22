@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,11 @@ class AISettingsUpdate(BaseModel):
   claude_api_key: str | None = None
   groq_api_key: str | None = None
   ollama_base_url: str | None = None
+
+
+class OllamaPullRequest(BaseModel):
+  name: str = Field(min_length=1)
+  base_url: str | None = None
 
 
 class GroundedRequest(BaseModel):
@@ -70,6 +76,34 @@ async def update_ai_settings(body: AISettingsUpdate) -> dict[str, Any]:
     ai[key] = value
   save_app_settings({"ai": ai})
   return await ai_settings()
+
+
+@router.get("/ai/ollama/models")
+async def list_ollama_models(base_url: str | None = None) -> dict[str, Any]:
+  config = get_ai_settings()
+  target_url = (base_url or config.get("ollama_base_url") or "http://127.0.0.1:11434").rstrip("/")
+  try:
+    async with httpx.AsyncClient(timeout=8.0) as client:
+      res = await client.get(f"{target_url}/api/tags")
+      res.raise_for_status()
+      data = res.json()
+      models = [m.get("name") for m in data.get("models", []) if m.get("name")]
+      return {"online": True, "models": models}
+  except Exception as e:
+    return {"online": False, "models": [], "error": str(e)}
+
+
+@router.post("/ai/ollama/pull")
+async def pull_ollama_model(body: OllamaPullRequest) -> dict[str, Any]:
+  config = get_ai_settings()
+  target_url = (body.base_url or config.get("ollama_base_url") or "http://127.0.0.1:11434").rstrip("/")
+  try:
+    async with httpx.AsyncClient(timeout=600.0) as client:
+      res = await client.post(f"{target_url}/api/pull", json={"name": body.name, "stream": False})
+      res.raise_for_status()
+      return {"status": "success", "model": body.name, "response": res.json()}
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Error al descargar el modelo {body.name} en Ollama: {e}")
 
 
 @router.get("/ai/prompts")

@@ -271,6 +271,18 @@ export const api = {
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<AISettings>(r)),
 
+  listOllamaModels: (baseUrl?: string) =>
+    fetch(`${API_BASE}/api/ai/ollama/models${baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : ''}`).then(
+      (r) => handleResponse<{ online: boolean; models: string[]; error?: string }>(r),
+    ),
+
+  pullOllamaModel: (name: string, baseUrl?: string) =>
+    fetch(`${API_BASE}/api/ai/ollama/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, base_url: baseUrl }),
+    }).then((r) => handleResponse<{ status: string; model: string }>(r)),
+
   getPrompt: (feature: string) =>
     fetch(`${API_BASE}/api/ai/prompts/${feature}`).then((r) => handleResponse<Record<string, unknown>>(r)),
 
