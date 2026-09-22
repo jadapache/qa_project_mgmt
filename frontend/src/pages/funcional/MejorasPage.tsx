@@ -67,7 +67,7 @@ export const MejorasPage = () => {
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
-  const [sources, setSources] = useState<string[]>(['jira', 'github', 'gitlab', 'knowledge'])
+  const [sources, setSources] = useState<string[]>(['knowledge'])
   const [documentContent, setDocumentContent] = useState<string>(DEFAULT_DOC_TEMPLATE)
   const [editorMode, setEditorMode] = useState<'preview' | 'edit'>('preview')
   const [busy, setBusy] = useState(false)
