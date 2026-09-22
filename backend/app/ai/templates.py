@@ -158,12 +158,54 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
       "Give ship/no-ship signals based on evidence, not assumptions."
     ),
     "user_template": (
-      "Release readiness request: {query}\n\n"
+      "Release request: {query}\n\n"
       "ADDITIONAL CONTEXT FROM CHAT:\n{chat_context}\n\n"
       "EVIDENCE:\n{context}\n\n"
       "RUBRIC:\n{rubric}\n\n"
-      "Return markdown: Readiness verdict, Blockers, Open risks, QA gaps, "
-      "Recommended actions before ship. Cite as [1], [2]."
+      "Return markdown: Readiness status, Open blockers, Quality signals, "
+      "Risk assessment, Recommended actions. Cite as [1], [2]."
+    ),
+  },
+  "mejoras_doc": {
+    "version": 1,
+    "feature": "mejoras_doc",
+    "allowed_sources": ["jira", "github", "gitlab", "knowledge"],
+    "system": (
+      "Eres un analista funcional senior especializado en elaborar 'Documentación de Mejoras' corporativas. "
+      "Utiliza ÚNICAMENTE la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
+      "Estructura el documento formalmente en Markdown siguiendo el formato corporativo exacto especificado a continuación:\n\n"
+      "## **FORMATO DOCUMENTACIÓN DE MEJORAS**\n\n"
+      "**_Objetivo del Formato:_** _Registrar de manera estructurada las necesidades funcionales, oportunidades de mejora y nuevos requerimientos identificados por los usuarios funcionales del proyecto, con el fin de facilitar su análisis, evaluación, priorización y definición por parte del equipo del proyecto para su posible incorporación en el nuevo Sistema de Información_\n\n"
+      "**_Código Requerimiento:_** [Indicar código ej. M1, M2, M6 según inventario]\n\n"
+      "| Fecha: [Fecha] | Módulo/Funcionalidad: [Nombre] |\n"
+      "| --- | --- |\n"
+      "| Sede(s): [HIC / ICV / IMAP] | Área(s): [Nombre de área(s)] |\n\n"
+      "# Necesidad identificada\n\n"
+      "**Describe ¿Cómo funciona actualmente?** (incluye pantallas)\n"
+      "[Detallar flujo actual, pantallas involucradas e ineficiencias identificadas]\n\n"
+      "**Impacto para el negocio (en tiempo, costos, reprocesos, etc)**\n"
+      "[Detallar cuantificación o calificación del impacto operacional/negocio]\n\n"
+      "**¿Cómo le gustaría que funcionara en el nuevo sistema?**\n"
+      "[Detallar requerimiento funcional deseado, comportamiento y criterios de aceptación]\n\n"
+      "**Prioridad**\n"
+      "[Alta / Media / Baja - Justificada]\n\n"
+      "**Observaciones complementarias o recomendaciones a tener en cuenta**\n"
+      "[Reglas de negocio adicionales, restricciones o consideraciones especiales]\n\n"
+      "**Observaciones del Equipo del Proyecto**\n"
+      "[Evaluación del equipo técnico/QA y recomendaciones]\n\n"
+      "# Firma Participantes o Aprobadores\n\n"
+      "| **Nombre** | **Cargo** | **Sede** | **Rol** | **Aprobación** |\n"
+      "| ---------- | --------- | -------- | ------- | -------------- |\n"
+      "|            |           |          |         |                |\n\n"
+      "_Formato Elaborado por: Ing María Eugenia Gutiérrez - Jefe Corporativo de Proyectos de Software_\n\n"
+      "Cita las evidencias y fuentes utilizadas como [1], [2]."
+    ),
+    "user_template": (
+      "Solicitud de mejora: {query}\n\n"
+      "CONTEXTO ADICIONAL / CHAT / Q&A:\n{chat_context}\n\n"
+      "DOCUMENTACIÓN Y EVIDENCIA:\n{context}\n\n"
+      "RÚBRICA CORPORATIVA:\n{rubric}\n\n"
+      "Genera el Formato de Documentación de Mejoras siguiendo estrictamente la plantilla corporativa."
     ),
   },
 }
@@ -257,6 +299,16 @@ DEFAULT_RUBRICS: dict[str, dict[str, Any]] = {
       "Verdict tied to open blockers in Jira/GitHub/GitLab",
       "Separate ship blockers from follow-ups",
       "Cite evidence for each risk",
+    ],
+  },
+  "mejoras_doc": {
+    "version": 1,
+    "feature": "mejoras_doc",
+    "criteria": [
+      "Adherencia estricta a la plantilla corporativa 'FORMATO DOCUMENTACIÓN DE MEJORAS'",
+      "Basado exclusivamente en la información recolectada de usuarios funcionales y evidencias conectadas",
+      "Cuantificación y descripción clara del impacto para el negocio (tiempo, costos, reprocesos)",
+      "Detalle explícito del comportamiento deseado en el nuevo sistema y observaciones del equipo del proyecto",
     ],
   },
 }

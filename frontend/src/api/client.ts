@@ -347,4 +347,34 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<GroundedResult>(r)),
+
+  runMejoras: (payload: {
+    query: string
+    document_ids: string[]
+    chat_context?: string
+    sources?: string[]
+  }) =>
+    fetch(`${API_BASE}/api/features/mejoras`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<GroundedResult>(r)),
+
+  exportMejorasDocx: async (markdown: string, title?: string): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/api/features/export-docx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markdown, title: title || 'Documento de Mejora y Requerimientos Funcionales' }),
+    })
+    if (!res.ok) {
+      let detail = `Error al exportar (.docx)`
+      try {
+        const body = await res.json()
+        detail = body.detail ?? detail
+      } catch {}
+      throw new Error(detail)
+    }
+    return res.blob()
+  },
 }
+
