@@ -16,7 +16,17 @@ cp .env.example .env
 ```
 *(Opcional: Configura las claves del proveedor de IA o las credenciales de Jira en el archivo `.env`, o bien configúralas directamente desde la interfaz web en Configuración).*
 
-### 2. Ejecución con Scripts Raíz
+### 2. Ejecución como Aplicación de Escritorio Windows (Tauri)
+```bash
+# Modo Desarrollo Desktop (Inicia automáticamente el backend Python y la ventana nativa de Tauri)
+npm run dev:desktop
+
+# Compilar ejecutable / instalador para Windows (.msi / .exe)
+npm run build:desktop
+```
+> **Nota**: Para compilar localmente con Tauri se requiere el compilador de Rust ([rustup.rs](https://rustup.rs/)).
+
+### 3. Ejecución Web con Scripts Raíz
 ```bash
 # Terminal 1 - Backend (FastAPI en http://127.0.0.1:8000)
 npm run dev:backend
@@ -50,6 +60,7 @@ npm run dev
 
 | Capa | Tecnologías |
 |---|---|
+| **Escritorio (Desktop)** | Tauri v2 (Rust desktop wrapper con gestión automática del backend Python) |
 | **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS v4, Lucide React, React Router v7 |
 | **Backend** | Python, FastAPI, Uvicorn, Pydantic v2, HTTPX |
 | **IA y RAG** | Ejecutor de IA multiproveedor (Ollama, OpenAI, Anthropic), búsqueda RAG local con BM25, `pypdf`, `python-docx` |
