@@ -7,7 +7,7 @@ const SOURCE_OPTIONS = [
   { id: 'jira', label: 'Jira' },
   { id: 'github', label: 'GitHub' },
   { id: 'gitlab', label: 'GitLab' },
-  { id: 'knowledge', label: 'Product docs / PRDs' },
+  { id: 'knowledge', label: 'Documentos / PRDs' },
 ]
 
 const ACCEPT = '.pdf,.docx,.md,.txt,.json'
@@ -39,7 +39,7 @@ export const AskProductPage = () => {
 
   const handleUpload = async () => {
     if (!files.length) {
-      setError('Select one or more files first.')
+      setError('Selecciona uno o más archivos primero.')
       return
     }
     setUploading(true)
@@ -50,10 +50,10 @@ export const AskProductPage = () => {
       setFiles([])
       if (fileInputRef.current) fileInputRef.current.value = ''
       if (response.errors.length) {
-        setError(`Some files failed: ${response.errors.join('; ')}`)
+        setError(`Fallaron algunos archivos: ${response.errors.join('; ')}`)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      setError(err instanceof Error ? err.message : 'Falló la carga de archivos')
     } finally {
       setUploading(false)
     }
@@ -64,18 +64,18 @@ export const AskProductPage = () => {
       await api.deleteDocument(id)
       setUploaded((prev) => prev.filter((doc) => doc.id !== id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove file')
+      setError(err instanceof Error ? err.message : 'Falló al eliminar archivo')
     }
   }
 
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault()
     if (!selected.length) {
-      setError('Select at least one source.')
+      setError('Selecciona al menos una fuente.')
       return
     }
     if (!query.trim() && !documentIds.length) {
-      setError('Type a question and/or upload files.')
+      setError('Escribe una pregunta y/o carga archivos.')
       return
     }
     setBusy(true)
@@ -83,13 +83,13 @@ export const AskProductPage = () => {
     setResult(null)
     try {
       const data = await api.askProduct({
-        query: query.trim() || 'Answer using the uploaded documents and connected sources.',
+        query: query.trim() || 'Responder utilizando los documentos cargados y fuentes conectadas.',
         sources: selected,
         document_ids: documentIds,
       })
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ask failed')
+      setError(err instanceof Error ? err.message : 'Falló la consulta')
     } finally {
       setBusy(false)
     }
@@ -105,10 +105,10 @@ export const AskProductPage = () => {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">Knowledge</p>
-        <h1 className="page-title">Ask My Product</h1>
+        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">Conocimiento</p>
+        <h1 className="page-title">Consultar Producto</h1>
         <p className="page-subtitle max-w-3xl">
-          Upload multiple docs, toggle live sources, and ask questions — answers cite evidence or refuse clearly.
+          Sube documentos, selecciona fuentes en vivo y realiza preguntas. Las respuestas citan evidencias o indican claramente si falta información.
         </p>
       </header>
 
@@ -122,19 +122,19 @@ export const AskProductPage = () => {
         <section className="card space-y-4">
           <div className="flex items-center gap-2">
             <Paperclip className="h-4 w-4 text-violet-600" aria-hidden />
-            <h2 className="text-lg font-semibold">Upload files (optional)</h2>
+            <h2 className="text-lg font-semibold">Cargar archivos (opcional)</h2>
           </div>
           <label
             className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/40 px-4 py-6 transition-colors hover:border-violet-400 hover:bg-violet-50/70"
             tabIndex={0}
-            aria-label="Choose files to upload"
+            aria-label="Elegir archivos para cargar"
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click()
             }}
           >
             <Upload className="mb-2 h-7 w-7 text-violet-500" aria-hidden />
-            <span className="text-sm font-medium text-violet-700">Drop files or click to browse</span>
-            <span className="mt-1 text-xs text-[var(--color-ink-muted)]">Multiple files supported</span>
+            <span className="text-sm font-medium text-violet-700">Arrastra archivos o haz clic para explorar</span>
+            <span className="mt-1 text-xs text-[var(--color-ink-muted)]">Soporta múltiples archivos</span>
             <input
               ref={fileInputRef}
               type="file"
@@ -153,7 +153,7 @@ export const AskProductPage = () => {
                     <FileText className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
                     {file.name}
                   </span>
-                  <button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles((prev) => prev.filter((f) => f.name !== file.name))}>
+                  <button type="button" aria-label={`Quitar ${file.name}`} onClick={() => setFiles((prev) => prev.filter((f) => f.name !== file.name))}>
                     <X className="h-4 w-4" />
                   </button>
                 </li>
@@ -163,7 +163,7 @@ export const AskProductPage = () => {
 
           {files.length ? (
             <button type="button" onClick={() => void handleUpload()} disabled={uploading} className="btn-primary w-full disabled:opacity-50">
-              {uploading ? 'Uploading…' : `Upload ${files.length} file${files.length > 1 ? 's' : ''}`}
+              {uploading ? 'Cargando…' : `Cargar ${files.length} archivo${files.length > 1 ? 's' : ''}`}
             </button>
           ) : null}
 
@@ -172,7 +172,7 @@ export const AskProductPage = () => {
               {uploaded.map((doc) => (
                 <li key={doc.id} className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-sm">
                   <span className="truncate">{doc.filename}</span>
-                  <button type="button" aria-label={`Remove ${doc.filename}`} onClick={() => void handleRemoveUploaded(doc.id)}>
+                  <button type="button" aria-label={`Eliminar ${doc.filename}`} onClick={() => void handleRemoveUploaded(doc.id)}>
                     <Trash2 className="h-4 w-4 text-[var(--color-ink-muted)] hover:text-[var(--color-bad)]" />
                   </button>
                 </li>
@@ -183,7 +183,7 @@ export const AskProductPage = () => {
 
         <form onSubmit={(event) => void handleSubmit(event)} className="card space-y-4">
           <fieldset className="flex flex-wrap gap-3 text-sm">
-            <legend className="mb-2 w-full text-sm font-semibold">Sources for this question</legend>
+            <legend className="mb-2 w-full text-sm font-semibold">Fuentes para esta pregunta</legend>
             {SOURCE_OPTIONS.map((option) => (
               <label key={option.id} className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-1.5">
                 <input
@@ -206,13 +206,13 @@ export const AskProductPage = () => {
             onKeyDown={handleKeyDown}
             rows={5}
             className="input-field w-full resize-none rounded-xl border border-[var(--color-border)] bg-white px-3 py-2"
-            placeholder="Why can't a receptionist edit the primary doctor?"
-            aria-label="Product question"
+            placeholder="¿Cuáles son las reglas de negocio para el flujo de pago?"
+            aria-label="Pregunta sobre el producto"
           />
 
           <button type="submit" disabled={busy} className="btn-primary flex items-center gap-2 disabled:opacity-50">
             <Send className="h-4 w-4" aria-hidden />
-            {busy ? 'Searching…' : 'Ask'}
+            {busy ? 'Buscando…' : 'Consultar'}
           </button>
         </form>
       </div>

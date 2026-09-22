@@ -40,39 +40,39 @@ const buildPmGroup = (displayName: string): NavGroup => ({
   label: toolsGroupLabel(displayName),
   icon: Wrench,
   items: [
-    { to: '/pm', label: 'Overview', icon: Wrench, end: true },
-    { to: '/pm/standup', label: 'Standup', icon: Sun },
-    { to: '/pm/prd-checker', label: 'PRD Checker', icon: FileSearch },
-    { to: '/pm/change-impact', label: 'Change Impact', icon: GitCompareArrows },
+    { to: '/pm', label: 'Vista General', icon: Wrench, end: true },
+    { to: '/pm/standup', label: 'Standup Diario', icon: Sun },
+    { to: '/pm/prd-checker', label: 'Revisor de PRD', icon: FileSearch },
+    { to: '/pm/change-impact', label: 'Impacto de Cambios', icon: GitCompareArrows },
   ],
 })
 
 const QA_GROUP: NavGroup = {
-  label: 'QA Tools',
+  label: 'Herramientas QA',
   icon: FlaskConical,
   items: [
-    { to: '/qa', label: 'Overview', icon: FlaskConical, end: true },
-    { to: '/qa/regression', label: 'Regression', icon: TestTube2 },
-    { to: '/qa/api-qa', label: 'API QA', icon: ClipboardCheck },
-    { to: '/qa/visual-qa', label: 'Visual QA', icon: Eye },
-    { to: '/qa/smart-test-data', label: 'Smart Test Data', icon: Database },
-    { to: '/qa/release-readiness', label: 'Release Readiness', icon: Rocket },
+    { to: '/qa', label: 'Vista General', icon: FlaskConical, end: true },
+    { to: '/qa/regression', label: 'Regresión', icon: TestTube2 },
+    { to: '/qa/api-qa', label: 'QA de API', icon: ClipboardCheck },
+    { to: '/qa/visual-qa', label: 'QA Visual', icon: Eye },
+    { to: '/qa/smart-test-data', label: 'Datos de Prueba Inteligentes', icon: Database },
+    { to: '/qa/release-readiness', label: 'Estado de Lanzamiento', icon: Rocket },
   ],
 }
 
 const KNOWLEDGE_GROUP: NavGroup = {
-  label: 'Knowledge',
+  label: 'Conocimiento',
   icon: BookOpen,
   items: [
-    { to: '/knowledge', label: 'Library', icon: BookOpen, end: true },
-    { to: '/knowledge/ask', label: 'Ask Product', icon: CircleHelp },
+    { to: '/knowledge', label: 'Biblioteca', icon: BookOpen, end: true },
+    { to: '/knowledge/ask', label: 'Consultar Producto', icon: CircleHelp },
   ],
 }
 
 const STANDALONE_NAV: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/integrations', label: 'Integrations', icon: Plug },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/', label: 'Panel Principal', icon: LayoutDashboard, end: true },
+  { to: '/integrations', label: 'Integraciones', icon: Plug },
+  { to: '/settings', label: 'Configuración', icon: Settings },
 ]
 
 type TopNavProps = {

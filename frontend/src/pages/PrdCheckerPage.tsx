@@ -13,11 +13,11 @@ export const PrdCheckerPage = () => {
   return (
     <FeatureWorkspace
       eyebrow={toolsGroupLabel(displayName)}
-      title="PRD Checker"
-      description="Upload one or more PRDs or specs, then chat to steer the review. Scores clarity, gaps, and risks using your rubric — grounded in file content only."
+      title="Revisor de PRD"
+      description="Sube uno o más documentos de requerimientos (PRD) o especificaciones para evaluarlos. Analiza claridad, vacíos y riesgos basándose estrictamente en el contenido."
       uploadTags="prd,prd_checker"
-      placeholder="Score this PRD against our acceptance-criteria rubric. Focus on edge cases."
-      defaultQuery="Review the uploaded PRD documents against the rubric."
+      placeholder="Evalúa este PRD según la rúbrica de criterios de aceptación. Enfócate en casos límite."
+      defaultQuery="Revisar los documentos de PRD cargados con respecto a la rúbrica de evaluación."
       onRun={({ query, documentIds, chatContext }) =>
         api.runPrdChecker({ query, document_ids: documentIds, chat_context: chatContext })
       }

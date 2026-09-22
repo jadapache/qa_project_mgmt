@@ -28,9 +28,9 @@ type OutletContext = {
 
 const getGreeting = () => {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return '¡Buenos días!'
+  if (hour < 17) return '¡Buenas tardes!'
+  return '¡Buenas noches!'
 }
 
 export const DashboardPage = () => {
@@ -83,24 +83,24 @@ export const DashboardPage = () => {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
               <Sparkles className="h-3.5 w-3.5 text-amber-200" aria-hidden />
-              {displayName} / QA AI Command Center
+              {displayName} / QA Project MGMT
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
               {getGreeting()}, {displayName}
             </h1>
             <p className="mt-2 max-w-xl text-sm text-violet-100 md:text-base">
-              Grounded workflows pull live context from Jira, GitHub, and your docs — then answer with citations, not guesses.
+              Obtén contexto en tiempo real de Jira, GitHub y tus documentos para responder con referencias precisas sin alucinaciones.
             </p>
           </div>
 
           <div className="flex shrink-0 flex-col items-start gap-3 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md md:items-end">
             <div className="flex items-center gap-2 text-sm text-violet-100">
               <Bot className="h-4 w-4" aria-hidden />
-              System readiness
+              Estado del sistema
             </div>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-bold">{readiness}%</span>
-              <span className="mb-1 text-xs text-violet-200">ready</span>
+              <span className="mb-1 text-xs text-violet-200">listo</span>
             </div>
             <div className="h-2 w-full min-w-[180px] overflow-hidden rounded-full bg-white/20">
               <div
@@ -113,94 +113,94 @@ export const DashboardPage = () => {
       </section>
 
       {/* Stats */}
-      <section aria-label="System metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Métricas del sistema" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Backend"
-          value={backendOk === null ? '…' : backendOk ? 'Online' : 'Offline'}
+          value={backendOk === null ? '…' : backendOk ? 'En línea' : 'Desconectado'}
           icon={Activity}
           accent={backendOk ? 'emerald' : 'amber'}
-          trend={backendOk ? 'API responding' : 'Start the FastAPI server'}
+          trend={backendOk ? 'API respondiendo' : 'Inicia el servidor FastAPI'}
           loading={backendOk === null}
         />
         <StatCard
-          label="Integrations"
+          label="Integraciones"
           value={totalIntegrations ? `${connectedCount} / ${totalIntegrations}` : `${connectedCount}`}
           icon={Plug}
           accent="cyan"
-          trend={connectedCount === totalIntegrations && totalIntegrations > 0 ? 'All sources linked' : 'Connect Jira, GitHub & GitLab'}
+          trend={connectedCount === totalIntegrations && totalIntegrations > 0 ? 'Todas las fuentes vinculadas' : 'Conecta Jira, GitHub y GitLab'}
           to="/integrations"
         />
         <StatCard
-          label="AI Provider"
-          value={aiConfigured === null ? '…' : aiConfigured ? 'Configured' : 'Setup needed'}
+          label="Proveedor de IA"
+          value={aiConfigured === null ? '…' : aiConfigured ? 'Configurado' : 'Requiere config.'}
           icon={Brain}
           accent={aiConfigured ? 'purple' : 'amber'}
-          trend={aiConfigured ? 'Ready for grounded runs' : 'Add key in Settings'}
+          trend={aiConfigured ? 'Listo para ejecuciones' : 'Añade la clave en Configuración'}
           loading={aiConfigured === null}
           to="/settings"
         />
         <StatCard
-          label="Grounding"
+          label="Búsqueda RAG"
           value="BM25"
           icon={Zap}
           accent="purple"
-          trend="Live + document context"
+          trend="Contexto en vivo y documentos"
           to="/knowledge"
         />
       </section>
 
       {/* Quick actions */}
-      <section aria-label="Quick actions">
+      <section aria-label="Acciones rápidas">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--color-ink)]">Quick actions</h2>
-          <span className="text-xs text-[var(--color-ink-muted)]">One-click workflows</span>
+          <h2 className="text-lg font-semibold text-[var(--color-ink)]">Acciones rápidas</h2>
+          <span className="text-xs text-[var(--color-ink-muted)]">Flujos de trabajo en un clic</span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <QuickActionCard
             to="/pm/standup"
-            title="Generate Standup"
-            description="Yesterday, today, blocked — from Jira + GitHub only."
+            title="Generar Standup"
+            description="Ayer, hoy, bloqueos — obtenido automáticamente de Jira y GitHub."
             icon={Sun}
-            badge="Live"
+            badge="En vivo"
             gradient="from-violet-600 to-purple-600"
           />
           <QuickActionCard
             to="/pm/prd-checker"
-            title="PRD Checker"
-            description="Upload multiple PRDs, chat for focus, get a scored review."
+            title="Revisor de PRD"
+            description="Analiza especificaciones, revisa vacíos y evalúa criterios."
             icon={FileSearch}
-            badge="New"
+            badge="Nuevo"
             gradient="from-purple-600 to-fuchsia-600"
           />
           <QuickActionCard
             to="/pm/change-impact"
-            title="Change Impact"
-            description="Map tickets, PRs, and docs affected by a change."
+            title="Impacto de Cambios"
+            description="Mapea tickets, Pull Requests y documentos afectados por un cambio."
             icon={GitCompareArrows}
-            badge="New"
+            badge="Nuevo"
             gradient="from-indigo-600 to-violet-600"
           />
           <QuickActionCard
             to="/knowledge/ask"
-            title="Ask My Product"
-            description="Query connected sources with citations per answer."
+            title="Consultar Producto"
+            description="Realiza consultas a tus documentos con fuentes citadas."
             icon={MessageSquare}
-            badge="AI"
+            badge="IA"
             gradient="from-cyan-600 to-teal-600"
           />
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <QuickActionCard
             to="/knowledge"
-            title="Upload Knowledge"
-            description="Ingest PRDs, specs, and docs for retrieval."
+            title="Cargar Conocimiento"
+            description="Sube documentos, especificaciones y requerimientos para RAG."
             icon={LayoutGrid}
             gradient="from-teal-600 to-emerald-600"
           />
           <QuickActionCard
             to="/integrations"
-            title="Connect Sources"
-            description="Jira OAuth, GitHub PAT, GitLab PAT."
+            title="Conectar Fuentes"
+            description="Configura Jira OAuth, GitHub PAT y GitLab PAT."
             icon={GitBranch}
             gradient="from-fuchsia-600 to-pink-600"
           />
@@ -209,15 +209,15 @@ export const DashboardPage = () => {
 
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Integrations */}
-        <section aria-label="Integrations" className="space-y-4 xl:col-span-2">
-          <h2 className="text-lg font-semibold text-[var(--color-ink)]">Live connections</h2>
+        <section aria-label="Integraciones" className="space-y-4 xl:col-span-2">
+          <h2 className="text-lg font-semibold text-[var(--color-ink)]">Conexiones activas</h2>
           <IntegrationTile
             name="Jira"
             connected={jira?.status === 'connected'}
             detail={
               jira?.status === 'connected'
-                ? `${jira.workspace_label ?? 'Workspace'} · ${jira.account_label ?? ''}`
-                : 'OAuth or PAT — issues & sprints'
+                ? `${jira.workspace_label ?? 'Espacio'} · ${jira.account_label ?? ''}`
+                : 'OAuth o PAT — tickets y sprints'
             }
             icon={Kanban}
             iconBg="bg-blue-100 text-blue-600"
@@ -227,8 +227,8 @@ export const DashboardPage = () => {
             connected={github?.status === 'connected'}
             detail={
               github?.status === 'connected'
-                ? `Connected as ${github.account_label}`
-                : 'PAT + selected repositories'
+                ? `Conectado como ${github.account_label}`
+                : 'PAT + repositorios seleccionados'
             }
             icon={GitBranch}
             iconBg="bg-gray-900 text-white"
@@ -238,8 +238,8 @@ export const DashboardPage = () => {
             connected={gitlab?.status === 'connected'}
             detail={
               gitlab?.status === 'connected'
-                ? `Connected as ${gitlab.account_label}`
-                : 'PAT + selected projects'
+                ? `Conectado como ${gitlab.account_label}`
+                : 'PAT + proyectos seleccionados'
             }
             icon={GitBranch}
             iconBg="bg-orange-500 text-white"
@@ -254,17 +254,17 @@ export const DashboardPage = () => {
                 <Sparkles className="h-5 w-5" aria-hidden />
               </div>
               <div>
-                <h2 className="font-semibold text-[var(--color-ink)]">Grounding contract</h2>
-                <p className="text-xs text-[var(--color-ink-muted)]">Every AI feature follows the same rules</p>
+                <h2 className="font-semibold text-[var(--color-ink)]">Reglas de IA y Fundamentación</h2>
+                <p className="text-xs text-[var(--color-ink-muted)]">Cada respuesta sigue estrictos criterios de precisión</p>
               </div>
             </div>
 
             <ul className="mt-5 space-y-3">
               {[
-                { step: '1', text: 'Declare allowed sources per feature' },
-                { step: '2', text: 'Assemble context from live APIs + uploaded docs' },
-                { step: '3', text: 'Refuse when data is missing — no generic guesses' },
-                { step: '4', text: 'Show citations for every grounded answer' },
+                { step: '1', text: 'Declarar las fuentes permitidas por cada función' },
+                { step: '2', text: 'Consolidar el contexto de las APIs en vivo y documentos cargados' },
+                { step: '3', text: 'Responder únicamente con base en evidencia — sin suposiciones generadas' },
+                { step: '4', text: 'Incluir referencias y citas explícitas para cada respuesta' },
               ].map((item) => (
                 <li
                   key={item.step}
@@ -281,10 +281,10 @@ export const DashboardPage = () => {
             <div className="mt-6 flex flex-wrap gap-3 border-t border-[var(--color-border)] pt-5">
               <Link to="/pm/standup" className="btn-primary gap-2">
                 <Sun className="h-4 w-4" aria-hidden />
-                Try Standup
+                Probar Standup
               </Link>
               <Link to="/settings" className="btn-secondary gap-2">
-                Configure AI
+                Configurar IA
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>

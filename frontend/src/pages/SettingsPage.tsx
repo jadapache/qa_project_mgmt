@@ -36,7 +36,7 @@ export const SettingsPage = () => {
       const rubric = await api.getRubric('standup')
       setStandupRubric(((rubric.criteria as string[]) || []).join('\n'))
     }
-    void load().catch((err) => setError(err instanceof Error ? err.message : 'Failed to load settings'))
+    void load().catch((err) => setError(err instanceof Error ? err.message : 'Error al cargar la configuración'))
   }, [])
 
   const handleProfile = async (event: FormEvent) => {
@@ -44,7 +44,7 @@ export const SettingsPage = () => {
     setError(null)
     const updated = await api.updateSettings({ display_name: name.trim() || DEFAULT_DISPLAY_NAME })
     setDisplayName(updated.display_name ?? name)
-    setMessage('Profile saved.')
+    setMessage('Perfil guardado exitosamente.')
   }
 
   const handleAi = async (event: FormEvent) => {
@@ -61,7 +61,7 @@ export const SettingsPage = () => {
     setAi(updated)
     setOpenaiKey('')
     setClaudeKey('')
-    setMessage('AI provider saved locally.')
+    setMessage('Configuración de IA guardada localmente.')
   }
 
   const handleRubric = async (event: FormEvent) => {
@@ -72,16 +72,16 @@ export const SettingsPage = () => {
       .map((line) => line.trim())
       .filter(Boolean)
     await api.updateRubric('standup', criteria)
-    setMessage('Standup rubric updated (version bumped).')
+    setMessage('Rúbrica de Standup actualizada.')
   }
 
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">System</p>
-        <h1 className="font-[family-name:var(--font-display)] text-5xl">Settings</h1>
+        <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">Sistema</p>
+        <h1 className="font-[family-name:var(--font-display)] text-5xl">Configuración</h1>
         <p className="max-w-2xl text-[var(--color-ink-muted)]">
-          Preferences, AI provider, and editable rubrics — stored locally, not hardcoded forever.
+          Preferencias, proveedores de IA y rúbricas editables almacenados localmente.
         </p>
       </header>
 
@@ -89,12 +89,12 @@ export const SettingsPage = () => {
       {error ? <p className="text-sm text-[var(--color-bad)]" role="alert">{error}</p> : null}
 
       <form onSubmit={(event) => void handleProfile(event)} className="max-w-lg space-y-4 rounded-xl border border-[var(--color-line)] bg-white/60 p-6">
-        <h2 className="text-lg font-semibold">Profile</h2>
+        <h2 className="text-lg font-semibold">Perfil de Usuario</h2>
         <p className="text-sm text-[var(--color-ink-muted)]">
-          Used in greetings, navigation labels (e.g. {DEFAULT_DISPLAY_NAME} Tools), and your avatar.
+          Nombre visible en saludos y encabezados (ej. Herramientas {DEFAULT_DISPLAY_NAME}).
         </p>
         <label className="block text-sm">
-          <span className="mb-1 block text-[var(--color-ink-muted)]">Display name</span>
+          <span className="mb-1 block text-[var(--color-ink-muted)]">Nombre a mostrar</span>
           <input
             type="text"
             value={name}
@@ -103,32 +103,32 @@ export const SettingsPage = () => {
           />
         </label>
         <button type="submit" className="rounded-md bg-[var(--color-sea)] px-4 py-2 text-sm font-medium text-white">
-          Save profile
+          Guardar perfil
         </button>
       </form>
 
       <form onSubmit={(event) => void handleAi(event)} className="max-w-lg space-y-4 rounded-xl border border-[var(--color-line)] bg-white/60 p-6">
-        <h2 className="text-lg font-semibold">AI Provider</h2>
+        <h2 className="text-lg font-semibold">Proveedor de IA</h2>
         <p className="text-sm text-[var(--color-ink-muted)]">
-          Current: {ai?.provider || 'none'}
-          {ai?.openai_api_key_set ? ' · OpenAI key set' : ''}
-          {ai?.claude_api_key_set ? ' · Claude key set' : ''}
+          Actual: {ai?.provider || 'ninguno'}
+          {ai?.openai_api_key_set ? ' · Clave OpenAI configurada' : ''}
+          {ai?.claude_api_key_set ? ' · Clave Claude configurada' : ''}
         </p>
         <label className="block text-sm">
-          <span className="mb-1 block text-[var(--color-ink-muted)]">Provider</span>
+          <span className="mb-1 block text-[var(--color-ink-muted)]">Proveedor</span>
           <select
             value={provider}
             onChange={(event) => setProvider(event.target.value)}
             className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2"
           >
-            <option value="">Select…</option>
+            <option value="">Seleccionar…</option>
             <option value="openai">OpenAI</option>
-            <option value="claude">Claude</option>
+            <option value="claude">Claude (Anthropic)</option>
             <option value="ollama">Ollama (local)</option>
           </select>
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block text-[var(--color-ink-muted)]">Model</span>
+          <span className="mb-1 block text-[var(--color-ink-muted)]">Modelo</span>
           <input
             value={model}
             onChange={(event) => setModel(event.target.value)}
@@ -143,7 +143,7 @@ export const SettingsPage = () => {
             value={openaiKey}
             onChange={(event) => setOpenaiKey(event.target.value)}
             className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2"
-            placeholder={ai?.openai_api_key_set ? '•••• saved' : ''}
+            placeholder={ai?.openai_api_key_set ? '•••• guardada' : ''}
           />
         </label>
         <label className="block text-sm">
@@ -153,11 +153,11 @@ export const SettingsPage = () => {
             value={claudeKey}
             onChange={(event) => setClaudeKey(event.target.value)}
             className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2"
-            placeholder={ai?.claude_api_key_set ? '•••• saved' : ''}
+            placeholder={ai?.claude_api_key_set ? '•••• guardada' : ''}
           />
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block text-[var(--color-ink-muted)]">Ollama base URL</span>
+          <span className="mb-1 block text-[var(--color-ink-muted)]">URL base de Ollama</span>
           <input
             value={ollamaUrl}
             onChange={(event) => setOllamaUrl(event.target.value)}
@@ -165,13 +165,13 @@ export const SettingsPage = () => {
           />
         </label>
         <button type="submit" className="rounded-md bg-[var(--color-ink)] px-4 py-2 text-sm font-medium text-white">
-          Save AI settings
+          Guardar configuración de IA
         </button>
       </form>
 
       <form onSubmit={(event) => void handleRubric(event)} className="max-w-lg space-y-4 rounded-xl border border-[var(--color-line)] bg-white/60 p-6">
-        <h2 className="text-lg font-semibold">Standup rubric</h2>
-        <p className="text-sm text-[var(--color-ink-muted)]">One criterion per line. Editing bumps the version.</p>
+        <h2 className="text-lg font-semibold">Rúbrica de Standup</h2>
+        <p className="text-sm text-[var(--color-ink-muted)]">Un criterio por línea. Guardar incrementa la versión.</p>
         <textarea
           value={standupRubric}
           onChange={(event) => setStandupRubric(event.target.value)}
@@ -179,7 +179,7 @@ export const SettingsPage = () => {
           className="w-full rounded-md border border-[var(--color-line)] bg-white px-3 py-2 text-sm"
         />
         <button type="submit" className="rounded-md border border-[var(--color-ink)] px-4 py-2 text-sm font-medium">
-          Save rubric
+          Guardar rúbrica
         </button>
       </form>
     </div>
