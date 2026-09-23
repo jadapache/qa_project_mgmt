@@ -47,7 +47,6 @@ const buildPmGroup = (displayName: string): NavGroup => ({
   label: toolsGroupLabel(displayName),
   icon: Wrench,
   items: [
-    { to: '/pm', label: 'Vista General', icon: Wrench, end: true },
     { to: '/pm/standup', label: 'Standup Diario', icon: Sun },
     { to: '/pm/prd-checker', label: 'Revisor de PRD', icon: FileSearch },
     { to: '/pm/change-impact', label: 'Impacto de Cambios', icon: GitCompareArrows },
@@ -67,7 +66,6 @@ const QA_GROUP: NavGroup = {
   label: 'Herramientas QA',
   icon: FlaskConical,
   items: [
-    { to: '/qa', label: 'Vista General', icon: FlaskConical, end: true },
     { to: '/qa/regression', label: 'Regresión', icon: TestTube2 },
     { to: '/qa/api-qa', label: 'QA de API', icon: ClipboardCheck },
     { to: '/qa/visual-qa', label: 'QA Visual', icon: Eye },
