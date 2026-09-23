@@ -128,7 +128,7 @@ export const DashboardPage = () => {
           icon={Plug}
           accent="cyan"
           trend={connectedCount === totalIntegrations && totalIntegrations > 0 ? 'Todas las fuentes vinculadas' : 'Conecta Jira, GitHub y GitLab'}
-          to="/integrations"
+          to="/settings?tab=integrations"
         />
         <StatCard
           label="Proveedor de IA"
@@ -198,7 +198,7 @@ export const DashboardPage = () => {
             gradient="from-teal-600 to-emerald-600"
           />
           <QuickActionCard
-            to="/integrations"
+            to="/settings?tab=integrations"
             title="Conectar Fuentes"
             description="Configura Jira OAuth, GitHub PAT y GitLab PAT."
             icon={GitBranch}

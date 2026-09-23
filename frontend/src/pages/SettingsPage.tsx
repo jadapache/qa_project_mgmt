@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   Check,
@@ -9,7 +10,6 @@ import {
   Coins,
   Cpu,
   Download,
-  ExternalLink,
   Eye,
   EyeOff,
   FileText,
@@ -25,6 +25,13 @@ import {
   UserX,
 } from 'lucide-react'
 import { api, type AISettings, type AuthUser, type ModelCatalogItem } from '../api/client'
+import type { AuthMethod, IntegrationInfo } from '../types'
+import { GitHostingReposPanel } from '../components/GitHostingReposPanel'
+import { JiraIssuesPreview } from '../components/JiraIssuesPreview'
+import { JiraOAuthSetup } from '../components/JiraOAuthSetup'
+import { JiraProjectsPanel } from '../components/JiraProjectsPanel'
+import { OAuthSetup } from '../components/OAuthSetup'
+import { AiModelsSkeleton, IntegrationsSkeleton, UserApprovalsSkeleton } from '../components/common'
 
 type TabType = 'ai_models' | 'integrations' | 'user_approvals'
 
@@ -128,8 +135,24 @@ const CLOUD_PROVIDERS = [
 ]
 
 export const SettingsPage = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('ai_models')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (t === 'integrations' || t === 'user_approvals' || t === 'ai_models') {
+      return t
+    }
+    if (
+      window.location.search.includes('jira=') ||
+      window.location.search.includes('github=') ||
+      window.location.search.includes('gitlab=')
+    ) {
+      return 'integrations'
+    }
+    return 'ai_models'
+  })
+
   const [ai, setAi] = useState<AISettings | null>(null)
+  const [loadingAi, setLoadingAi] = useState(true)
 
   // Provider state: 'builtin' | 'ollama' | 'groq' | 'gemini' | 'openai' | 'claude'
   const [provider, setProvider] = useState<string>('builtin')
@@ -175,6 +198,122 @@ export const SettingsPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [savingAi, setSavingAi] = useState(false)
 
+  // Integrations state (Jira, GitHub, GitLab)
+  const [integrations, setIntegrations] = useState<IntegrationInfo[]>([])
+  const [loadingIntegrations, setLoadingIntegrations] = useState(true)
+  const [busyIntegrationId, setBusyIntegrationId] = useState<string | null>(null)
+  const [oauthKey, setOauthKey] = useState(0)
+
+  const loadIntegrations = useCallback(async () => {
+    setLoadingIntegrations(true)
+    try {
+      const items = await api.getIntegrations()
+      setIntegrations(items)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar las integraciones')
+    } finally {
+      setLoadingIntegrations(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadIntegrations()
+  }, [loadIntegrations])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'integrations' || tab === 'user_approvals' || tab === 'ai_models') {
+      setActiveTab(tab)
+    } else if (searchParams.get('jira') || searchParams.get('github') || searchParams.get('gitlab')) {
+      setActiveTab('integrations')
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    const handleCallback = (key: 'jira' | 'github' | 'gitlab', label: string) => {
+      const status = searchParams.get(key)
+      const rawMessage = searchParams.get('message')
+      if (status === 'connected') {
+        setMessage(`${label} conectado exitosamente. Datos en vivo sincronizados.`)
+        setSearchParams({ tab: 'integrations' }, { replace: true })
+        void loadIntegrations()
+      } else if (status === 'error') {
+        const decoded = rawMessage ? decodeURIComponent(rawMessage) : `Error en OAuth de ${label}.`
+        if (key === 'jira') {
+          setError(
+            `${decoded} Si Atlassian mostró "Something went wrong" al aceptar, verifica los permisos en la consola de desarrollador de Atlassian o conéctate con Personal Access Token.`,
+          )
+        } else {
+          setError(decoded)
+        }
+        setSearchParams({ tab: 'integrations' }, { replace: true })
+      }
+    }
+    handleCallback('jira', 'Jira')
+    handleCallback('github', 'GitHub')
+    handleCallback('gitlab', 'GitLab')
+  }, [searchParams, setSearchParams, loadIntegrations])
+
+  const handlePatConnected = async (id: string, label: string) => {
+    try {
+      await api.syncIntegration(id)
+      setMessage(`${label} conectado. Datos sincronizados.`)
+    } catch {
+      setMessage(`${label} conectado. Selecciona proyectos o repositorios para sincronizar.`)
+    }
+    await loadIntegrations()
+  }
+
+  const jira = useMemo(() => integrations.find((item) => item.id === 'jira'), [integrations])
+  const github = useMemo(() => integrations.find((item) => item.id === 'github'), [integrations])
+  const gitlab = useMemo(() => integrations.find((item) => item.id === 'gitlab'), [integrations])
+
+  const handleOAuthConnect = async (id: string) => {
+    setBusyIntegrationId(id)
+    setError(null)
+    setMessage(null)
+    try {
+      const result = await api.startOAuth(id)
+      window.location.href = result.authorization_url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar el flujo OAuth')
+      setBusyIntegrationId(null)
+    }
+  }
+
+  const handleDisconnect = async (id: string) => {
+    setBusyIntegrationId(id)
+    setError(null)
+    setMessage(null)
+    try {
+      await api.disconnectIntegration(id)
+      setMessage(`${id.toUpperCase()} desconectado. Credenciales locales eliminadas.`)
+      await loadIntegrations()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al desconectar integración')
+    } finally {
+      setBusyIntegrationId(null)
+    }
+  }
+
+  const handleTest = async (id: string) => {
+    setBusyIntegrationId(id)
+    setError(null)
+    setMessage(null)
+    try {
+      const result = await api.testIntegration(id)
+      if (result.ok) {
+        setMessage(result.message)
+      } else {
+        setError(result.message)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al verificar la conexión')
+    } finally {
+      setBusyIntegrationId(null)
+    }
+  }
+
   const loadAccessRequests = async () => {
     setLoadingRequests(true)
     try {
@@ -205,6 +344,7 @@ export const SettingsPage = () => {
 
   useEffect(() => {
     const load = async () => {
+      setLoadingAi(true)
       try {
         const settings = await api.getAiSettings()
         setAi(settings)
@@ -216,7 +356,11 @@ export const SettingsPage = () => {
         const unifiedModel = settings.transcription_model || settings.voice_command_model || 'whisper-large-v3'
         setVoiceAudioProvider(unifiedProvider)
         setVoiceAudioModel(unifiedModel)
-        if (settings.ollama_base_url && settings.ollama_base_url !== 'http://localhost:11434' && settings.ollama_base_url !== 'http://127.0.0.1:11434') {
+        if (
+          settings.ollama_base_url &&
+          settings.ollama_base_url !== 'http://localhost:11434' &&
+          settings.ollama_base_url !== 'http://127.0.0.1:11434'
+        ) {
           setOllamaUrl(settings.ollama_base_url)
         } else {
           setOllamaUrl('')
@@ -228,6 +372,8 @@ export const SettingsPage = () => {
         void fetchOllamaModels(settings.ollama_base_url || 'http://localhost:11434', false)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al cargar la configuración del sistema')
+      } finally {
+        setLoadingAi(false)
       }
     }
     void load()
@@ -385,6 +531,7 @@ export const SettingsPage = () => {
         label: 'Integraciones',
         subtitle: 'Jira Software, GitHub, GitLab',
         icon: Layers,
+        badgeCount: integrations.filter((i) => i.status === 'connected').length,
       },
       {
         id: 'user_approvals',
@@ -432,7 +579,10 @@ export const SettingsPage = () => {
             <button
               key={t.id}
               type="button"
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => {
+                setActiveTab(t.id)
+                setSearchParams({ tab: t.id }, { replace: true })
+              }}
               className={[
                 'flex flex-1 min-w-[200px] items-center gap-3 rounded-xl px-4 py-3 text-left transition-all duration-200 cursor-pointer',
                 isActive
@@ -466,7 +616,10 @@ export const SettingsPage = () => {
 
       {/* TAB 1: MODELOS DE IA (MEETILY DESIGN EN ESPAÑOL) */}
       {activeTab === 'ai_models' && (
-        <div className="space-y-6">
+        loadingAi ? (
+          <AiModelsSkeleton />
+        ) : (
+          <div className="space-y-6">
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-slate-900">Configuración del Modelo de IA</h2>
             <p className="text-sm text-slate-500">
@@ -1269,63 +1422,118 @@ export const SettingsPage = () => {
             )}
           </div>
         </div>
+        )
       )}
 
       {/* TAB 2: INTEGRACIONES (JIRA, GITHUB, GITLAB) */}
       {activeTab === 'integrations' && (
         <div className="space-y-6">
-          <div className="card space-y-6 border border-[var(--color-border)] p-6 md:p-8">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
-              <div>
-                <h2 className="text-xl font-bold text-[var(--color-ink)] flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-[#002777]" />
-                  Integraciones de Desarrollo & QA
-                </h2>
-                <p className="text-xs text-[var(--color-ink-muted)] mt-1">
-                  Conexión directa con Jira, GitHub y GitLab para sincronización de requerimientos y Pull Requests.
-                </p>
-              </div>
-              <a
-                href="/integrations"
-                className="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5"
-              >
-                <span>Administrar Integraciones</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
+            <div>
+              <h2 className="text-xl font-bold text-[var(--color-ink)] flex items-center gap-2">
+                <Layers className="h-5 w-5 text-[#002777]" />
+                Integraciones de Desarrollo & QA
+              </h2>
+              <p className="text-xs text-[var(--color-ink-muted)] mt-1">
+                Conecta tus cuentas independientemente (Jira Software, GitHub, GitLab) mediante OAuth 2.0 o Personal Access Token.
+              </p>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 p-5 bg-white space-y-2 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-900">Jira Software</h4>
-                  <span className="h-2 w-2 rounded-full bg-blue-500" />
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Sincronización de épicas, historias de usuario y tareas de testing con OAuth 2.0 y PAT.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-5 bg-white space-y-2 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-900">GitHub</h4>
-                  <span className="h-2 w-2 rounded-full bg-slate-900" />
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Inspección de Pull Requests, commits y validación de cobertura de código.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-5 bg-white space-y-2 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-900">GitLab</h4>
-                  <span className="h-2 w-2 rounded-full bg-orange-500" />
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Integración con repositorios GitLab y pipelines de integración continua.
-                </p>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => void loadIntegrations()}
+              disabled={loadingIntegrations}
+              className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingIntegrations ? 'animate-spin' : ''}`} />
+              <span>Actualizar Estado</span>
+            </button>
           </div>
+
+          {loadingIntegrations ? (
+            <IntegrationsSkeleton />
+          ) : (
+            <div className="space-y-6">
+              {jira ? (
+                <JiraOAuthSetup
+                  key={oauthKey}
+                  onSaved={() => {
+                    setOauthKey((k) => k + 1)
+                    void loadIntegrations()
+                    setMessage('Credenciales OAuth de Jira guardadas con éxito. Ya puedes conectarte con OAuth.')
+                  }}
+                />
+              ) : null}
+
+              {github && !github.oauth_configured ? (
+                <OAuthSetup
+                  key={`github-${oauthKey}`}
+                  provider="github"
+                  title="GitHub OAuth"
+                  docsUrl="https://github.com/settings/developers"
+                  docsLabel="github.com/settings/developers"
+                  defaultRedirect="http://127.0.0.1:8000/api/integrations/github/callback"
+                  onSaved={() => {
+                    setOauthKey((k) => k + 1)
+                    void loadIntegrations()
+                    setMessage('Credenciales OAuth de GitHub guardadas con éxito. Ya puedes conectarte con OAuth.')
+                  }}
+                />
+              ) : null}
+
+              {gitlab && !gitlab.oauth_configured ? (
+                <OAuthSetup
+                  key={`gitlab-${oauthKey}`}
+                  provider="gitlab"
+                  title="GitLab OAuth"
+                  docsUrl="https://gitlab.com/-/user_settings/applications"
+                  docsLabel="gitlab.com user applications"
+                  defaultRedirect="http://127.0.0.1:8000/api/integrations/gitlab/callback"
+                  showBaseUrl
+                  onSaved={() => {
+                    setOauthKey((k) => k + 1)
+                    void loadIntegrations()
+                    setMessage('Credenciales OAuth de GitLab guardadas con éxito. Ya puedes conectarte con OAuth.')
+                  }}
+                />
+              ) : null}
+
+              {jira ? (
+                <IntegrationCard
+                  integration={jira}
+                  busy={busyIntegrationId === 'jira'}
+                  onOAuth={() => void handleOAuthConnect('jira')}
+                  onDisconnect={() => void handleDisconnect('jira')}
+                  onTest={() => void handleTest('jira')}
+                  onPatConnected={() => handlePatConnected('jira', 'Jira')}
+                  onError={setError}
+                />
+              ) : null}
+
+              {github ? (
+                <IntegrationCard
+                  integration={github}
+                  busy={busyIntegrationId === 'github'}
+                  onOAuth={() => void handleOAuthConnect('github')}
+                  onDisconnect={() => void handleDisconnect('github')}
+                  onTest={() => void handleTest('github')}
+                  onPatConnected={() => handlePatConnected('github', 'GitHub')}
+                  onError={setError}
+                />
+              ) : null}
+
+              {gitlab ? (
+                <IntegrationCard
+                  integration={gitlab}
+                  busy={busyIntegrationId === 'gitlab'}
+                  onOAuth={() => void handleOAuthConnect('gitlab')}
+                  onDisconnect={() => void handleDisconnect('gitlab')}
+                  onTest={() => void handleTest('gitlab')}
+                  onPatConnected={() => handlePatConnected('gitlab', 'GitLab')}
+                  onError={setError}
+                />
+              ) : null}
+            </div>
+          )}
         </div>
       )}
 
@@ -1353,7 +1561,9 @@ export const SettingsPage = () => {
             </button>
           </div>
 
-          {pendingRequests.length === 0 ? (
+          {loadingRequests && pendingRequests.length === 0 ? (
+            <UserApprovalsSkeleton />
+          ) : pendingRequests.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center text-xs text-slate-500 space-y-2">
               <UserCheck className="h-8 w-8 mx-auto text-slate-400" />
               <p className="font-semibold text-slate-700 text-sm">No hay solicitudes pendientes</p>
@@ -1408,3 +1618,332 @@ export const SettingsPage = () => {
     </div>
   )
 }
+
+type IntegrationCardProps = {
+  integration: IntegrationInfo
+  busy: boolean
+  onOAuth: () => void
+  onDisconnect: () => void
+  onTest: () => void
+  onPatConnected: () => Promise<void>
+  onError: (message: string) => void
+}
+
+const IntegrationCard = ({
+  integration,
+  busy,
+  onOAuth,
+  onDisconnect,
+  onTest,
+  onPatConnected,
+  onError,
+}: IntegrationCardProps) => {
+  const connected = integration.status === 'connected'
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(integration.id === 'jira' ? 'pat' : 'oauth')
+  const [showConnectForm, setShowConnectForm] = useState(false)
+  const [token, setToken] = useState('')
+  const [email, setEmail] = useState('')
+  const [baseUrl, setBaseUrl] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handlePatSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    setSubmitting(true)
+    try {
+      await api.connectWithPat(integration.id, {
+        token,
+        email: email || undefined,
+        base_url: baseUrl || undefined,
+      })
+      setShowConnectForm(false)
+      setToken('')
+      await onPatConnected()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Error al conectar mediante PAT')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <article className="card border border-[var(--color-border)] p-6 space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">{integration.name}</h2>
+          <p className="mt-1 text-sm text-[var(--color-ink-muted)]">{integration.description}</p>
+        </div>
+        <StatusPill connected={connected} />
+      </div>
+
+      {connected ? (
+        <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-4 space-y-1.5 text-xs">
+          {integration.workspace_label ? (
+            <p>
+              <span className="font-semibold text-slate-500">Espacio de trabajo / Workspace: </span>
+              <span className="font-mono text-slate-800">{integration.workspace_label}</span>
+            </p>
+          ) : null}
+          {integration.account_label ? (
+            <p>
+              <span className="font-semibold text-slate-500">Cuenta vinculada: </span>
+              <span className="font-medium text-slate-800">{integration.account_label}</span>
+            </p>
+          ) : null}
+          {integration.details?.auth_method ? (
+            <p>
+              <span className="font-semibold text-slate-500">Método de autenticación: </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 uppercase">
+                {String(integration.details.auth_method)}
+              </span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        {connected ? (
+          <>
+            <button
+              type="button"
+              onClick={onTest}
+              disabled={busy}
+              className="btn-primary text-xs py-2 px-4 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              aria-label={`Probar conexión ${integration.name}`}
+            >
+              {busy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
+              <span>Probar conexión</span>
+            </button>
+            <button
+              type="button"
+              onClick={onDisconnect}
+              disabled={busy}
+              className="rounded-lg border border-[var(--color-bad)] px-4 py-2 text-xs font-semibold text-[var(--color-bad)] hover:bg-red-50 disabled:opacity-50 transition cursor-pointer"
+              aria-label={`Desconectar ${integration.name}`}
+            >
+              Desconectar
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowConnectForm(true)}
+              disabled={busy}
+              className="btn-secondary text-xs py-2 px-4 disabled:opacity-50 cursor-pointer"
+              aria-label={`Cambiar cuenta ${integration.name}`}
+            >
+              Cambiar cuenta
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowConnectForm(true)}
+            className="btn-primary text-xs py-2.5 px-5 cursor-pointer"
+            aria-label={`Conectar ${integration.name}`}
+          >
+            Conectar {integration.name}
+          </button>
+        )}
+      </div>
+
+      {connected && integration.id === 'jira' ? (
+        <div className="pt-2 border-t border-[var(--color-border)] space-y-4">
+          <JiraProjectsPanel
+            siteUrl={integration.workspace_label}
+            onSaved={() => void onPatConnected()}
+            onError={onError}
+          />
+          <JiraIssuesPreview onError={onError} />
+        </div>
+      ) : null}
+
+      {connected && integration.id === 'github' ? (
+        <div className="pt-2 border-t border-[var(--color-border)]">
+          <GitHostingReposPanel
+            integrationId="github"
+            heading="Repositorios de GitHub"
+            description="Solo los repositorios seleccionados están disponibles para las funciones del sistema. Nada se auto-selecciona."
+            onSaved={() => void onPatConnected()}
+            onError={onError}
+          />
+        </div>
+      ) : null}
+
+      {connected && integration.id === 'gitlab' ? (
+        <div className="pt-2 border-t border-[var(--color-border)]">
+          <GitHostingReposPanel
+            integrationId="gitlab"
+            heading="Proyectos de GitLab"
+            description="Solo los proyectos seleccionados están disponibles para las funciones del sistema. Nada se auto-selecciona."
+            onSaved={() => void onPatConnected()}
+            onError={onError}
+          />
+        </div>
+      ) : null}
+
+      {showConnectForm ? (
+        <div className="mt-6 border-t border-[var(--color-border)] pt-5 space-y-4">
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-bold text-slate-800">Método de Autenticación</legend>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`${integration.id}-auth`}
+                  checked={authMethod === 'oauth'}
+                  onChange={() => setAuthMethod('oauth')}
+                />
+                <span className="font-medium">OAuth 2.0</span>
+                {integration.id === 'jira' && !integration.oauth_configured ? (
+                  <span className="text-xs text-[var(--color-warn)]">(configura credenciales OAuth arriba primero)</span>
+                ) : null}
+                {(integration.id === 'github' || integration.id === 'gitlab') && !integration.oauth_configured ? (
+                  <span className="text-xs text-[var(--color-warn)]">(configura credenciales OAuth arriba primero)</span>
+                ) : null}
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`${integration.id}-auth`}
+                  checked={authMethod === 'pat'}
+                  onChange={() => setAuthMethod('pat')}
+                />
+                <span className="font-medium">Personal Access Token (PAT)</span>
+              </label>
+            </div>
+          </fieldset>
+
+          {authMethod === 'oauth' ? (
+            <div className="mt-4 space-y-3">
+              {integration.id === 'jira' ? (
+                <p className="text-xs text-[var(--color-ink-muted)]">
+                  Usa la misma cuenta Atlassian propietaria de tu app OAuth. Si la autorización falla, revisa la lista de verificación de permisos arriba o conéctate con Token de Acceso Personal.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={onOAuth}
+                  disabled={busy || !integration.oauth_configured}
+                  className="btn-primary text-xs py-2 px-4 disabled:opacity-50 cursor-pointer"
+                >
+                  Continuar con OAuth
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConnectForm(false)}
+                  className="btn-secondary text-xs py-2 px-4 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form className="mt-4 space-y-3" onSubmit={(event) => void handlePatSubmit(event)}>
+              {integration.id === 'jira' ? (
+                <>
+                  <p className="text-xs text-[var(--color-ink-muted)]">
+                    Recomendado para entornos de desarrollo. Crea tu token en{' '}
+                    <a
+                      href="https://id.atlassian.com/manage-profile/security/api-tokens"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#002777] font-semibold underline hover:text-[#004497]"
+                    >
+                      id.atlassian.com → Security → API tokens
+                    </a>
+                    .
+                  </p>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-xs font-semibold text-slate-700">Correo de Atlassian</span>
+                    <input
+                      required
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="input-field"
+                      placeholder="usuario@organizacion.com"
+                      aria-label="Correo de Atlassian"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-xs font-semibold text-slate-700">
+                      URL del Sitio Jira (ejemplo: https://mi-dominio.atlassian.net)
+                    </span>
+                    <input
+                      required
+                      type="url"
+                      value={baseUrl}
+                      onChange={(event) => setBaseUrl(event.target.value)}
+                      className="input-field"
+                      placeholder="https://empresa.atlassian.net"
+                      aria-label="URL del sitio Jira"
+                    />
+                  </label>
+                </>
+              ) : null}
+              {integration.id === 'gitlab' ? (
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs font-semibold text-slate-700">
+                    URL de GitLab (opcional — por defecto https://gitlab.com)
+                  </span>
+                  <input
+                    type="url"
+                    value={baseUrl}
+                    onChange={(event) => setBaseUrl(event.target.value)}
+                    placeholder="https://gitlab.com"
+                    className="input-field"
+                    aria-label="URL de GitLab"
+                  />
+                </label>
+              ) : null}
+              <label className="block text-sm">
+                <span className="mb-1 block text-xs font-semibold text-slate-700">Personal Access Token (PAT)</span>
+                <input
+                  required
+                  type="password"
+                  value={token}
+                  onChange={(event) => setToken(event.target.value)}
+                  className="input-field font-mono"
+                  placeholder="ghp_..., glpat-..., etc."
+                  aria-label={`Token de acceso personal de ${integration.name}`}
+                />
+              </label>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-primary text-xs py-2 px-4 disabled:opacity-50 cursor-pointer"
+                >
+                  {submitting ? 'Conectando…' : 'Guardar conexión'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConnectForm(false)}
+                  className="btn-secondary text-xs py-2 px-4 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
+    </article>
+  )
+}
+
+const StatusPill = ({ connected }: { connected: boolean }) => (
+  <span
+    className={[
+      'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold',
+      connected
+        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        : 'bg-slate-100 text-slate-600 border border-slate-200',
+    ].join(' ')}
+  >
+    <span
+      className={['h-2 w-2 rounded-full', connected ? 'bg-emerald-500 animate-pulse-soft' : 'bg-slate-400'].join(' ')}
+      aria-hidden
+    />
+    {connected ? 'Conectado' : 'No conectado'}
+  </span>
+)
