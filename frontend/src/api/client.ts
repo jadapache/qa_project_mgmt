@@ -345,6 +345,13 @@ export const api = {
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<AISettings>(r)),
 
+  testAiConnection: (payload: Record<string, string>) =>
+    fetch(`${API_BASE}/api/ai/test-connection`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<{ status: string; message: string; response?: string }>(r)),
+
   listOllamaModels: (baseUrl?: string) =>
     fetch(`${API_BASE}/api/ai/ollama/models${baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : ''}`).then(
       (r) => handleResponse<{ online: boolean; models: string[]; error?: string }>(r),

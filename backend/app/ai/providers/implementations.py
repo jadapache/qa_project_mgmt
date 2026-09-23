@@ -1,174 +1,117 @@
 from __future__ import annotations
 
-import httpx
+import litellm
+from typing import Any
 
 from app.ai.providers.base import AICompletion, AIMessage, AIProvider
 
+# Disable litellm telemetry and set quiet mode
+litellm.telemetry = False
+litellm.suppress_debug_info = True
 
-class OpenAIProvider(AIProvider):
-  id = "openai"
+
+class LiteLLMProvider(AIProvider):
+  id = "litellm"
+  name = "LiteLLM Unified Provider"
+
+  def __init__(
+    self,
+    provider_id: str,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    default_model: str = "gpt-4o-mini",
+  ) -> None:
+    self.id = provider_id
+    self.api_key = api_key
+    self.base_url = base_url
+    self.default_model = default_model
+
+  def _format_model_name(self, model: str) -> str:
+    m = model.strip()
+    # Normalize model prefixes for LiteLLM format
+    if self.id == "groq":
+      if m.startswith("groq/"):
+        return m
+      return f"groq/{m}"
+    if self.id in {"claude", "anthropic"}:
+      if m.startswith("anthropic/"):
+        return m
+      return f"anthropic/{m}"
+    if self.id in {"gemini", "google"}:
+      if m.startswith("gemini/"):
+        return m
+      if m.startswith("models/"):
+        return f"gemini/{m[7:]}"
+      return f"gemini/{m}"
+    if self.id in {"ollama", "builtin", "local"}:
+      if m.startswith("ollama/"):
+        return m
+      if m.startswith("ollama_chat/"):
+        return m
+      return f"ollama_chat/{m}"
+    if self.id == "openai":
+      if m.startswith("openai/"):
+        return m[7:]
+      return m
+    return m
+
+  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
+    chosen_raw = model or self.default_model
+    formatted_model = self._format_model_name(chosen_raw)
+
+    kwargs: dict[str, Any] = {
+      "model": formatted_model,
+      "messages": [message.model_dump() for message in messages],
+      "temperature": 0.2,
+    }
+    if self.api_key:
+      kwargs["api_key"] = self.api_key
+    if self.base_url:
+      kwargs["api_base"] = self.base_url
+
+    response = await litellm.acompletion(**kwargs)
+    raw_dict = response.model_dump() if hasattr(response, "model_dump") else dict(response)
+
+    text = ""
+    if hasattr(response, "choices") and response.choices:
+      choice = response.choices[0]
+      if hasattr(choice, "message") and hasattr(choice.message, "content"):
+        text = choice.message.content or ""
+
+    clean_model_name = chosen_raw.split("/")[-1] if "/" in chosen_raw else chosen_raw
+    return AICompletion(text=text, provider=self.id, model=clean_model_name, raw=raw_dict)
+
+
+class OpenAIProvider(LiteLLMProvider):
   name = "OpenAI"
 
   def __init__(self, api_key: str, default_model: str = "gpt-4o-mini") -> None:
-    self.api_key = api_key
-    self.default_model = default_model
-
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
-    chosen = model or self.default_model
-    async with httpx.AsyncClient(timeout=90.0) as client:
-      response = await client.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-          "Authorization": f"Bearer {self.api_key}",
-          "Content-Type": "application/json",
-        },
-        json={
-          "model": chosen,
-          "messages": [message.model_dump() for message in messages],
-          "temperature": 0.2,
-        },
-      )
-      response.raise_for_status()
-      body = response.json()
-    text = body["choices"][0]["message"]["content"]
-    return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
+    super().__init__("openai", api_key=api_key, default_model=default_model)
 
 
-class ClaudeProvider(AIProvider):
-  id = "claude"
+class ClaudeProvider(LiteLLMProvider):
   name = "Claude"
 
   def __init__(self, api_key: str, default_model: str = "claude-3-5-haiku-latest") -> None:
-    self.api_key = api_key
-    self.default_model = default_model
-
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
-    chosen = model or self.default_model
-    system = "\n".join(m.content for m in messages if m.role == "system")
-    chat = [m for m in messages if m.role != "system"]
-    async with httpx.AsyncClient(timeout=90.0) as client:
-      response = await client.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-          "x-api-key": self.api_key,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        json={
-          "model": chosen,
-          "max_tokens": 2000,
-          "system": system or "You are a grounded PM/QA assistant.",
-          "messages": [{"role": m.role, "content": m.content} for m in chat],
-        },
-      )
-      response.raise_for_status()
-      body = response.json()
-    text = "".join(part.get("text", "") for part in body.get("content", []) if part.get("type") == "text")
-    return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
+    super().__init__("claude", api_key=api_key, default_model=default_model)
 
 
-class OllamaProvider(AIProvider):
-  id = "ollama"
-  name = "Ollama (local)"
-
-  def __init__(self, base_url: str = "http://127.0.0.1:11434", default_model: str = "llama3.2") -> None:
-    self.base_url = base_url.rstrip("/")
-    self.default_model = default_model
-
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
-    chosen = model or self.default_model
-    async with httpx.AsyncClient(timeout=120.0) as client:
-      response = await client.post(
-        f"{self.base_url}/api/chat",
-        json={
-          "model": chosen,
-          "messages": [message.model_dump() for message in messages],
-          "stream": False,
-        },
-      )
-      response.raise_for_status()
-      body = response.json()
-    text = (body.get("message") or {}).get("content") or ""
-    return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
-
-
-class GroqProvider(AIProvider):
-  id = "groq"
+class GroqProvider(LiteLLMProvider):
   name = "Groq"
 
   def __init__(self, api_key: str, default_model: str = "llama-3.3-70b-versatile") -> None:
-    self.api_key = api_key
-    self.default_model = default_model
-
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
-    chosen = model or self.default_model
-    async with httpx.AsyncClient(timeout=90.0) as client:
-      response = await client.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={
-          "Authorization": f"Bearer {self.api_key}",
-          "Content-Type": "application/json",
-        },
-        json={
-          "model": chosen,
-          "messages": [message.model_dump() for message in messages],
-          "temperature": 0.2,
-        },
-      )
-      response.raise_for_status()
-      body = response.json()
-    text = body["choices"][0]["message"]["content"]
-    return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
+    super().__init__("groq", api_key=api_key, default_model=default_model)
 
 
-class GeminiProvider(AIProvider):
-  id = "gemini"
+class GeminiProvider(LiteLLMProvider):
   name = "Google Gemini"
 
   def __init__(self, api_key: str, default_model: str = "gemini-1.5-flash") -> None:
-    self.api_key = api_key
-    self.default_model = default_model
+    super().__init__("gemini", api_key=api_key, default_model=default_model)
 
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
-    chosen = model or self.default_model
-    if chosen.startswith("models/"):
-      chosen = chosen[7:]
-    elif "/" in chosen:
-      chosen = chosen.split("/")[-1]
 
-    system_parts = [m.content for m in messages if m.role == "system"]
-    chat = [m for m in messages if m.role != "system"]
+class OllamaProvider(LiteLLMProvider):
+  name = "Ollama (local)"
 
-    contents = []
-    for m in chat:
-      role = "user" if m.role == "user" else "model"
-      contents.append({"role": role, "parts": [{"text": m.content}]})
-
-    payload: dict[str, Any] = {
-      "contents": contents,
-      "generationConfig": {
-        "temperature": 0.2,
-      },
-    }
-    if system_parts:
-      payload["systemInstruction"] = {
-        "parts": [{"text": "\n".join(system_parts)}]
-      }
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{chosen}:generateContent?key={self.api_key}"
-    async with httpx.AsyncClient(timeout=90.0) as client:
-      response = await client.post(
-        url,
-        headers={"Content-Type": "application/json"},
-        json=payload,
-      )
-      response.raise_for_status()
-      body = response.json()
-
-    candidates = body.get("candidates", [])
-    if not candidates:
-      raise ValueError("No response generated by Google Gemini API.")
-    parts = candidates[0].get("content", {}).get("parts", [])
-    text = "".join(p.get("text", "") for p in parts)
-    return AICompletion(text=text, provider=self.id, model=chosen, raw=body)
-
+  def __init__(self, base_url: str = "http://127.0.0.1:11434", default_model: str = "llama3.2") -> None:
+    super().__init__("ollama", base_url=base_url, default_model=default_model)

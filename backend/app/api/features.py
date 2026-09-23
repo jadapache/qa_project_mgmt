@@ -113,6 +113,81 @@ async def update_ai_settings(body: AISettingsUpdate) -> dict[str, Any]:
 
 
 
+class AITestConnectionRequest(BaseModel):
+  provider: str
+  model: str
+  api_key: str | None = None
+  ollama_base_url: str | None = None
+
+
+@router.post("/ai/test-connection")
+async def test_ai_connection(body: AITestConnectionRequest) -> dict[str, Any]:
+  provider_name = body.provider.lower()
+  model_name = body.model.strip()
+  if not model_name:
+    raise HTTPException(status_code=400, detail="Debes especificar un modelo válido para la prueba.")
+
+  from app.ai.providers.implementations import (
+    ClaudeProvider,
+    GeminiProvider,
+    GroqProvider,
+    OllamaProvider,
+    OpenAIProvider,
+  )
+  from app.ai.providers.base import AIMessage
+
+  config = get_ai_settings()
+  test_messages = [AIMessage(role="user", content="Hola, responde únicamente con la palabra 'OK'.")]
+
+  try:
+    if provider_name == "openai":
+      key = body.api_key or config.get("openai_api_key") or ""
+      if not key:
+        raise ValueError("No se ha especificado la clave API de OpenAI.")
+      p = OpenAIProvider(key, default_model=model_name)
+      res = await p.complete(test_messages, model=model_name)
+
+    elif provider_name in {"claude", "anthropic"}:
+      key = body.api_key or config.get("claude_api_key") or ""
+      if not key:
+        raise ValueError("No se ha especificado la clave API de Anthropic Claude.")
+      p = ClaudeProvider(key, default_model=model_name)
+      res = await p.complete(test_messages, model=model_name)
+
+    elif provider_name == "groq":
+      key = body.api_key or config.get("groq_api_key") or ""
+      if not key:
+        raise ValueError("No se ha especificado la clave API de Groq.")
+      p = GroqProvider(key, default_model=model_name)
+      res = await p.complete(test_messages, model=model_name)
+
+    elif provider_name in {"gemini", "google"}:
+      key = body.api_key or config.get("gemini_api_key") or ""
+      if not key:
+        raise ValueError("No se ha especificado la clave API de Google Gemini.")
+      p = GeminiProvider(key, default_model=model_name)
+      res = await p.complete(test_messages, model=model_name)
+
+    elif provider_name in {"ollama", "builtin", "local"}:
+      target_url = body.ollama_base_url or config.get("ollama_base_url") or "http://127.0.0.1:11434"
+      p = OllamaProvider(base_url=target_url, default_model=model_name)
+      res = await p.complete(test_messages, model=model_name)
+
+    else:
+      raise ValueError(f"Proveedor '{body.provider}' no soportado.")
+
+    return {
+      "ok": True,
+      "message": f"Conexión exitosa con {body.provider} ({model_name}).",
+      "response": res.text,
+    }
+  except Exception as e:
+    return {
+      "ok": False,
+      "message": f"Error al probar conexión con {body.provider} ({model_name}): {e}",
+    }
+
+
 @router.get("/ai/ollama/models")
 async def list_ollama_models(base_url: str | None = None) -> dict[str, Any]:
   config = get_ai_settings()
