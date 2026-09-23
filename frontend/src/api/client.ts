@@ -114,6 +114,13 @@ export type ModelCatalogResponse = {
   error?: string
 }
 
+export type FeaturePayload = {
+  query: string
+  document_ids: string[]
+  chat_context?: string
+  sources?: string[]
+}
+
 export const api = {
   getIntegrations: () =>
     fetch(`${API_BASE}/api/integrations`).then((r) => handleResponse<IntegrationInfo[]>(r)),
@@ -389,39 +396,21 @@ export const api = {
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<GroundedResult>(r)),
 
-  runPrdChecker: (payload: {
-    query: string
-    document_ids: string[]
-    chat_context?: string
-    sources?: string[]
-  }) =>
+  runPrdChecker: (payload: FeaturePayload) =>
     fetch(`${API_BASE}/api/features/prd-checker`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<GroundedResult>(r)),
 
-  runChangeImpact: (payload: {
-    query: string
-    document_ids: string[]
-    chat_context?: string
-    sources?: string[]
-  }) =>
+  runChangeImpact: (payload: FeaturePayload) =>
     fetch(`${API_BASE}/api/features/change-impact`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<GroundedResult>(r)),
 
-  runQaFeature: (
-    featureKey: string,
-    payload: {
-      query: string
-      document_ids: string[]
-      chat_context?: string
-      sources?: string[]
-    },
-  ) =>
+  runQaFeature: (featureKey: string, payload: FeaturePayload) =>
     fetch(`${API_BASE}/api/features/qa/${featureKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
