@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { api } from '../../api/client'
 
 export const JiraIssuesPreview = ({ onError }: { onError: (message: string) => void }) => {
   const [issues, setIssues] = useState<Array<Record<string, unknown>>>([])

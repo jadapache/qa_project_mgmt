@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { api } from '../../api/client'
 
 type Repo = {
   full_name: string
@@ -49,9 +49,9 @@ export const GitHubReposPanel = ({ onSaved, onError }: GitHubReposPanelProps) =>
 
   return (
     <div className="mt-5 space-y-4 border-t border-[var(--color-line)] pt-5">
-      <h3 className="text-sm font-semibold">Repositories</h3>
+      <h3 className="text-sm font-semibold">Repositorios</h3>
       <p className="text-xs text-[var(--color-ink-muted)]">
-        Only selected repos are accessible to features. Nothing is auto-selected.
+        Solo los repositorios seleccionados son accesibles para las funcionalidades. Nada se selecciona automáticamente.
       </p>
       <div className="max-h-56 space-y-2 overflow-auto rounded-md border border-[var(--color-line)] bg-white p-3">
         {repos.map((repo) => (
@@ -78,12 +78,12 @@ export const GitHubReposPanel = ({ onSaved, onError }: GitHubReposPanelProps) =>
         onClick={() => void handleSave()}
         className="btn-primary disabled:opacity-50"
       >
-        Save repo selection
+        Guardar selección
       </button>
       {prs.length ? (
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-muted)]">
-            Live PRs (sample)
+            PRs en vivo (muestra)
           </h4>
           <ul className="mt-2 space-y-1 text-sm">
             {prs.map((pr) => (

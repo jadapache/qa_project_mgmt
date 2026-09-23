@@ -2,7 +2,7 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import { useRef, useState } from 'react'
 import { FileText, Paperclip, Send, Trash2, Upload, X } from 'lucide-react'
 import { api, type GroundedResult, type KnowledgeDocument } from '../api/client'
-import { GroundedResultView } from '../pages/StandupPage'
+import { GroundedResultView } from '../pages/pm/StandupPage'
 import { useToast } from '../context/ToastContext'
 
 type ChatMessage = {

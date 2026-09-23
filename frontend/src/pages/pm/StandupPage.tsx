@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type GroundedResult } from '../api/client'
-import { useToast } from '../context/ToastContext'
+import { api, type GroundedResult } from '../../api/client'
+import { useToast } from '../../context/ToastContext'
 
 export const StandupPage = () => {
   const { toast } = useToast()

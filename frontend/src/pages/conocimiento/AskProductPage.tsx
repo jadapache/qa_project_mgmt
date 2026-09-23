@@ -1,8 +1,8 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { FileText, Paperclip, Send, Trash2, Upload, X } from 'lucide-react'
-import { api, type GroundedResult, type KnowledgeDocument } from '../api/client'
-import { GroundedResultView } from './StandupPage'
-import { useToast } from '../context/ToastContext'
+import { api, type GroundedResult, type KnowledgeDocument } from '../../api/client'
+import { GroundedResultView } from '../pm/StandupPage'
+import { useToast } from '../../context/ToastContext'
 
 const SOURCE_OPTIONS = [
   { id: 'jira', label: 'Jira' },

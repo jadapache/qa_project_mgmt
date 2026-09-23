@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { api } from '../../api/client'
 
 type Repo = {
   full_name: string
@@ -74,10 +74,10 @@ export const GitHostingReposPanel = ({
       <p className="text-xs text-[var(--color-ink-muted)]">{description}</p>
 
       {loading ? (
-        <p className="text-sm text-[var(--color-ink-muted)]">Loading repositories…</p>
+        <p className="text-sm text-[var(--color-ink-muted)]">Cargando repositorios...</p>
       ) : repos.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
-          No repositories found. Check that your token or OAuth app has access to repos on this account.
+          No se encontraron repositorios. Comprueba que tu token o aplicación OAuth tenga acceso a los repositorios de esta cuenta.
         </p>
       ) : (
         <div className="max-h-56 space-y-2 overflow-auto rounded-md border border-[var(--color-border)] bg-white p-3">
@@ -107,7 +107,7 @@ export const GitHostingReposPanel = ({
         onClick={() => void handleSave()}
         className="btn-primary disabled:opacity-50"
       >
-        Save selection
+        Guardar selección
       </button>
 
       {prs.length ? (
