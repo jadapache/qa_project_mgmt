@@ -153,7 +153,7 @@ export const LoginPage = () => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="ej. danipacheco"
+                placeholder="ej. pepitoperez"
                 className="w-full rounded-xl border border-[var(--color-border)] bg-white py-2.5 pl-10 pr-3 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-[#002777] focus:outline-none focus:ring-2 focus:ring-[#002777]/20 transition-all shadow-sm"
               />
             </div>
@@ -174,7 +174,7 @@ export const LoginPage = () => {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="ej. Daniel Pacheco"
+                    placeholder="ej. Pepito Perez"
                     className="w-full rounded-xl border border-[var(--color-border)] bg-white py-2.5 pl-10 pr-3 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-[#002777] focus:outline-none focus:ring-2 focus:ring-[#002777]/20 transition-all shadow-sm"
                   />
                 </div>
@@ -192,7 +192,7 @@ export const LoginPage = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="usuario@dominio.com"
+                    placeholder="pepitoperez@fcv.com"
                     className="w-full rounded-xl border border-[var(--color-border)] bg-white py-2.5 pl-10 pr-3 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-[#002777] focus:outline-none focus:ring-2 focus:ring-[#002777]/20 transition-all shadow-sm"
                   />
                 </div>
