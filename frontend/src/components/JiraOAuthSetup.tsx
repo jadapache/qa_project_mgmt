@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useToast } from '../context/ToastContext'
 
 type ScopeGuideItem = {
   scope: string
@@ -14,6 +15,7 @@ type JiraOAuthSetupProps = {
 }
 
 export const JiraOAuthSetup = ({ onSaved }: JiraOAuthSetupProps) => {
+  const { toast } = useToast()
   const [status, setStatus] = useState<{
     configured: boolean
     client_id_set: boolean
@@ -49,9 +51,12 @@ export const JiraOAuthSetup = ({ onSaved }: JiraOAuthSetupProps) => {
       const updated = await api.getJiraOAuth()
       setStatus(updated)
       setClientSecret('')
+      toast.success('Configuración OAuth de Jira guardada con éxito.')
       onSaved()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save OAuth config')
+      const msg = err instanceof Error ? err.message : 'Error al guardar la configuración OAuth de Jira'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }

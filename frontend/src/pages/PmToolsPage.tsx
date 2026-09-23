@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type GroundedResult } from '../api/client'
 import { GroundedResultView } from './StandupPage'
+import { useToast } from '../context/ToastContext'
 
 export const PmToolsPage = () => {
+  const { toast } = useToast()
   const [result, setResult] = useState<GroundedResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -15,8 +17,15 @@ export const PmToolsPage = () => {
     try {
       const response = await api.generateStandup()
       setResult(response)
+      if (response.refused) {
+        toast.warning(response.reason || 'Fuentes incompletas para generar el standup.')
+      } else {
+        toast.success('Standup generado exitosamente.')
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la generación de Standup')
+      const msg = err instanceof Error ? err.message : 'Falló la generación de Standup'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }

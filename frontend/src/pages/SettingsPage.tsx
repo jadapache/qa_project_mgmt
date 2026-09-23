@@ -32,6 +32,7 @@ import { JiraOAuthSetup } from '../components/JiraOAuthSetup'
 import { JiraProjectsPanel } from '../components/JiraProjectsPanel'
 import { OAuthSetup } from '../components/OAuthSetup'
 import { AiModelsSkeleton, IntegrationsSkeleton, UserApprovalsSkeleton } from '../components/common'
+import { useToast } from '../context/ToastContext'
 
 type TabType = 'ai_models' | 'integrations' | 'user_approvals'
 
@@ -197,6 +198,22 @@ export const SettingsPage = () => {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savingAi, setSavingAi] = useState(false)
+  const { toast } = useToast()
+
+  const notifySuccess = useCallback((msg: string) => {
+    setMessage(msg)
+    toast.success(msg)
+  }, [toast])
+
+  const notifyError = useCallback((err: string) => {
+    setError(err)
+    toast.error(err)
+  }, [toast])
+
+  const notifyInfo = useCallback((msg: string) => {
+    setMessage(msg)
+    toast.info(msg)
+  }, [toast])
 
   // Integrations state (Jira, GitHub, GitLab)
   const [integrations, setIntegrations] = useState<IntegrationInfo[]>([])
@@ -210,11 +227,12 @@ export const SettingsPage = () => {
       const items = await api.getIntegrations()
       setIntegrations(items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar las integraciones')
+      const errMsg = err instanceof Error ? err.message : 'Error al cargar las integraciones'
+      notifyError(errMsg)
     } finally {
       setLoadingIntegrations(false)
     }
-  }, [])
+  }, [notifyError])
 
   useEffect(() => {
     void loadIntegrations()
@@ -234,32 +252,30 @@ export const SettingsPage = () => {
       const status = searchParams.get(key)
       const rawMessage = searchParams.get('message')
       if (status === 'connected') {
-        setMessage(`${label} conectado exitosamente. Datos en vivo sincronizados.`)
+        notifySuccess(`${label} conectado exitosamente. Datos en vivo sincronizados.`)
         setSearchParams({ tab: 'integrations' }, { replace: true })
         void loadIntegrations()
       } else if (status === 'error') {
         const decoded = rawMessage ? decodeURIComponent(rawMessage) : `Error en OAuth de ${label}.`
-        if (key === 'jira') {
-          setError(
-            `${decoded} Si Atlassian mostró "Something went wrong" al aceptar, verifica los permisos en la consola de desarrollador de Atlassian o conéctate con Personal Access Token.`,
-          )
-        } else {
-          setError(decoded)
-        }
+        const err =
+          key === 'jira'
+            ? `${decoded} Si Atlassian mostró "Something went wrong" al aceptar, verifica los permisos en la consola de desarrollador de Atlassian o conéctate con Personal Access Token.`
+            : decoded
+        notifyError(err)
         setSearchParams({ tab: 'integrations' }, { replace: true })
       }
     }
     handleCallback('jira', 'Jira')
     handleCallback('github', 'GitHub')
     handleCallback('gitlab', 'GitLab')
-  }, [searchParams, setSearchParams, loadIntegrations])
+  }, [searchParams, setSearchParams, loadIntegrations, notifySuccess, notifyError])
 
   const handlePatConnected = async (id: string, label: string) => {
     try {
       await api.syncIntegration(id)
-      setMessage(`${label} conectado. Datos sincronizados.`)
+      notifySuccess(`${label} conectado. Datos sincronizados.`)
     } catch {
-      setMessage(`${label} conectado. Selecciona proyectos o repositorios para sincronizar.`)
+      notifySuccess(`${label} conectado. Selecciona proyectos o repositorios para sincronizar.`)
     }
     await loadIntegrations()
   }
@@ -276,7 +292,7 @@ export const SettingsPage = () => {
       const result = await api.startOAuth(id)
       window.location.href = result.authorization_url
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo iniciar el flujo OAuth')
+      notifyError(err instanceof Error ? err.message : 'No se pudo iniciar el flujo OAuth')
       setBusyIntegrationId(null)
     }
   }
@@ -287,10 +303,10 @@ export const SettingsPage = () => {
     setMessage(null)
     try {
       await api.disconnectIntegration(id)
-      setMessage(`${id.toUpperCase()} desconectado. Credenciales locales eliminadas.`)
+      notifyInfo(`${id.toUpperCase()} desconectado. Credenciales locales eliminadas.`)
       await loadIntegrations()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al desconectar integración')
+      notifyError(err instanceof Error ? err.message : 'Error al desconectar integración')
     } finally {
       setBusyIntegrationId(null)
     }
@@ -303,12 +319,12 @@ export const SettingsPage = () => {
     try {
       const result = await api.testIntegration(id)
       if (result.ok) {
-        setMessage(result.message)
+        notifySuccess(result.message)
       } else {
-        setError(result.message)
+        notifyError(result.message)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al verificar la conexión')
+      notifyError(err instanceof Error ? err.message : 'Error al verificar la conexión')
     } finally {
       setBusyIntegrationId(null)
     }
@@ -382,20 +398,20 @@ export const SettingsPage = () => {
   const handleApproveRequest = async (userId: string, uname: string) => {
     try {
       await api.approveAccessRequest(userId)
-      setMessage(`Acceso aprobado con éxito para el usuario '${uname}'.`)
+      notifySuccess(`Acceso aprobado con éxito para el usuario '${uname}'.`)
       void loadAccessRequests()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar la solicitud de acceso')
+      notifyError(err instanceof Error ? err.message : 'Error al aprobar la solicitud de acceso')
     }
   }
 
   const handleRejectRequest = async (userId: string, uname: string) => {
     try {
       await api.rejectAccessRequest(userId)
-      setMessage(`Solicitud rechazada para el usuario '${uname}'.`)
+      notifyInfo(`Solicitud rechazada para el usuario '${uname}'.`)
       void loadAccessRequests()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar la solicitud de acceso')
+      notifyError(err instanceof Error ? err.message : 'Error al rechazar la solicitud de acceso')
     }
   }
 
@@ -412,18 +428,18 @@ export const SettingsPage = () => {
       setOllamaModels(res.models || [])
       if (!res.online) {
         if (isUserAction) {
-          setError(`No se pudo conectar con el servidor Ollama en "${target}". Asegúrate de que Ollama esté ejecutándose en tu equipo o verifica la dirección del endpoint.`)
+          notifyError(`No se pudo conectar con el servidor Ollama en "${target}". Asegúrate de que Ollama esté ejecutándose en tu equipo o verifica la dirección del endpoint.`)
         }
       } else {
         if (isUserAction) {
-          setMessage(`Conexión exitosa: Se encontraron ${res.models?.length || 0} modelo(s) en tu servidor Ollama.`)
+          notifySuccess(`Conexión exitosa: Se encontraron ${res.models?.length || 0} modelo(s) en tu servidor Ollama.`)
         }
       }
     } catch (err) {
       setOllamaOnline(false)
       setOllamaModels([])
       if (isUserAction) {
-        setError(`Error al consultar modelos en Ollama (${target}): ${err instanceof Error ? err.message : 'No se pudo conectar con el servidor'}`)
+        notifyError(`Error al consultar modelos en Ollama (${target}): ${err instanceof Error ? err.message : 'No se pudo conectar con el servidor'}`)
       }
     } finally {
       setFetchingModels(false)
@@ -440,11 +456,14 @@ export const SettingsPage = () => {
 
     try {
       await api.pullOllamaModel(targetModelTag, effectiveTargetUrl)
-      setPullStatusMsg(`¡Modelo "${targetModelTag}" descargado con éxito!`)
+      const successMsg = `¡Modelo "${targetModelTag}" descargado con éxito!`
+      setPullStatusMsg(successMsg)
+      notifySuccess(successMsg)
       setModel(targetModelTag)
       void fetchOllamaModels(effectiveTargetUrl, false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Error al descargar el modelo ${targetModelTag}`)
+      const errMsg = err instanceof Error ? err.message : `Error al descargar el modelo ${targetModelTag}`
+      notifyError(errMsg)
       setPullStatusMsg(null)
     } finally {
       setIsPulling(false)
@@ -480,9 +499,9 @@ export const SettingsPage = () => {
       setGeminiKey('')
       setOpenaiKey('')
       setClaudeKey('')
-      setMessage('Configuración del modelo de redacción y chat guardada exitosamente.')
+      notifySuccess('Configuración del modelo de redacción y chat guardada exitosamente.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar la configuración de IA')
+      notifyError(err instanceof Error ? err.message : 'Error al guardar la configuración de IA')
     } finally {
       setSavingAi(false)
     }
@@ -501,9 +520,9 @@ export const SettingsPage = () => {
         voice_command_model: voiceAudioModel.trim(),
       })
       setAi(updated)
-      setMessage('Configuración del modelo de transcripción y comandos de voz guardada exitosamente.')
+      notifySuccess('Configuración del modelo de transcripción y comandos de voz guardada exitosamente.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar el modelo de voz y transcripción')
+      notifyError(err instanceof Error ? err.message : 'Error al guardar el modelo de voz y transcripción')
     } finally {
       setSavingAi(false)
     }

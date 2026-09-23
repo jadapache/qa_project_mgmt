@@ -13,9 +13,11 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 export const LoginPage = () => {
   const { login, register, isAuthenticated, error, clearError, isLoading } = useAuth()
+  const { toast } = useToast()
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -40,23 +42,28 @@ export const LoginPage = () => {
     clearError()
 
     if (!username.trim() || !password.trim()) {
-      setLocalError('Por favor completa los campos obligatorios.')
+      const msg = 'Por favor completa los campos obligatorios.'
+      setLocalError(msg)
+      toast.warning(msg)
       return
     }
 
     try {
       if (mode === 'login') {
         await login(username.trim(), password)
+        toast.success(`Bienvenido de nuevo, ${username.trim()}!`)
         navigate('/', { replace: true })
       } else {
         const res = await register(username.trim(), password, email.trim(), fullName.trim())
         if (res.token) {
+          toast.success('Cuenta creada y autenticada con éxito.')
           navigate('/', { replace: true })
         } else {
-          setSuccessMsg(
+          const msg =
             res.message ||
-              'Solicitud de acceso enviada correctamente. El administrador debe aprobar tu cuenta para que puedas ingresar.',
-          )
+            'Solicitud de acceso enviada correctamente. El administrador debe aprobar tu cuenta para que puedas ingresar.'
+          setSuccessMsg(msg)
+          toast.info(msg)
           setUsername('')
           setPassword('')
           setEmail('')
@@ -67,6 +74,7 @@ export const LoginPage = () => {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al procesar la solicitud'
       setLocalError(msg)
+      toast.error(msg)
     }
   }
 

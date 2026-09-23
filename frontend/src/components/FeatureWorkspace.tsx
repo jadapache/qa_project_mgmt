@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { FileText, Paperclip, Send, Trash2, Upload, X } from 'lucide-react'
 import { api, type GroundedResult, type KnowledgeDocument } from '../api/client'
 import { GroundedResultView } from '../pages/StandupPage'
+import { useToast } from '../context/ToastContext'
 
 type ChatMessage = {
   id: string
@@ -47,6 +48,7 @@ export const FeatureWorkspace = ({
   defaultSources = [],
   onRun,
 }: FeatureWorkspaceProps) => {
+  const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
@@ -81,14 +83,19 @@ export const FeatureWorkspace = ({
     try {
       await api.deleteDocument(id)
       setUploaded((prev) => prev.filter((doc) => doc.id !== id))
+      toast.info('Archivo eliminado correctamente.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló al eliminar el archivo')
+      const msg = err instanceof Error ? err.message : 'Falló al eliminar el archivo'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
   const handleUpload = async () => {
     if (!files.length) {
-      setError('Selecciona uno o más archivos para cargar.')
+      const msg = 'Selecciona uno o más archivos para cargar.'
+      setError(msg)
+      toast.warning(msg)
       return
     }
     setUploading(true)
@@ -98,11 +105,18 @@ export const FeatureWorkspace = ({
       setUploaded((prev) => [...prev, ...response.documents])
       setFiles([])
       if (fileInputRef.current) fileInputRef.current.value = ''
+      if (response.documents.length) {
+        toast.success(`${response.documents.length} archivo(s) procesado(s) exitosamente.`)
+      }
       if (response.errors.length) {
-        setError(`Fallaron algunos archivos: ${response.errors.join('; ')}`)
+        const msg = `Fallaron algunos archivos: ${response.errors.join('; ')}`
+        setError(msg)
+        toast.error(msg)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la carga')
+      const msg = err instanceof Error ? err.message : 'Falló la carga'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setUploading(false)
     }
@@ -118,7 +132,9 @@ export const FeatureWorkspace = ({
     event?.preventDefault()
     const text = draft.trim()
     if (!text && !documentIds.length) {
-      setError('Sube archivos y/o escribe instrucciones en el chat.')
+      const msg = 'Sube archivos y/o escribe instrucciones en el chat.'
+      setError(msg)
+      toast.warning(msg)
       return
     }
 
@@ -149,7 +165,9 @@ export const FeatureWorkspace = ({
         ])
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló el análisis')
+      const msg = err instanceof Error ? err.message : 'Falló el análisis'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }

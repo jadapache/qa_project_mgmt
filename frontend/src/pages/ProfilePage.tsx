@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 type OutletContext = {
   displayName: string
@@ -24,6 +25,7 @@ type OutletContext = {
 export const ProfilePage = () => {
   const { displayName, setDisplayName } = useOutletContext<OutletContext>()
   const { user, updateUser } = useAuth()
+  const { toast } = useToast()
 
   // Form Fields
   const [fullName, setFullName] = useState(user?.full_name || displayName)
@@ -125,6 +127,7 @@ export const ProfilePage = () => {
     setMessage(null)
 
     if (!validateForm()) {
+      toast.warning('Por favor corrige los campos marcados en rojo.')
       return
     }
 
@@ -156,9 +159,13 @@ export const ProfilePage = () => {
       setPassword('')
       setConfirmPassword('')
       setFormErrors({})
-      setMessage('Datos del perfil y credenciales actualizados exitosamente.')
+      const successMsg = 'Datos del perfil y credenciales actualizados exitosamente.'
+      setMessage(successMsg)
+      toast.success(successMsg)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar el perfil de usuario')
+      const errMsg = err instanceof Error ? err.message : 'Error al actualizar el perfil de usuario'
+      setError(errMsg)
+      toast.error(errMsg)
     } finally {
       setSavingProfile(false)
     }
@@ -175,9 +182,13 @@ export const ProfilePage = () => {
         .map((line) => line.trim())
         .filter(Boolean)
       await api.updateRubric('standup', criteria)
-      setMessage('Rúbrica de evaluación Standup actualizada exitosamente.')
+      const successMsg = 'Rúbrica de evaluación Standup actualizada exitosamente.'
+      setMessage(successMsg)
+      toast.success(successMsg)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar la rúbrica')
+      const errMsg = err instanceof Error ? err.message : 'Error al actualizar la rúbrica'
+      setError(errMsg)
+      toast.error(errMsg)
     } finally {
       setSavingRubric(false)
     }

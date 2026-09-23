@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type GroundedResult } from '../api/client'
+import { useToast } from '../context/ToastContext'
 
 export const StandupPage = () => {
+  const { toast } = useToast()
   const [result, setResult] = useState<GroundedResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -13,8 +15,15 @@ export const StandupPage = () => {
     try {
       const data = await api.generateStandup()
       setResult(data)
+      if (data.refused) {
+        toast.warning(data.reason || 'Fuentes incompletas para generar el standup.')
+      } else {
+        toast.success('Standup generado exitosamente.')
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la generación de Standup')
+      const msg = err instanceof Error ? err.message : 'Falló la generación de Standup'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }

@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useToast } from '../context/ToastContext'
 
 type OAuthStatus = {
   configured: boolean
@@ -31,6 +32,7 @@ export const OAuthSetup = ({
   defaultBaseUrl = 'https://gitlab.com',
   onSaved,
 }: OAuthSetupProps) => {
+  const { toast } = useToast()
   const [status, setStatus] = useState<OAuthStatus | null>(null)
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
@@ -74,9 +76,12 @@ export const OAuthSetup = ({
       }
       await load()
       setClientSecret('')
+      toast.success(`Configuración OAuth de ${provider === 'github' ? 'GitHub' : 'GitLab'} guardada.`)
       onSaved()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save OAuth config')
+      const msg = err instanceof Error ? err.message : `Error al guardar configuración OAuth de ${provider}`
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }
