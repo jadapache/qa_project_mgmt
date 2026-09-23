@@ -8,6 +8,7 @@ import { IntegrationsPage } from './pages/IntegrationsPage'
 import { KnowledgePage } from './pages/KnowledgePage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ChangeImpactPage } from './pages/ChangeImpactPage'
 import { PrdCheckerPage } from './pages/PrdCheckerPage'
@@ -89,6 +90,7 @@ export const App = () => {
               <Route path="knowledge" element={<KnowledgePage />} />
               <Route path="knowledge/ask" element={<AskProductPage />} />
               <Route path="integrations" element={<IntegrationsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

@@ -1,6 +1,5 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
 import {
   AlertCircle,
   Check,
@@ -22,19 +21,12 @@ import {
   RotateCw,
   ShieldCheck,
   Sparkles,
-  User,
   UserCheck,
   UserX,
 } from 'lucide-react'
 import { api, type AISettings, type AuthUser, type ModelCatalogItem } from '../api/client'
-import { DEFAULT_DISPLAY_NAME } from '../constants/app'
 
-type OutletContext = {
-  displayName: string
-  setDisplayName: (name: string) => void
-}
-
-type TabType = 'ai_models' | 'integrations' | 'user_approvals' | 'profile_rubrics'
+type TabType = 'ai_models' | 'integrations' | 'user_approvals'
 
 type BuiltInModel = {
   id: string
@@ -136,10 +128,7 @@ const CLOUD_PROVIDERS = [
 ]
 
 export const SettingsPage = () => {
-  const { displayName, setDisplayName } = useOutletContext<OutletContext>()
   const [activeTab, setActiveTab] = useState<TabType>('ai_models')
-
-  const [name, setName] = useState(displayName)
   const [ai, setAi] = useState<AISettings | null>(null)
 
   // Provider state: 'builtin' | 'ollama' | 'groq' | 'gemini' | 'openai' | 'claude'
@@ -182,14 +171,9 @@ export const SettingsPage = () => {
   const [loadingRequests, setLoadingRequests] = useState(false)
 
   // Feedback messages
-  const [standupRubric, setStandupRubric] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savingAi, setSavingAi] = useState(false)
-
-  useEffect(() => {
-    setName(displayName)
-  }, [displayName])
 
   const loadAccessRequests = async () => {
     setLoadingRequests(true)
@@ -237,9 +221,6 @@ export const SettingsPage = () => {
         } else {
           setOllamaUrl('')
         }
-
-        const rubric = await api.getRubric('standup')
-        setStandupRubric(((rubric.criteria as string[]) || []).join('\n'))
 
         void loadAccessRequests()
 
@@ -325,19 +306,6 @@ export const SettingsPage = () => {
     }
   }
 
-  const handleProfile = async (event: FormEvent) => {
-    event.preventDefault()
-    setError(null)
-    setMessage(null)
-    try {
-      const updated = await api.updateSettings({ display_name: name.trim() || DEFAULT_DISPLAY_NAME })
-      setDisplayName(updated.display_name ?? name)
-      setMessage('Perfil guardado exitosamente.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar el perfil')
-    }
-  }
-
   const handleAiSave = async (event?: FormEvent) => {
     if (event) event.preventDefault()
     setError(null)
@@ -395,22 +363,6 @@ export const SettingsPage = () => {
     }
   }
 
-  const handleRubric = async (event: FormEvent) => {
-    event.preventDefault()
-    setError(null)
-    setMessage(null)
-    try {
-      const criteria = standupRubric
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-      await api.updateRubric('standup', criteria)
-      setMessage('Rúbrica de evaluación Standup actualizada.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar la rúbrica')
-    }
-  }
-
   const isModelDownloaded = (modelTag: string) => {
     return ollamaModels.some((m) => m === modelTag || m.startsWith(`${modelTag}:`))
   }
@@ -440,12 +392,6 @@ export const SettingsPage = () => {
         subtitle: 'Solicitudes de acceso pendientes',
         icon: ShieldCheck,
         badgeCount: pendingRequests.length,
-      },
-      {
-        id: 'profile_rubrics',
-        label: 'Perfil & Preferencias',
-        subtitle: 'Usuario y rúbricas de evaluación',
-        icon: User,
       },
     ]
 
@@ -1457,52 +1403,6 @@ export const SettingsPage = () => {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* TAB 4: PERFIL & RÚBRICAS */}
-      {activeTab === 'profile_rubrics' && (
-        <div className="space-y-6">
-          <form onSubmit={(event) => void handleProfile(event)} className="card space-y-4 border border-[var(--color-border)] p-6">
-            <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-3">
-              <User className="h-5 w-5 text-[#002777]" />
-              <h2 className="text-lg font-bold text-[var(--color-ink)]">Perfil de Usuario</h2>
-            </div>
-            <p className="text-xs text-[var(--color-ink-muted)]">
-              Nombre visible en saludos y encabezados (ej. Herramientas de {displayName}). Almacenado localmente.
-            </p>
-            <div className="max-w-md space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--color-ink)] block">Nombre a mostrar</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className="input-field"
-              />
-            </div>
-            <button type="submit" className="btn-secondary text-xs py-2 px-4 cursor-pointer">
-              Guardar Perfil
-            </button>
-          </form>
-
-          <form onSubmit={(event) => void handleRubric(event)} className="card space-y-4 border border-[var(--color-border)] p-6">
-            <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-3">
-              <Sparkles className="h-5 w-5 text-[#002777]" />
-              <h2 className="text-lg font-bold text-[var(--color-ink)]">Rúbrica de Evaluación Standup</h2>
-            </div>
-            <p className="text-xs text-[var(--color-ink-muted)]">
-              Criterios utilizados para validar la completitud del resumen diario. Un criterio por línea.
-            </p>
-            <textarea
-              value={standupRubric}
-              onChange={(event) => setStandupRubric(event.target.value)}
-              rows={6}
-              className="input-field font-mono text-xs leading-relaxed"
-            />
-            <button type="submit" className="btn-secondary text-xs py-2 px-4 cursor-pointer">
-              Guardar Rúbrica
-            </button>
-          </form>
         </div>
       )}
     </div>
