@@ -4,7 +4,6 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { AskProductPage } from './pages/AskProductPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { IntegrationsPage } from './pages/IntegrationsPage'
 import { KnowledgePage } from './pages/KnowledgePage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
@@ -89,7 +88,7 @@ export const App = () => {
               <Route path="qa/:slug" element={<QaFeaturePage />} />
               <Route path="knowledge" element={<KnowledgePage />} />
               <Route path="knowledge/ask" element={<AskProductPage />} />
-              <Route path="integrations" element={<IntegrationsPage />} />
+              <Route path="integrations" element={<Navigate to="/settings?tab=integrations" replace />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

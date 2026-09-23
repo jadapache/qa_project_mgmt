@@ -28,7 +28,7 @@ export const StandupPage = () => {
           Fuentes permitidas: <strong>Únicamente Jira + GitHub</strong>. Rechaza responder si faltan datos en lugar de adivinar.
         </p>
         <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-          ¿Necesitas configurar conexiones? <Link className="text-[var(--color-primary)] underline" to="/integrations">Abrir Integraciones</Link>
+          ¿Necesitas configurar conexiones? <Link className="text-[var(--color-primary)] underline" to="/settings?tab=integrations">Abrir Integraciones</Link>
         </p>
       </header>
 

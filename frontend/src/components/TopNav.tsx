@@ -15,7 +15,6 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
-  Plug,
   Rocket,
   Settings,
   Sparkles,
@@ -359,23 +358,6 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
           >
             <Settings className="h-4 w-4 shrink-0 text-slate-300" />
             <span>Configuración</span>
-          </NavLink>
-
-          <NavLink
-            to="/integrations"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer',
-                isActive
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white',
-              ].join(' ')
-            }
-          >
-            <Plug className="h-4 w-4 shrink-0 text-slate-300" />
-            <span>Integraciones</span>
           </NavLink>
 
           <div className="border-t border-slate-800 my-1" />

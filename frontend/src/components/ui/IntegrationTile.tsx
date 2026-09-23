@@ -16,7 +16,7 @@ export const IntegrationTile = ({
   detail,
   icon: Icon,
   iconBg,
-  manageHref = '/integrations',
+  manageHref = '/settings?tab=integrations',
 }: IntegrationTileProps) => {
   return (
     <article
