@@ -276,8 +276,18 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
     }
   }, [open])
 
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, logout } = useAuth()
   const activeName = user?.full_name || user?.username || displayName
+  const activeEmail = user?.email || (user?.username ? `${user.username.toLowerCase()}@fcv.org` : 'danielpacheco@fcv.org')
+
+  const getInitials = (nameStr: string) => {
+    const parts = nameStr.trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return 'U'
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+
+  const initials = getInitials(activeName)
 
   const handleToggle = () => {
     if (!open) updateMenuPosition()
@@ -288,60 +298,89 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
     ? createPortal(
       <div
         id="user-avatar-dropdown-menu"
-        className="w-56 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-2xl shadow-blue-900/15"
+        className="w-64 rounded-2xl border border-slate-700/80 bg-[#1c1f24] p-2.5 shadow-2xl text-white"
         style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
         role="menu"
       >
-        <div className="px-3 py-2 border-b border-[var(--color-border)]">
-          <p className="text-sm font-semibold text-[var(--color-ink)] truncate flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 text-[#002777]" />
-            {activeName}
-          </p>
-          <p className="text-[11px] text-[var(--color-ink-muted)] flex items-center gap-1.5 mt-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
-            {isAuthenticated ? `Rol: ${user?.role || 'user'}` : 'Modo Local Activo'}
-          </p>
+        {/* Cabecera estilo tarjeta de perfil */}
+        <div className="flex items-center gap-3.5 p-2 rounded-xl">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-extrabold text-base shadow-md">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white truncate leading-snug">
+              {activeName}
+            </p>
+            <p className="text-xs text-slate-400 truncate mt-0.5">
+              {activeEmail}
+            </p>
+          </div>
         </div>
-        <div className="py-1">
+
+        <div className="border-t border-slate-800 my-1.5" />
+
+        {/* Opciones del menú */}
+        <div className="space-y-0.5">
           <NavLink
-            to="/integrations"
+            to="/profile"
             role="menuitem"
             onClick={() => setOpen(false)}
             className={({ isActive }) =>
               [
-                'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer',
                 isActive
-                  ? 'bg-blue-50 text-[#002777]'
-                  : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white',
               ].join(' ')
             }
           >
-            <Plug className="h-4 w-4 shrink-0 text-[#002777]" />
-            <span>Integraciones</span>
+            <User className="h-4 w-4 shrink-0 text-slate-300" />
+            <span>Perfil</span>
           </NavLink>
+
           <NavLink
             to="/settings"
             role="menuitem"
             onClick={() => setOpen(false)}
             className={({ isActive }) =>
               [
-                'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer',
                 isActive
-                  ? 'bg-blue-50 text-[#002777]'
-                  : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)]',
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white',
               ].join(' ')
             }
           >
-            <Settings className="h-4 w-4 shrink-0 text-[#002777]" />
+            <Settings className="h-4 w-4 shrink-0 text-slate-300" />
             <span>Configuración</span>
           </NavLink>
+
+          <NavLink
+            to="/integrations"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer',
+                isActive
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white',
+              ].join(' ')
+            }
+          >
+            <Plug className="h-4 w-4 shrink-0 text-slate-300" />
+            <span>Integraciones</span>
+          </NavLink>
+
+          <div className="border-t border-slate-800 my-1" />
+
           <button
             type="button"
             onClick={() => {
               setOpen(false)
               logout()
             }}
-            className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+            className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors cursor-pointer"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>Cerrar Sesión</span>
@@ -358,13 +397,13 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#002777] to-[#004497] text-xs font-bold text-white shadow-md ring-2 ring-blue-100 transition-transform hover:scale-105 hover:ring-blue-300 focus:outline-none focus:ring-2 focus:ring-[#004497]"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500 text-slate-950 text-xs font-extrabold shadow-md ring-2 ring-amber-200/80 transition-transform hover:scale-105 hover:ring-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
         title={`${activeName} - Menú de opciones`}
         aria-label={`Menú de usuario para ${activeName}`}
         aria-haspopup="true"
         aria-expanded={open}
       >
-        {activeName.charAt(0).toUpperCase()}
+        {initials}
       </button>
 
       {menu}
