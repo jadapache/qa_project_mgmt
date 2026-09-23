@@ -154,6 +154,55 @@ async def get_me(
     return {"user": clean_user}
 
 
+class UpdateProfileRequest(BaseModel):
+    full_name: str | None = None
+    email: str | None = None
+    password: str | None = None
+
+
+@router.put("/me")
+async def update_me(
+    body: UpdateProfileRequest,
+    authorization: str | None = Header(default=None),
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> dict[str, Any]:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se proporcionó token de autorización.",
+        )
+
+    token = authorization.split(" ")[1]
+    payload = decode_access_token(token)
+    if not payload or "username" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido o expirado.",
+        )
+
+    user = await user_repo.get_by_username(payload["username"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+
+    updates: dict[str, Any] = {}
+    if body.full_name is not None and body.full_name.strip():
+        updates["full_name"] = body.full_name.strip()
+    if body.email is not None and body.email.strip():
+        updates["email"] = body.email.strip()
+    if body.password is not None and body.password.strip():
+        pwd_hash, pwd_salt = hash_password(body.password.strip())
+        updates["password_hash"] = pwd_hash
+        updates["password_salt"] = pwd_salt
+
+    if updates:
+        updated = await user_repo.update(user["id"], updates)
+        if updated:
+            user = updated
+
+    clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
+    return {"message": "Perfil actualizado exitosamente.", "user": clean_user}
+
+
 @router.get("/access-requests")
 async def get_access_requests(
     user_repo: IUserRepository = Depends(get_user_repository),

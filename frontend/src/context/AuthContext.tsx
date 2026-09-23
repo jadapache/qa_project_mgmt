@@ -12,6 +12,7 @@ type AuthContextType = {
   register: (username: string, password: string, email?: string, fullName?: string) => Promise<{ status?: string; message?: string; token?: string; user?: AuthUser }>
   logout: () => void
   clearError: () => void
+  updateUser: (user: AuthUser) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -110,6 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         logout,
         clearError,
+        updateUser: (newUser: AuthUser) => setUser(newUser),
       }}
     >
       {children}
