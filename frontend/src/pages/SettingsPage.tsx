@@ -219,7 +219,6 @@ export const SettingsPage = () => {
   const [integrations, setIntegrations] = useState<IntegrationInfo[]>([])
   const [loadingIntegrations, setLoadingIntegrations] = useState(true)
   const [busyIntegrationId, setBusyIntegrationId] = useState<string | null>(null)
-  const [oauthKey, setOauthKey] = useState(0)
 
   const loadIntegrations = useCallback(async () => {
     setLoadingIntegrations(true)
@@ -1473,50 +1472,6 @@ export const SettingsPage = () => {
           ) : (
             <div className="space-y-6">
               {jira ? (
-                <JiraOAuthSetup
-                  key={oauthKey}
-                  onSaved={() => {
-                    setOauthKey((k) => k + 1)
-                    void loadIntegrations()
-                    setMessage('Credenciales OAuth de Jira guardadas con éxito. Ya puedes conectarte con OAuth.')
-                  }}
-                />
-              ) : null}
-
-              {github && !github.oauth_configured ? (
-                <OAuthSetup
-                  key={`github-${oauthKey}`}
-                  provider="github"
-                  title="GitHub OAuth"
-                  docsUrl="https://github.com/settings/developers"
-                  docsLabel="github.com/settings/developers"
-                  defaultRedirect="http://127.0.0.1:8000/api/integrations/github/callback"
-                  onSaved={() => {
-                    setOauthKey((k) => k + 1)
-                    void loadIntegrations()
-                    setMessage('Credenciales OAuth de GitHub guardadas con éxito. Ya puedes conectarte con OAuth.')
-                  }}
-                />
-              ) : null}
-
-              {gitlab && !gitlab.oauth_configured ? (
-                <OAuthSetup
-                  key={`gitlab-${oauthKey}`}
-                  provider="gitlab"
-                  title="GitLab OAuth"
-                  docsUrl="https://gitlab.com/-/user_settings/applications"
-                  docsLabel="gitlab.com user applications"
-                  defaultRedirect="http://127.0.0.1:8000/api/integrations/gitlab/callback"
-                  showBaseUrl
-                  onSaved={() => {
-                    setOauthKey((k) => k + 1)
-                    void loadIntegrations()
-                    setMessage('Credenciales OAuth de GitLab guardadas con éxito. Ya puedes conectarte con OAuth.')
-                  }}
-                />
-              ) : null}
-
-              {jira ? (
                 <IntegrationCard
                   integration={jira}
                   busy={busyIntegrationId === 'jira'}
@@ -1524,6 +1479,10 @@ export const SettingsPage = () => {
                   onDisconnect={() => void handleDisconnect('jira')}
                   onTest={() => void handleTest('jira')}
                   onPatConnected={() => handlePatConnected('jira', 'Jira')}
+                  onOAuthSaved={async () => {
+                    await loadIntegrations()
+                    notifySuccess('Credenciales OAuth de Jira guardadas con éxito.')
+                  }}
                   onError={setError}
                 />
               ) : null}
@@ -1536,6 +1495,10 @@ export const SettingsPage = () => {
                   onDisconnect={() => void handleDisconnect('github')}
                   onTest={() => void handleTest('github')}
                   onPatConnected={() => handlePatConnected('github', 'GitHub')}
+                  onOAuthSaved={async () => {
+                    await loadIntegrations()
+                    notifySuccess('Credenciales OAuth de GitHub guardadas con éxito.')
+                  }}
                   onError={setError}
                 />
               ) : null}
@@ -1548,6 +1511,10 @@ export const SettingsPage = () => {
                   onDisconnect={() => void handleDisconnect('gitlab')}
                   onTest={() => void handleTest('gitlab')}
                   onPatConnected={() => handlePatConnected('gitlab', 'GitLab')}
+                  onOAuthSaved={async () => {
+                    await loadIntegrations()
+                    notifySuccess('Credenciales OAuth de GitLab guardadas con éxito.')
+                  }}
                   onError={setError}
                 />
               ) : null}
@@ -1645,6 +1612,7 @@ type IntegrationCardProps = {
   onDisconnect: () => void
   onTest: () => void
   onPatConnected: () => Promise<void>
+  onOAuthSaved: () => Promise<void>
   onError: (message: string) => void
 }
 
@@ -1655,6 +1623,7 @@ const IntegrationCard = ({
   onDisconnect,
   onTest,
   onPatConnected,
+  onOAuthSaved,
   onError,
 }: IntegrationCardProps) => {
   const connected = integration.status === 'connected'
@@ -1810,13 +1779,16 @@ const IntegrationCard = ({
                   checked={authMethod === 'oauth'}
                   onChange={() => setAuthMethod('oauth')}
                 />
-                <span className="font-medium">OAuth 2.0</span>
-                {integration.id === 'jira' && !integration.oauth_configured ? (
-                  <span className="text-xs text-[var(--color-warn)]">(configura credenciales OAuth arriba primero)</span>
-                ) : null}
-                {(integration.id === 'github' || integration.id === 'gitlab') && !integration.oauth_configured ? (
-                  <span className="text-xs text-[var(--color-warn)]">(configura credenciales OAuth arriba primero)</span>
-                ) : null}
+                <span className="font-semibold text-slate-800">OAuth 2.0</span>
+                {integration.oauth_configured ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    Configurado
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                    Requiere configuración
+                  </span>
+                )}
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                 <input
@@ -1825,35 +1797,43 @@ const IntegrationCard = ({
                   checked={authMethod === 'pat'}
                   onChange={() => setAuthMethod('pat')}
                 />
-                <span className="font-medium">Personal Access Token (PAT)</span>
+                <span className="font-semibold text-slate-800">Personal Access Token (PAT)</span>
               </label>
             </div>
           </fieldset>
 
           {authMethod === 'oauth' ? (
-            <div className="mt-4 space-y-3">
+            <div className="mt-4">
               {integration.id === 'jira' ? (
-                <p className="text-xs text-[var(--color-ink-muted)]">
-                  Usa la misma cuenta Atlassian propietaria de tu app OAuth. Si la autorización falla, revisa la lista de verificación de permisos arriba o conéctate con Token de Acceso Personal.
-                </p>
+                <JiraOAuthSetup
+                  onSaved={onOAuthSaved}
+                  onContinueOAuth={onOAuth}
+                  onCancel={() => setShowConnectForm(false)}
+                />
+              ) : integration.id === 'github' ? (
+                <OAuthSetup
+                  provider="github"
+                  title="GitHub OAuth"
+                  docsUrl="https://github.com/settings/developers"
+                  docsLabel="github.com/settings/developers"
+                  defaultRedirect="http://127.0.0.1:8000/api/integrations/github/callback"
+                  onSaved={onOAuthSaved}
+                  onContinueOAuth={onOAuth}
+                  onCancel={() => setShowConnectForm(false)}
+                />
+              ) : integration.id === 'gitlab' ? (
+                <OAuthSetup
+                  provider="gitlab"
+                  title="GitLab OAuth"
+                  docsUrl="https://gitlab.com/-/user_settings/applications"
+                  docsLabel="gitlab.com user applications"
+                  defaultRedirect="http://127.0.0.1:8000/api/integrations/gitlab/callback"
+                  showBaseUrl
+                  onSaved={onOAuthSaved}
+                  onContinueOAuth={onOAuth}
+                  onCancel={() => setShowConnectForm(false)}
+                />
               ) : null}
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={onOAuth}
-                  disabled={busy || !integration.oauth_configured}
-                  className="btn-primary text-xs py-2 px-4 disabled:opacity-50 cursor-pointer"
-                >
-                  Continuar con OAuth
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowConnectForm(false)}
-                  className="btn-secondary text-xs py-2 px-4 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-              </div>
             </div>
           ) : (
             <form className="mt-4 space-y-3" onSubmit={(event) => void handlePatSubmit(event)}>
