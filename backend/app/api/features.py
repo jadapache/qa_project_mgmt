@@ -6,6 +6,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
+from app.ai.catalog import get_model_catalog
 from app.ai.logging import list_logs
 from app.ai.providers.factory import get_ai_settings
 from app.ai.runner import run_grounded_feature
@@ -33,9 +34,14 @@ router = APIRouter(tags=["ai"])
 class AISettingsUpdate(BaseModel):
   provider: str | None = None
   model: str | None = None
+  transcription_provider: str | None = None
+  transcription_model: str | None = None
+  voice_command_provider: str | None = None
+  voice_command_model: str | None = None
   openai_api_key: str | None = None
   claude_api_key: str | None = None
   groq_api_key: str | None = None
+  gemini_api_key: str | None = None
   ollama_base_url: str | None = None
 
 
@@ -68,15 +74,30 @@ class RubricUpdate(BaseModel):
   criteria: list[str]
 
 
+@router.get("/ai/models/catalog")
+async def ai_models_catalog(
+    refresh: bool = False,
+    provider: str = "all",
+    task_type: str = "all",
+) -> dict[str, Any]:
+  catalog = await get_model_catalog(refresh=refresh, provider=provider, task_type=task_type)
+  return catalog.model_dump()
+
+
 @router.get("/ai/settings")
 async def ai_settings() -> dict[str, Any]:
   config = get_ai_settings()
   return {
     "provider": config.get("provider") or "",
     "model": config.get("model") or "",
+    "transcription_provider": config.get("transcription_provider") or "groq",
+    "transcription_model": config.get("transcription_model") or "whisper-large-v3",
+    "voice_command_provider": config.get("voice_command_provider") or "groq",
+    "voice_command_model": config.get("voice_command_model") or "whisper-large-v3",
     "openai_api_key_set": bool(config.get("openai_api_key")),
     "claude_api_key_set": bool(config.get("claude_api_key")),
     "groq_api_key_set": bool(config.get("groq_api_key")),
+    "gemini_api_key_set": bool(config.get("gemini_api_key")),
     "ollama_base_url": config.get("ollama_base_url"),
   }
 
@@ -89,6 +110,7 @@ async def update_ai_settings(body: AISettingsUpdate) -> dict[str, Any]:
     ai[key] = value
   save_app_settings({"ai": ai})
   return await ai_settings()
+
 
 
 @router.get("/ai/ollama/models")

@@ -6,7 +6,7 @@ import os
 from typing import Any
 
 from app.ai.providers.base import AIProvider
-from app.ai.providers.implementations import ClaudeProvider, GroqProvider, OllamaProvider, OpenAIProvider
+from app.ai.providers.implementations import ClaudeProvider, GeminiProvider, GroqProvider, OllamaProvider, OpenAIProvider
 from app.core.storage import load_app_settings
 
 
@@ -16,9 +16,14 @@ def get_ai_settings() -> dict[str, Any]:
   return {
     "provider": ai.get("provider") or os.getenv("AI_PROVIDER", ""),
     "model": ai.get("model") or os.getenv("AI_MODEL", ""),
+    "transcription_provider": ai.get("transcription_provider") or os.getenv("AI_TRANSCRIPTION_PROVIDER", "groq"),
+    "transcription_model": ai.get("transcription_model") or os.getenv("AI_TRANSCRIPTION_MODEL", "whisper-large-v3"),
+    "voice_command_provider": ai.get("voice_command_provider") or os.getenv("AI_VOICE_COMMAND_PROVIDER", "groq"),
+    "voice_command_model": ai.get("voice_command_model") or os.getenv("AI_VOICE_COMMAND_MODEL", "whisper-large-v3"),
     "openai_api_key": ai.get("openai_api_key") or os.getenv("OPENAI_API_KEY", ""),
     "claude_api_key": ai.get("claude_api_key") or os.getenv("ANTHROPIC_API_KEY", ""),
     "groq_api_key": ai.get("groq_api_key") or os.getenv("GROQ_API_KEY", ""),
+    "gemini_api_key": ai.get("gemini_api_key") or os.getenv("GEMINI_API_KEY", ""),
     "ollama_base_url": ai.get("ollama_base_url") or os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
   }
 
@@ -41,11 +46,16 @@ def resolve_provider() -> AIProvider:
     if not key:
       raise ValueError("Groq is selected but GROQ_API_KEY / settings key is missing.")
     return GroqProvider(key, default_model=config.get("model") or "llama-3.3-70b-versatile")
+  if provider in {"gemini", "google"}:
+    key = config.get("gemini_api_key") or ""
+    if not key:
+      raise ValueError("Gemini is selected but GEMINI_API_KEY / settings key is missing.")
+    return GeminiProvider(key, default_model=config.get("model") or "gemini-1.5-flash")
   if provider in {"ollama", "builtin", "local"}:
     return OllamaProvider(
       base_url=config.get("ollama_base_url") or "http://127.0.0.1:11434",
       default_model=config.get("model") or "qwen2.5:2b",
     )
   raise ValueError(
-    "No AI provider configured. Set provider in Settings (builtin | ollama | groq | openai | claude) and provide credentials."
+    "No AI provider configured. Set provider in Settings (builtin | ollama | groq | gemini | openai | claude) and provide credentials."
   )
