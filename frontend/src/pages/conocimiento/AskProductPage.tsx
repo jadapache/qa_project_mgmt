@@ -21,7 +21,7 @@ export const AskProductPage = () => {
   const [files, setFiles] = useState<File[]>([])
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
   const [result, setResult] = useState<GroundedResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -132,11 +132,7 @@ export const AskProductPage = () => {
         </p>
       </header>
 
-      {error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-[var(--color-bad)]" role="alert">
-          {error}
-        </p>
-      ) : null}
+
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card space-y-4">
