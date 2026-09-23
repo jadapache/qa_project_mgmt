@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { api, type GroundedResult, type KnowledgeDocument } from '../../api/client'
+import { useToast } from '../../context/ToastContext'
 
 type ChatMessage = {
   id: string
@@ -62,6 +63,7 @@ _Formato Elaborado por: Ing María Eugenia Gutiérrez - Jefe Corporativo de Proy
 `
 
 export const MejorasPage = () => {
+  const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
@@ -98,8 +100,11 @@ export const MejorasPage = () => {
     try {
       await api.deleteDocument(id)
       setUploaded((prev) => prev.filter((d) => d.id !== id))
+      toast.success('Documento eliminado correctamente')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar documento')
+      const msg = err instanceof Error ? err.message : 'Error al eliminar documento'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
@@ -113,10 +118,16 @@ export const MejorasPage = () => {
       setFiles([])
       if (fileInputRef.current) fileInputRef.current.value = ''
       if (res.errors.length) {
-        setError(`Ocurrieron errores al cargar algunos archivos: ${res.errors.join('; ')}`)
+        const msg = `Ocurrieron errores al cargar algunos archivos: ${res.errors.join('; ')}`
+        setError(msg)
+        toast.error(msg)
+      } else {
+        toast.success('Documentos cargados con éxito')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar los documentos')
+      const msg = err instanceof Error ? err.message : 'Error al cargar los documentos'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setUploading(false)
     }
@@ -159,11 +170,16 @@ export const MejorasPage = () => {
         ])
         setDraft('')
         setSuccessMsg('¡Documento de Mejora actualizado con éxito!')
+        toast.success('¡Documento de Mejora actualizado con éxito!')
       } else if (result.refused) {
-        setError(result.reason || 'No se pudo generar el documento con la evidencia actual.')
+        const msg = result.reason || 'No se pudo generar el documento con la evidencia actual.'
+        setError(msg)
+        toast.error(msg)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al generar el documento')
+      const msg = err instanceof Error ? err.message : 'Error al generar el documento'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }
@@ -177,7 +193,9 @@ export const MejorasPage = () => {
 
   const handleDownloadDocx = async () => {
     if (!documentContent.trim()) {
-      setError('El documento está vacío.')
+      const msg = 'El documento está vacío.'
+      setError(msg)
+      toast.error(msg)
       return
     }
     setExporting(true)
@@ -192,8 +210,11 @@ export const MejorasPage = () => {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+      toast.success('Documento descargado en formato .docx')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al descargar el archivo .docx')
+      const msg = err instanceof Error ? err.message : 'Error al descargar el archivo .docx'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setExporting(false)
     }

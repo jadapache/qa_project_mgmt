@@ -15,9 +15,7 @@ export const StandupPage = () => {
     try {
       const data = await api.generateStandup()
       setResult(data)
-      if (data.refused) {
-        toast.warning(data.reason || 'Fuentes incompletas para generar el standup.')
-      } else {
+      if (!data.refused && data.ok) {
         toast.success('Standup generado exitosamente.')
       }
     } catch (err) {

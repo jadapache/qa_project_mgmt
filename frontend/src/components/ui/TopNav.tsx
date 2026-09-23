@@ -25,8 +25,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { toolsGroupLabel } from '../constants/app'
-import { useAuth } from '../context/AuthContext'
+import { toolsGroupLabel } from '../../constants/app'
+import { useAuth } from '../../context/AuthContext'
 
 
 type NavItem = {
