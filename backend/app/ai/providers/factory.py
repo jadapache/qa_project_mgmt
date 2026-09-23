@@ -41,11 +41,11 @@ def resolve_provider() -> AIProvider:
     if not key:
       raise ValueError("Groq is selected but GROQ_API_KEY / settings key is missing.")
     return GroqProvider(key, default_model=config.get("model") or "llama-3.3-70b-versatile")
-  if provider == "ollama":
+  if provider in {"ollama", "builtin", "local"}:
     return OllamaProvider(
       base_url=config.get("ollama_base_url") or "http://127.0.0.1:11434",
-      default_model=config.get("model") or "llama3.2",
+      default_model=config.get("model") or "qwen2.5:2b",
     )
   raise ValueError(
-    "No AI provider configured. Set provider in Settings (openai | claude | groq | ollama) and provide credentials."
+    "No AI provider configured. Set provider in Settings (builtin | ollama | groq | openai | claude) and provide credentials."
   )
