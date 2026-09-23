@@ -307,11 +307,17 @@ const UserDropdown = ({ displayName }: { displayName: string }) => {
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-extrabold text-base shadow-md">
             {initials}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-white truncate leading-snug">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p
+              className="text-sm font-bold text-white truncate max-w-[175px] leading-snug"
+              title={activeName}
+            >
               {activeName}
             </p>
-            <p className="text-xs text-slate-400 truncate mt-0.5">
+            <p
+              className="text-xs text-slate-400 truncate max-w-[175px] mt-0.5"
+              title={activeEmail}
+            >
               {activeEmail}
             </p>
           </div>

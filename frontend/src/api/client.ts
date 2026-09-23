@@ -477,6 +477,13 @@ export const api = {
       headers: { ...getAuthHeaders() },
     }).then((r) => handleResponse<{ user: AuthUser }>(r)),
 
+  updateProfile: (payload: { full_name?: string; email?: string; password?: string }) =>
+    fetch(`${API_BASE}/api/auth/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<{ message: string; user: AuthUser }>(r)),
+
   getAccessRequests: () =>
     fetch(`${API_BASE}/api/auth/access-requests`, {
       method: 'GET',
