@@ -2,16 +2,16 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useOutletContext } from '
 import { AppLayout } from './components/AppLayout'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
-import { AskProductPage } from './pages/AskProductPage'
+import { AskProductPage } from './pages/conocimiento/AskProductPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { KnowledgePage } from './pages/KnowledgePage'
+import { KnowledgePage } from './pages/conocimiento/KnowledgePage'
 import { LoginPage } from './pages/LoginPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { SettingsPage } from './pages/SettingsPage'
-import { ChangeImpactPage } from './pages/ChangeImpactPage'
-import { PrdCheckerPage } from './pages/PrdCheckerPage'
-import { StandupPage } from './pages/StandupPage'
+import { PlaceholderPage } from './pages/pm/PlaceholderPage'
+import { ProfilePage } from './pages/configuraciones/ProfilePage'
+import { SettingsPage } from './pages/configuraciones/SettingsPage'
+import { ChangeImpactPage } from './pages/pm/ChangeImpactPage'
+import { PrdCheckerPage } from './pages/pm/PrdCheckerPage'
+import { StandupPage } from './pages/pm/StandupPage'
 import { QaFeaturePage } from './pages/qa/QaFeaturePage'
 import { toolsGroupLabel } from './constants/app'
 import { QA_FEATURES } from './constants/qaFeatures'
@@ -31,7 +31,7 @@ const PmOverviewPage = () => {
     <PlaceholderPage
       eyebrow={toolsGroupLabel(displayName)}
       title="Product workflows"
-      description="Standup, PRD Checker, and Change Impact — upload files, chat for context, get grounded answers."
+      description="Standup, verificador de PRD e impacto de cambios: sube archivos, chatea para dar contexto y recibe respuestas fundamentadas."
       upcoming={['Standup (ready)', 'PRD Checker (ready)', 'Change Impact (ready)']}
     />
   )
@@ -43,7 +43,7 @@ const QaOverviewPage = () => (
       <p className="text-xs uppercase tracking-[0.24em] text-[var(--color-ink-muted)]">QA Tools</p>
       <h1 className="page-title">Quality workflows</h1>
       <p className="page-subtitle max-w-3xl">
-        Upload specs and test docs, chat for context, and pull live data from Jira, GitHub, or GitLab — all grounded with citations.
+        Sube especificaciones y documentos de prueba, chatea para obtener contexto y extrae datos en tiempo real de Jira, GitHub o GitLab; todo ello respaldado por citas.
       </p>
     </header>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

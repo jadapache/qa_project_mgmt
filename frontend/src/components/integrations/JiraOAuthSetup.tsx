@@ -1,8 +1,8 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { CheckCircle2, ChevronDown, ChevronUp, ExternalLink, HelpCircle, Key, Lock, Settings } from 'lucide-react'
-import { api } from '../api/client'
-import { useToast } from '../context/ToastContext'
+import { api } from '../../api/client'
+import { useToast } from '../../context/ToastContext'
 
 type ScopeGuideItem = {
   scope: string

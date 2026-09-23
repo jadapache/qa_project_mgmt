@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { api } from '../api/client'
 import { DEFAULT_DISPLAY_NAME } from '../constants/app'
-import { TopNav } from './TopNav'
+import { TopNav } from './ui/TopNav'
 
 export const AppLayout = () => {
   const [displayName, setDisplayName] = useState(DEFAULT_DISPLAY_NAME)

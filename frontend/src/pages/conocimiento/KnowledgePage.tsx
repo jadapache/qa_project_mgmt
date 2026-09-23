@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { api, type KnowledgeDocument } from '../api/client'
-import { useToast } from '../context/ToastContext'
+import { api, type KnowledgeDocument } from '../../api/client'
+import { useToast } from '../../context/ToastContext'
 
 const ACCEPTED_TYPES = '.pdf,.docx,.md,.txt,.json,.html,.htm'
 

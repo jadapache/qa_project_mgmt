@@ -1,7 +1,7 @@
 import { useOutletContext } from 'react-router-dom'
-import { api } from '../api/client'
-import { FeatureWorkspace } from '../components/FeatureWorkspace'
-import { toolsGroupLabel } from '../constants/app'
+import { api } from '../../api/client'
+import { FeatureWorkspace } from '../../components/FeatureWorkspace'
+import { toolsGroupLabel } from '../../constants/app'
 
 type OutletContext = {
   displayName: string

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type GroundedResult } from '../api/client'
+import { api, type GroundedResult } from '../../api/client'
 import { GroundedResultView } from './StandupPage'
-import { useToast } from '../context/ToastContext'
+import { useToast } from '../../context/ToastContext'
 
 export const PmToolsPage = () => {
   const { toast } = useToast()
