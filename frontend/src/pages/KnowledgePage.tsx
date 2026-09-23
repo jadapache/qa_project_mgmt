@@ -1,10 +1,12 @@
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { api, type KnowledgeDocument } from '../api/client'
+import { useToast } from '../context/ToastContext'
 
 const ACCEPTED_TYPES = '.pdf,.docx,.md,.txt,.json,.html,.htm'
 
 export const KnowledgePage = () => {
+  const { toast } = useToast()
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([])
   const [tags, setTags] = useState('prd')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -27,13 +29,19 @@ export const KnowledgePage = () => {
   }, [])
 
   useEffect(() => {
-    void load().catch((err) => setError(err instanceof Error ? err.message : 'Error al cargar los documentos'))
-  }, [load])
+    void load().catch((err) => {
+      const msg = err instanceof Error ? err.message : 'Error al cargar los documentos'
+      setError(msg)
+      toast.error(msg)
+    })
+  }, [load, toast])
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!selectedFile) {
-      setError('Selecciona un archivo primero, luego haz clic en Cargar e procesar.')
+      const msg = 'Selecciona un archivo primero, luego haz clic en Cargar e procesar.'
+      setError(msg)
+      toast.warning(msg)
       return
     }
     setBusy(true)
@@ -44,9 +52,13 @@ export const KnowledgePage = () => {
       setSelectedFile(null)
       event.currentTarget.reset()
       await load()
-      setMessage(`"${uploaded.document.filename}" procesado con ${uploaded.document.chunk_count} fragmentos.`)
+      const successMsg = `"${uploaded.document.filename}" procesado con ${uploaded.document.chunk_count} fragmentos.`
+      setMessage(successMsg)
+      toast.success(successMsg)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la carga')
+      const msg = err instanceof Error ? err.message : 'Falló la carga'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }
@@ -63,9 +75,13 @@ export const KnowledgePage = () => {
     try {
       await api.deleteDocument(doc.id)
       await load()
-      setMessage(`Se eliminó "${doc.filename}".`)
+      const successMsg = `Se eliminó "${doc.filename}".`
+      setMessage(successMsg)
+      toast.success(successMsg)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la eliminación')
+      const msg = err instanceof Error ? err.message : 'Falló la eliminación'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }
@@ -82,7 +98,9 @@ export const KnowledgePage = () => {
       const data = await api.retrieve(query, active)
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la recuperación de información')
+      const msg = err instanceof Error ? err.message : 'Falló la recuperación de información'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }

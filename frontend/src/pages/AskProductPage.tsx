@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { FileText, Paperclip, Send, Trash2, Upload, X } from 'lucide-react'
 import { api, type GroundedResult, type KnowledgeDocument } from '../api/client'
 import { GroundedResultView } from './StandupPage'
+import { useToast } from '../context/ToastContext'
 
 const SOURCE_OPTIONS = [
   { id: 'jira', label: 'Jira' },
@@ -13,6 +14,7 @@ const SOURCE_OPTIONS = [
 const ACCEPT = '.pdf,.docx,.md,.txt,.json'
 
 export const AskProductPage = () => {
+  const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string[]>(['knowledge', 'jira', 'github'])
@@ -39,7 +41,9 @@ export const AskProductPage = () => {
 
   const handleUpload = async () => {
     if (!files.length) {
-      setError('Selecciona uno o más archivos primero.')
+      const msg = 'Selecciona uno o más archivos primero.'
+      setError(msg)
+      toast.warning(msg)
       return
     }
     setUploading(true)
@@ -49,11 +53,18 @@ export const AskProductPage = () => {
       setUploaded((prev) => [...prev, ...response.documents])
       setFiles([])
       if (fileInputRef.current) fileInputRef.current.value = ''
+      if (response.documents.length) {
+        toast.success(`${response.documents.length} archivo(s) procesado(s) exitosamente.`)
+      }
       if (response.errors.length) {
-        setError(`Fallaron algunos archivos: ${response.errors.join('; ')}`)
+        const msg = `Fallaron algunos archivos: ${response.errors.join('; ')}`
+        setError(msg)
+        toast.error(msg)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la carga de archivos')
+      const msg = err instanceof Error ? err.message : 'Falló la carga de archivos'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setUploading(false)
     }
@@ -63,19 +74,26 @@ export const AskProductPage = () => {
     try {
       await api.deleteDocument(id)
       setUploaded((prev) => prev.filter((doc) => doc.id !== id))
+      toast.info('Archivo eliminado correctamente.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló al eliminar archivo')
+      const msg = err instanceof Error ? err.message : 'Falló al eliminar archivo'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault()
     if (!selected.length) {
-      setError('Selecciona al menos una fuente.')
+      const msg = 'Selecciona al menos una fuente.'
+      setError(msg)
+      toast.warning(msg)
       return
     }
     if (!query.trim() && !documentIds.length) {
-      setError('Escribe una pregunta y/o carga archivos.')
+      const msg = 'Escribe una pregunta y/o carga archivos.'
+      setError(msg)
+      toast.warning(msg)
       return
     }
     setBusy(true)
@@ -89,7 +107,9 @@ export const AskProductPage = () => {
       })
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falló la consulta')
+      const msg = err instanceof Error ? err.message : 'Falló la consulta'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setBusy(false)
     }

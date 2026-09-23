@@ -18,6 +18,8 @@ import { QA_FEATURES } from './constants/qaFeatures'
 
 import { LevantamientoPage } from './pages/funcional/LevantamientoPage'
 import { MejorasPage } from './pages/funcional/MejorasPage'
+import { ToastProvider } from './context/ToastContext'
+import { ToastContainer } from './components/common/Toast'
 
 type OutletContext = {
   displayName: string
@@ -67,36 +69,39 @@ const QaOverviewPage = () => (
 
 export const App = () => {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="pm" element={<PmOverviewPage />} />
-              <Route path="pm/standup" element={<StandupPage />} />
-              <Route path="pm/prd-checker" element={<PrdCheckerPage />} />
-              <Route path="pm/change-impact" element={<ChangeImpactPage />} />
-              <Route path="funcional" element={<Navigate to="/funcional/mejoras" replace />} />
-              <Route path="funcional/levantamiento" element={<LevantamientoPage />} />
-              <Route path="funcional/mejoras" element={<MejorasPage />} />
-              <Route
-                path="qa"
-                element={<QaOverviewPage />}
-              />
-              <Route path="qa/:slug" element={<QaFeaturePage />} />
-              <Route path="knowledge" element={<KnowledgePage />} />
-              <Route path="knowledge/ask" element={<AskProductPage />} />
-              <Route path="integrations" element={<Navigate to="/settings?tab=integrations" replace />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+    <ToastProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <ToastContainer />
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="pm" element={<PmOverviewPage />} />
+                <Route path="pm/standup" element={<StandupPage />} />
+                <Route path="pm/prd-checker" element={<PrdCheckerPage />} />
+                <Route path="pm/change-impact" element={<ChangeImpactPage />} />
+                <Route path="funcional" element={<Navigate to="/funcional/mejoras" replace />} />
+                <Route path="funcional/levantamiento" element={<LevantamientoPage />} />
+                <Route path="funcional/mejoras" element={<MejorasPage />} />
+                <Route
+                  path="qa"
+                  element={<QaOverviewPage />}
+                />
+                <Route path="qa/:slug" element={<QaFeaturePage />} />
+                <Route path="knowledge" element={<KnowledgePage />} />
+                <Route path="knowledge/ask" element={<AskProductPage />} />
+                <Route path="integrations" element={<Navigate to="/settings?tab=integrations" replace />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ToastProvider>
   )
 }
 
