@@ -11,6 +11,8 @@ from app.context.knowledge import ensure_knowledge_dirs
 from app.core.settings import ROOT_DIR, ensure_local_dirs, get_settings
 from app.db.database import init_db
 
+from app.services.backup_worker import BackupWorkerManager
+
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 
 
@@ -20,7 +22,16 @@ async def lifespan(app: FastAPI):
   ensure_knowledge_dirs()
   ensure_ai_files()
   await init_db()
+  
+  # Start async Google Drive backup worker
+  backup_worker = BackupWorkerManager.get_instance()
+  backup_worker.start()
+  
   yield
+
+  # Stop backup worker on shutdown
+  backup_worker.stop()
+
 
 
 def create_app() -> FastAPI:

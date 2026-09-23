@@ -450,6 +450,39 @@ export const api = {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     }).then((r) => handleResponse<{ status: string; user: AuthUser }>(r)),
+
+  getBackupStatus: () =>
+    fetch(`${API_BASE}/api/backup/status`, {
+      method: 'GET',
+      headers: { ...getAuthHeaders() },
+    }).then((r) =>
+      handleResponse<{
+        is_running: boolean
+        last_backup_at?: string
+        last_status?: string
+        last_error?: string
+        config: {
+          enabled: boolean
+          interval_seconds: number
+          auto_backup: boolean
+          gdrive_token_set: boolean
+          gdrive_folder_id: string
+        }
+      }>(r),
+    ),
+
+  runBackupNow: () =>
+    fetch(`${API_BASE}/api/backup/run`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders() },
+    }).then((r) => handleResponse<{ message: string; result: Record<string, unknown> }>(r)),
+
+  updateBackupConfig: (payload: Record<string, unknown>) =>
+    fetch(`${API_BASE}/api/backup/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<{ message: string; config: Record<string, unknown> }>(r)),
 }
 
 export const apiClient = api

@@ -6,11 +6,13 @@ import {
   Bot,
   Check,
   CheckCircle2,
+  CloudUpload,
   Cpu,
   Download,
   Eye,
   EyeOff,
   Globe,
+  HardDrive,
   Key,
   Lock,
   RefreshCw,
@@ -114,6 +116,13 @@ export const SettingsPage = () => {
   const [pendingRequests, setPendingRequests] = useState<AuthUser[]>([])
   const [loadingRequests, setLoadingRequests] = useState(false)
 
+  // Backup & Google Drive State
+  const [backupStatus, setBackupStatus] = useState<any>(null)
+  const [backupToken, setBackupToken] = useState('')
+  const [backupFolderId, setBackupFolderId] = useState('')
+  const [runningBackup, setRunningBackup] = useState(false)
+  const [savingBackupConfig, setSavingBackupConfig] = useState(false)
+
   // Rubric & forms feedback
   const [standupRubric, setStandupRubric] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -136,6 +145,56 @@ export const SettingsPage = () => {
     }
   }
 
+  const loadBackupStatus = async () => {
+    try {
+      const statusRes = await api.getBackupStatus()
+      setBackupStatus(statusRes)
+      if (statusRes.config?.gdrive_folder_id) {
+        setBackupFolderId(statusRes.config.gdrive_folder_id)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleRunBackupNow = async () => {
+    setRunningBackup(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const res = await api.runBackupNow()
+      setMessage(res.message || 'Respaldo generado y encolado con éxito.')
+      void loadBackupStatus()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al ejecutar respaldo')
+    } finally {
+      setRunningBackup(false)
+    }
+  }
+
+  const handleSaveBackupConfig = async (event: FormEvent) => {
+    event.preventDefault()
+    setSavingBackupConfig(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const payload: Record<string, unknown> = {
+        gdrive_folder_id: backupFolderId.trim(),
+      }
+      if (backupToken.trim()) {
+        payload.gdrive_token = backupToken.trim()
+      }
+      await api.updateBackupConfig(payload)
+      setBackupToken('')
+      setMessage('Configuración de respaldo en Google Drive guardada.')
+      void loadBackupStatus()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar configuración de respaldo')
+    } finally {
+      setSavingBackupConfig(false)
+    }
+  }
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -149,6 +208,7 @@ export const SettingsPage = () => {
         setStandupRubric(((rubric.criteria as string[]) || []).join('\n'))
 
         void loadAccessRequests()
+        void loadBackupStatus()
 
         if (settings.provider === 'ollama' || settings.ollama_base_url) {
           void checkOllamaStatus(settings.ollama_base_url || 'http://127.0.0.1:11434')
@@ -813,6 +873,117 @@ export const SettingsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Google Drive Async Backup Card */}
+      <div className="card space-y-6 border border-[var(--color-border)] p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
+          <div className="flex items-center gap-2.5">
+            <CloudUpload className="h-6 w-6 text-[#002777]" />
+            <div>
+              <h2 className="text-xl font-bold text-[var(--color-ink)]">Respaldo Asíncrono en Nube (Google Drive)</h2>
+              <p className="text-xs text-[var(--color-ink-muted)]">
+                Generación automática de snapshots en caliente (.db.gz) de SQLite y sincronización asíncrona.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void handleRunBackupNow()}
+            disabled={runningBackup}
+            className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-2 shrink-0"
+          >
+            {runningBackup ? <RefreshCw className="h-4 w-4 animate-spin" /> : <HardDrive className="h-4 w-4" />}
+            <span>{runningBackup ? 'Generando Respaldo…' : 'Respaldar Ahora'}</span>
+          </button>
+        </div>
+
+        {/* Status Indicators */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Estado del Worker</p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse-soft" />
+              <span className="text-sm font-bold text-slate-900">Worker Asíncrono Activo</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Último Respaldo</p>
+            <p className="mt-1 text-sm font-bold text-slate-900 truncate">
+              {backupStatus?.last_backup_at || 'Pendiente de primer ciclo'}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Conexión Google Drive</p>
+            <div className="mt-1 flex items-center gap-1.5">
+              {backupStatus?.config?.gdrive_token_set ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                  <Check className="h-3.5 w-3.5" /> Google Drive Conectado
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-[#002777]">
+                  Respaldo Local Activo (.db.gz)
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Configuration Form */}
+        <form onSubmit={(e) => void handleSaveBackupConfig(e)} className="space-y-4 pt-2 border-t border-slate-100">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#002777]">
+            Configuración de Credenciales de Nube (Google Drive API v3)
+          </h3>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 block">Google Drive Access Token</label>
+              <input
+                type="password"
+                value={backupToken}
+                onChange={(e) => setBackupToken(e.target.value)}
+                placeholder={
+                  backupStatus?.config?.gdrive_token_set
+                    ? '•••••••••••••••• (Token guardado)'
+                    : 'Pega tu OAuth Access Token de Google Drive'
+                }
+                className="input-field font-mono text-xs"
+              />
+              <p className="text-[11px] text-slate-400">
+                Opcional. Permite subir los snapshots comprimidos directamente a tu unidad de Google Drive.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 block">Folder ID (Google Drive)</label>
+              <input
+                type="text"
+                value={backupFolderId}
+                onChange={(e) => setBackupFolderId(e.target.value)}
+                placeholder="Ej. 1A2b3C4d5E6f7G8h9I0j"
+                className="input-field font-mono text-xs"
+              />
+              <p className="text-[11px] text-slate-400">
+                ID de la carpeta de destino en tu Google Drive donde se almacenarán las copias.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={savingBackupConfig}
+              className="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5"
+            >
+              {savingBackupConfig ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              <span>Guardar Configuración de Respaldo</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
+
