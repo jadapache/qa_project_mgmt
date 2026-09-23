@@ -13,6 +13,13 @@ export type QaFeatureConfig = {
   icon: LucideIcon
 }
 
+export const QA_SOURCE_OPTIONS = [
+  { id: 'jira', label: 'Jira' },
+  { id: 'github', label: 'GitHub' },
+  { id: 'gitlab', label: 'GitLab' },
+  { id: 'knowledge', label: 'Biblioteca de Conocimiento' },
+]
+
 export const QA_FEATURES: QaFeatureConfig[] = [
   {
     slug: 'regression',
@@ -76,9 +83,3 @@ export const QA_FEATURE_BY_SLUG = Object.fromEntries(QA_FEATURES.map((item) => [
   QaFeatureConfig
 >
 
-export const QA_SOURCE_OPTIONS = [
-  { id: 'jira', label: 'Jira' },
-  { id: 'github', label: 'GitHub' },
-  { id: 'gitlab', label: 'GitLab' },
-  { id: 'knowledge', label: 'Biblioteca de Conocimiento' },
-]

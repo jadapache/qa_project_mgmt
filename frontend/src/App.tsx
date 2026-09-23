@@ -12,8 +12,7 @@ import { ProfilePage } from './pages/configuraciones/ProfilePage'
 import { SettingsPage } from './pages/configuraciones/SettingsPage'
 import { LevantamientoPage } from './pages/funcional/LevantamientoPage'
 import { MejorasPage } from './pages/funcional/MejorasPage'
-import { ChangeImpactPage } from './pages/pm/ChangeImpactPage'
-import { PrdCheckerPage } from './pages/pm/PrdCheckerPage'
+import { PmFeaturePage } from './pages/pm/PmFeaturePage'
 import { StandupPage } from './pages/pm/StandupPage'
 import { QaFeaturePage } from './pages/qa/QaFeaturePage'
 
@@ -29,8 +28,7 @@ export const App = () => {
               <Route element={<AppLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="pm/standup" element={<StandupPage />} />
-                <Route path="pm/prd-checker" element={<PrdCheckerPage />} />
-                <Route path="pm/change-impact" element={<ChangeImpactPage />} />
+                <Route path="pm/:slug" element={<PmFeaturePage />} />
                 <Route path="funcional/levantamiento" element={<LevantamientoPage />} />
                 <Route path="funcional/mejoras" element={<MejorasPage />} />
                 <Route path="qa/:slug" element={<QaFeaturePage />} />
