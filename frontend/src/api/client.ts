@@ -75,10 +75,43 @@ export type GroundedResult = {
 export type AISettings = {
   provider: string
   model: string
+  transcription_provider?: string
+  transcription_model?: string
+  voice_command_provider?: string
+  voice_command_model?: string
   openai_api_key_set: boolean
   claude_api_key_set: boolean
   groq_api_key_set: boolean
+  gemini_api_key_set?: boolean
   ollama_base_url: string
+}
+
+export type ModelCatalogItem = {
+  id: string
+  raw_id: string
+  name: string
+  provider: 'groq' | 'openai' | 'claude' | 'gemini' | 'ollama'
+  provider_name: string
+  description: string
+  context_window: string
+  context_length: number
+  task_type: 'chat_writing' | 'transcription'
+  task_label: string
+  tier_type: 'free' | 'paid' | 'freemium'
+  pricing_prompt: number
+  pricing_completion: number
+  pricing_label: string
+  rate_limits: string
+  badge?: string
+  is_free: boolean
+}
+
+export type ModelCatalogResponse = {
+  updated_at: string
+  source: string
+  providers: string[]
+  models: ModelCatalogItem[]
+  error?: string
 }
 
 export const api = {
@@ -283,6 +316,17 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, sources }),
     }).then((r) => handleResponse<Record<string, unknown>>(r)),
+
+  getModelCatalog: (refresh?: boolean, provider?: string, task_type?: string) => {
+    const params = new URLSearchParams()
+    if (refresh) params.set('refresh', 'true')
+    if (provider && provider !== 'all') params.set('provider', provider)
+    if (task_type && task_type !== 'all') params.set('task_type', task_type)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return fetch(`${API_BASE}/api/ai/models/catalog${qs}`).then((r) =>
+      handleResponse<ModelCatalogResponse>(r),
+    )
+  },
 
   getAiSettings: () =>
     fetch(`${API_BASE}/api/ai/settings`).then((r) => handleResponse<AISettings>(r)),
