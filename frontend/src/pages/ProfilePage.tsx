@@ -230,8 +230,11 @@ export const ProfilePage = () => {
           </div>
           <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-2xl font-bold text-slate-900 truncate" title={activeFullName}>
-                {activeFullName}
+              <h2
+                className="text-2xl font-bold text-slate-900 truncate"
+                title={user?.username ? `${activeFullName} (${user.username})` : activeFullName}
+              >
+                {activeFullName}{user?.username ? ` (${user.username})` : ''}
               </h2>
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3 py-0.5 text-xs font-semibold text-[#002777]">
                 <Shield className="h-3 w-3" /> {activeRole}
