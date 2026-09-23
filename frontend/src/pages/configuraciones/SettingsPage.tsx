@@ -23,6 +23,7 @@ import {
   Sparkles,
   UserCheck,
   UserX,
+  Zap,
 } from 'lucide-react'
 import { api, type AISettings, type AuthUser, type ModelCatalogItem } from '../../api/client'
 import type { AuthMethod, IntegrationInfo } from '../../types'
@@ -198,6 +199,7 @@ export const SettingsPage = () => {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savingAi, setSavingAi] = useState(false)
+  const [testingConnection, setTestingConnection] = useState(false)
   const { toast } = useToast()
 
   const notifySuccess = useCallback((msg: string) => {
@@ -367,6 +369,9 @@ export const SettingsPage = () => {
         if (settings.provider) {
           setProvider(settings.provider)
         }
+        if (settings.model) {
+          setModel(settings.model)
+        }
         const unifiedProvider = settings.transcription_provider || settings.voice_command_provider || 'groq'
         const unifiedModel = settings.transcription_model || settings.voice_command_model || 'whisper-large-v3'
         setVoiceAudioProvider(unifiedProvider)
@@ -503,6 +508,36 @@ export const SettingsPage = () => {
       notifyError(err instanceof Error ? err.message : 'Error al guardar la configuración de IA')
     } finally {
       setSavingAi(false)
+    }
+  }
+
+  const handleTestConnection = async () => {
+    setError(null)
+    setMessage(null)
+    setTestingConnection(true)
+
+    const payload: Record<string, string> = {
+      provider,
+      model: model.trim(),
+      ollama_base_url: ollamaUrl.trim() || 'http://localhost:11434',
+    }
+
+    if (groqKey.trim()) payload.groq_api_key = groqKey.trim()
+    if (geminiKey.trim()) payload.gemini_api_key = geminiKey.trim()
+    if (openaiKey.trim()) payload.openai_api_key = openaiKey.trim()
+    if (claudeKey.trim()) payload.claude_api_key = claudeKey.trim()
+
+    try {
+      const res = await api.testAiConnection(payload)
+      if (res.status === 'ok') {
+        notifySuccess(res.message || 'Prueba de conexión exitosa con el modelo de IA.')
+      } else {
+        notifyError(res.message || 'La prueba de conexión con el modelo ha fallado.')
+      }
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Error al realizar la prueba de conexión con el modelo.')
+    } finally {
+      setTestingConnection(false)
     }
   }
 
@@ -850,8 +885,16 @@ export const SettingsPage = () => {
                             Modelo Recomendado
                           </label>
                           <select
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
+                            value={
+                              ollamaModels.includes(model) || OLLAMA_RECOMMENDED.some((m) => m.id === model)
+                                ? model
+                                : 'custom'
+                            }
+                            onChange={(e) => {
+                              if (e.target.value !== 'custom') {
+                                setModel(e.target.value)
+                              }
+                            }}
                             className="input-field text-sm font-medium text-slate-900 border border-slate-300 rounded-xl"
                           >
                             {ollamaModels.length > 0 && (
@@ -870,21 +913,24 @@ export const SettingsPage = () => {
                                 </option>
                               ))}
                             </optgroup>
+                            <option value="custom">Otro Modelo (Personalizado)</option>
                           </select>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-semibold text-slate-800 block">
-                            Identificador de Modelo Personalizado
-                          </label>
-                          <input
-                            type="text"
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            placeholder="Ej. gemma3:1b, llama3.2, deepseek-r1:8b"
-                            className="input-field font-mono text-xs border border-slate-300 rounded-xl"
-                          />
-                        </div>
+                        {(!ollamaModels.includes(model) && !OLLAMA_RECOMMENDED.some((m) => m.id === model)) && (
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-800 block">
+                              Identificador de Modelo Personalizado
+                            </label>
+                            <input
+                              type="text"
+                              value={model}
+                              onChange={(e) => setModel(e.target.value)}
+                              placeholder="Ej. gemma3:1b, llama3.2, deepseek-r1:8b"
+                              className="input-field font-mono text-xs border border-slate-300 rounded-xl"
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* Endpoint Personalizado (Opcional) colapsable con placeholder limpio */}
@@ -1043,8 +1089,16 @@ export const SettingsPage = () => {
                               Modelo Recomendado (Redacción y Chat)
                             </label>
                             <select
-                              value={model}
-                              onChange={(e) => setModel(e.target.value)}
+                              value={
+                                dropdownModels.some((m) => m.id === model)
+                                  ? model
+                                  : 'custom'
+                              }
+                              onChange={(e) => {
+                                if (e.target.value !== 'custom') {
+                                  setModel(e.target.value)
+                                }
+                              }}
                               className="input-field text-sm font-medium text-slate-900 border border-slate-300 rounded-xl"
                             >
                               {dropdownModels.map((m) => (
@@ -1052,21 +1106,24 @@ export const SettingsPage = () => {
                                   {m.name}
                                 </option>
                               ))}
+                              <option value="custom">Otro Modelo (Personalizado)</option>
                             </select>
                           </div>
 
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-800 block">
-                              Identificador de Modelo Personalizado
-                            </label>
-                            <input
-                              type="text"
-                              value={model}
-                              onChange={(e) => setModel(e.target.value)}
-                              placeholder="Ej. gpt-4o, llama-3.3-70b-versatile, gemini-1.5-flash"
-                              className="input-field font-mono text-xs border border-slate-300 rounded-xl"
-                            />
-                          </div>
+                          {!dropdownModels.some((m) => m.id === model) && (
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold text-slate-800 block">
+                                Identificador de Modelo Personalizado
+                              </label>
+                              <input
+                                type="text"
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                placeholder="Ej. gpt-4o, llama-3.3-70b-versatile, gemini-1.5-flash"
+                                className="input-field font-mono text-xs border border-slate-300 rounded-xl"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         {/* Resumen de Tarifas y Límites del Modelo Seleccionado */}
@@ -1274,11 +1331,21 @@ export const SettingsPage = () => {
                     )
                   })()}
 
-                  {/* Botón Guardar en Español */}
-                  <div className="flex justify-end pt-4 border-t border-slate-100">
+                  {/* Botones Probar Conexión y Guardar en Español */}
+                  <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      disabled={testingConnection || savingAi}
+                      onClick={() => void handleTestConnection()}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium px-5 py-2.5 shadow-sm transition text-sm disabled:opacity-60 cursor-pointer"
+                    >
+                      {testingConnection ? <RefreshCw className="h-4 w-4 animate-spin text-blue-600" /> : <Zap className="h-4 w-4 text-amber-500" />}
+                      <span>{testingConnection ? 'Probando Conexión…' : 'Probar Conexión'}</span>
+                    </button>
+
                     <button
                       type="submit"
-                      disabled={savingAi}
+                      disabled={savingAi || testingConnection}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer text-sm"
                     >
                       {savingAi ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
