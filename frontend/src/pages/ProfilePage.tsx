@@ -23,7 +23,7 @@ type OutletContext = {
 
 export const ProfilePage = () => {
   const { displayName, setDisplayName } = useOutletContext<OutletContext>()
-  const { user, isAuthenticated, updateUser } = useAuth()
+  const { user, updateUser } = useAuth()
 
   // Form Fields
   const [fullName, setFullName] = useState(user?.full_name || displayName)
@@ -214,7 +214,7 @@ export const ProfilePage = () => {
       {/* Tarjeta de Identidad de Usuario (Estilo Dropdown & Perfil) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-extrabold text-2xl shadow-lg ring-4 ring-amber-100">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#002777] to-[#004497] text-white font-extrabold text-2xl shadow-lg shadow-[#002777]/25 ring-4 ring-blue-100">
             {initials}
           </div>
           <div className="space-y-1.5 flex-1 min-w-0">
@@ -224,10 +224,6 @@ export const ProfilePage = () => {
               </h2>
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3 py-0.5 text-xs font-semibold text-[#002777]">
                 <Shield className="h-3 w-3" /> {activeRole}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {isAuthenticated ? 'Activo' : 'Sesión Local'}
               </span>
             </div>
             <p className="text-sm text-slate-500 flex items-center gap-2 truncate" title={activeEmail}>
