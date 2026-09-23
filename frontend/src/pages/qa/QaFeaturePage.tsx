@@ -8,7 +8,7 @@ export const QaFeaturePage = () => {
   const config = slug ? QA_FEATURE_BY_SLUG[slug] : undefined
 
   if (!config) {
-    return <Navigate to="/qa" replace />
+    return <Navigate to="/qa/regression" replace />
   }
 
   return (
