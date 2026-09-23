@@ -13,8 +13,8 @@ export const KnowledgePage = () => {
   const [query, setQuery] = useState('')
   const [sources, setSources] = useState({ knowledge: true, jira: false, github: false })
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
+  const [, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [loadingDocs, setLoadingDocs] = useState(true)
 
@@ -124,8 +124,7 @@ export const KnowledgePage = () => {
         </p>
       </header>
 
-      {message ? <p className="alert-success" role="status">{message}</p> : null}
-      {error ? <p className="alert-error" role="alert">{error}</p> : null}
+
 
       <form onSubmit={(event) => void handleUpload(event)} className="space-y-4 rounded-xl border border-[var(--color-border)] bg-white/60 p-5">
         <h2 className="text-lg font-semibold">Cargar documento</h2>
