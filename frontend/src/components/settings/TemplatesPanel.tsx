@@ -2,6 +2,7 @@ import type { FormEvent } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Check,
+  Copy,
   Edit3,
   Eye,
   FileCode,
@@ -9,11 +10,13 @@ import {
   FileText,
   Plus,
   RefreshCw,
+  Save,
+  Tag,
   Trash2,
   Upload,
   X,
 } from 'lucide-react'
-import { api, type CorporateTemplate } from '../../api/client'
+import { api, type CorporateTemplate, type TemplateDetail } from '../../api/client'
 import { useToast } from '../../context/ToastContext'
 
 export const TemplatesPanel = () => {
@@ -35,8 +38,13 @@ export const TemplatesPanel = () => {
   const [editTitle, setEditTitle] = useState('')
   const [editModule, setEditModule] = useState('')
 
-  // Preview state
+  // Preview / Detail state
   const [previewTemplate, setPreviewTemplate] = useState<CorporateTemplate | null>(null)
+  const [previewDetail, setPreviewDetail] = useState<TemplateDetail | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [editedContent, setEditedContent] = useState<string>('')
+  const [isEditingContent, setIsEditingContent] = useState<boolean>(false)
+  const [savingContent, setSavingContent] = useState<boolean>(false)
 
   const loadTemplates = useCallback(async () => {
     setLoading(true)
@@ -53,6 +61,31 @@ export const TemplatesPanel = () => {
   useEffect(() => {
     void loadTemplates()
   }, [loadTemplates])
+
+  // Fetch document content detail when previewTemplate changes
+  useEffect(() => {
+    if (!previewTemplate) {
+      setPreviewDetail(null)
+      setEditedContent('')
+      setIsEditingContent(false)
+      return
+    }
+
+    const fetchDetail = async () => {
+      setLoadingDetail(true)
+      try {
+        const detail = await api.getTemplateContent(previewTemplate.id)
+        setPreviewDetail(detail)
+        setEditedContent(detail.content)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Error al obtener el contenido de la plantilla')
+      } finally {
+        setLoadingDetail(false)
+      }
+    }
+
+    void fetchDetail()
+  }, [previewTemplate, toast])
 
   const handleFilePicked = (picked: FileList | null) => {
     if (!picked?.length) return
@@ -108,6 +141,28 @@ export const TemplatesPanel = () => {
     }
   }
 
+  const handleSaveContentEdit = async () => {
+    if (!previewTemplate) return
+    setSavingContent(true)
+    try {
+      const res = await api.updateTemplate(previewTemplate.id, {
+        content: editedContent,
+      })
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === previewTemplate.id ? res.template : t)),
+      )
+      if (previewDetail) {
+        setPreviewDetail({ ...previewDetail, content: editedContent })
+      }
+      setIsEditingContent(false)
+      toast.success('Contenido de la plantilla guardado exitosamente')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el contenido')
+    } finally {
+      setSavingContent(false)
+    }
+  }
+
   const handleDelete = async (template: CorporateTemplate) => {
     if (!window.confirm(`¿Estás seguro de eliminar la plantilla "${template.title}"?`)) return
     try {
@@ -120,6 +175,12 @@ export const TemplatesPanel = () => {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar plantilla')
     }
+  }
+
+  const copyTagToClipboard = (tag: string) => {
+    const tagFormatted = `{{${tag.replace(/[{}]/g, '')}}}`
+    void navigator.clipboard.writeText(tagFormatted)
+    toast.success(`Etiqueta "${tagFormatted}" copiada al portapapeles`)
   }
 
   const getFileIcon = (fileType: string) => {
@@ -141,14 +202,14 @@ export const TemplatesPanel = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-900">Plantillas Corporativas</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Administra las plantillas oficiales (.doc, .docx, .xlsx) para la generación de documentos del sistema.
+            Administra las plantillas oficiales (.doc, .docx, .xlsx) y sus etiquetas para la generación de documentos.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowUploadModal(true)}
-          className="btn btn-primary text-xs py-2 px-4 flex items-center gap-2 shadow-sm shrink-0"
+          className="btn btn-primary text-xs py-2 px-4 flex items-center gap-2 shadow-sm shrink-0 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           <span>Cargar Nueva Plantilla</span>
@@ -158,11 +219,11 @@ export const TemplatesPanel = () => {
       {/* Templates List */}
       {loading ? (
         <div className="p-8 text-center text-slate-400 flex items-center justify-center gap-2">
-          <RefreshCw className="h-5 w-5 animate-spin" />
-          <span>Cargando plantillas...</span>
+          <RefreshCw className="h-5 w-5 animate-spin text-[#002777]" />
+          <span>Cargando plantillas corporativas...</span>
         </div>
       ) : templates.length === 0 ? (
-        <div className="card p-12 text-center space-y-3 bg-white border border-slate-200 rounded-2xl">
+        <div className="card p-12 text-center space-y-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
           <div className="h-12 w-12 rounded-2xl bg-blue-50 text-[#002777] flex items-center justify-center mx-auto">
             <FileText className="h-6 w-6" />
           </div>
@@ -175,7 +236,7 @@ export const TemplatesPanel = () => {
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
-            className="btn btn-secondary text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5 mt-2"
+            className="btn btn-secondary text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5 mt-2 cursor-pointer"
           >
             <Upload className="h-3.5 w-3.5" />
             <span>Subir Primera Plantilla</span>
@@ -210,6 +271,25 @@ export const TemplatesPanel = () => {
                   <span>•</span>
                   <span>{formatFileSize(tpl.file_size)}</span>
                 </div>
+
+                {/* Tag Badges Preview */}
+                {tpl.tags && tpl.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {tpl.tags.slice(0, 4).map((t) => (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 font-mono"
+                      >
+                        {`{{${t}}}`}
+                      </span>
+                    ))}
+                    {tpl.tags.length > 4 ? (
+                      <span className="text-[10px] text-slate-400 font-medium self-center">
+                        +{tpl.tags.length - 4} más
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {/* Action Toolbar */}
@@ -220,8 +300,8 @@ export const TemplatesPanel = () => {
                   <button
                     type="button"
                     onClick={() => setPreviewTemplate(tpl)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-[#002777] hover:bg-blue-50 transition"
-                    title="Visualizar información de la plantilla"
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-[#002777] hover:bg-blue-50 transition cursor-pointer"
+                    title="Visualizar contenido y etiquetas del documento"
                   >
                     <Eye className="h-4 w-4" />
                   </button>
@@ -229,7 +309,7 @@ export const TemplatesPanel = () => {
                   <button
                     type="button"
                     onClick={() => handleStartEdit(tpl)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition"
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition cursor-pointer"
                     title="Editar título o módulo"
                   >
                     <Edit3 className="h-4 w-4" />
@@ -238,7 +318,7 @@ export const TemplatesPanel = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(tpl)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition"
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
                     title="Eliminar plantilla"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -259,7 +339,7 @@ export const TemplatesPanel = () => {
               <button
                 type="button"
                 onClick={() => setShowUploadModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -282,7 +362,7 @@ export const TemplatesPanel = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-3 btn btn-secondary text-xs py-1 px-3"
+                  className="mt-3 btn btn-secondary text-xs py-1 px-3 cursor-pointer"
                 >
                   Seleccionar Archivo
                 </button>
@@ -320,14 +400,14 @@ export const TemplatesPanel = () => {
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="btn btn-secondary text-xs py-1.5 px-3.5"
+                  className="btn btn-secondary text-xs py-1.5 px-3.5 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={uploading || !newFile}
-                  className="btn btn-primary text-xs py-1.5 px-4 flex items-center gap-1.5"
+                  className="btn btn-primary text-xs py-1.5 px-4 flex items-center gap-1.5 cursor-pointer"
                 >
                   {uploading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                   <span>Subir Plantilla</span>
@@ -347,7 +427,7 @@ export const TemplatesPanel = () => {
               <button
                 type="button"
                 onClick={() => setEditingTemplate(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -382,14 +462,14 @@ export const TemplatesPanel = () => {
                 <button
                   type="button"
                   onClick={() => setEditingTemplate(null)}
-                  className="btn btn-secondary text-xs py-1.5 px-3.5"
+                  className="btn btn-secondary text-xs py-1.5 px-3.5 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveEdit}
-                  className="btn btn-primary text-xs py-1.5 px-4"
+                  className="btn btn-primary text-xs py-1.5 px-4 cursor-pointer"
                 >
                   Guardar Cambios
                 </button>
@@ -399,51 +479,165 @@ export const TemplatesPanel = () => {
         </div>
       )}
 
-      {/* Preview Modal */}
+      {/* Document Content & Tag Visualizer Drawer / Modal */}
       {previewTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                {getFileIcon(previewTemplate.file_type)}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 sm:p-6">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-xs">
+                  {getFileIcon(previewTemplate.file_type)}
+                </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">{previewTemplate.title}</h3>
-                  <p className="text-xs text-slate-400">{previewTemplate.filename}</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">{previewTemplate.title}</h3>
+                    <span className="uppercase text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-[#002777]">
+                      .{previewTemplate.file_type}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Archivo: <span className="font-mono text-slate-700">{previewTemplate.filename}</span> • Módulo: <span className="capitalize font-semibold text-slate-700">{previewTemplate.module}</span>
+                  </p>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setPreviewTemplate(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-700 py-2">
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="font-semibold text-slate-500">Módulo Asignado:</span>
-                <span className="font-bold text-[#002777] capitalize">{previewTemplate.module}</span>
+            {/* Modal Body */}
+            {loadingDetail ? (
+              <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="h-6 w-6 animate-spin text-[#002777]" />
+                <span className="text-xs font-semibold">Cargando y procesando el contenido del documento...</span>
               </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="font-semibold text-slate-500">Tipo de Archivo:</span>
-                <span className="font-mono text-slate-900">.{previewTemplate.file_type}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="font-semibold text-slate-500">Tamaño del Archivo:</span>
-                <span>{formatFileSize(previewTemplate.file_size)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="font-semibold text-slate-500">Fecha de Carga:</span>
-                <span>{previewTemplate.created_at}</span>
-              </div>
-            </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Visualizador de Etiquetas / Dynamic Tags Bar */}
+                <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-[#002777]" />
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                        Etiquetas de Generación (Tags)
+                      </h4>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Haz clic en cualquier etiqueta para copiarla al documento
+                    </span>
+                  </div>
 
-            <div className="flex justify-end pt-2">
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Estas etiquetas indican los puntos dinámicos del documento donde la IA insertará la información recopilada:
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {(previewDetail?.system_tags || []).map((st) => (
+                      <button
+                        key={st.tag}
+                        type="button"
+                        onClick={() => copyTagToClipboard(st.tag)}
+                        className="group inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-xs hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer"
+                        title={`${st.label}: ${st.description}`}
+                      >
+                        <span className="font-mono text-[#002777] font-bold">{`{{${st.tag}}}`}</span>
+                        <span className="text-slate-500 text-[11px] font-normal hidden sm:inline">({st.label})</span>
+                        <Copy className="h-3 w-3 text-slate-400 group-hover:text-blue-600 transition" />
+                      </button>
+                    ))}
+                  </div>
+
+                  {previewDetail?.detected_tags && previewDetail.detected_tags.length > 0 ? (
+                    <div className="pt-2 border-t border-slate-200/60 flex items-center gap-2 text-xs">
+                      <span className="font-semibold text-slate-700">Etiquetas detectadas en el texto:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {previewDetail.detected_tags.map((dt) => (
+                          <span
+                            key={dt}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-mono text-[11px] font-bold"
+                          >
+                            {`{{${dt}}}`}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Content Viewer / Editor Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-[#002777]" />
+                      <span>Visualización del Contenido del Documento</span>
+                    </h4>
+
+                    <div className="flex items-center gap-2">
+                      {['md', 'txt', 'json', 'html', 'xml'].includes(previewTemplate.file_type.toLowerCase()) ? (
+                        isEditingContent ? (
+                          <button
+                            type="button"
+                            onClick={handleSaveContentEdit}
+                            disabled={savingContent}
+                            className="btn btn-primary text-xs py-1 px-3 inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {savingContent ? (
+                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" />
+                            )}
+                            <span>Guardar Cambios</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingContent(true)}
+                            className="btn btn-secondary text-xs py-1 px-3 inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            <span>Editar Texto</span>
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">
+                          (Vista de lectura para .{previewTemplate.file_type})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Document Text Box */}
+                  {isEditingContent ? (
+                    <textarea
+                      value={editedContent}
+                      onChange={(e) => setDraftContent(e.target.value, setEditedContent)}
+                      className="w-full h-80 p-4 font-mono text-xs text-slate-800 bg-slate-900 text-slate-100 rounded-xl border border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-y leading-relaxed"
+                      placeholder="Ingresa el contenido estructurado del documento con sus etiquetas {{FECHA}}, {{AREA}}, etc..."
+                    />
+                  ) : (
+                    <div className="w-full max-h-96 overflow-y-auto p-4 bg-slate-900 text-slate-100 rounded-xl font-mono text-xs leading-relaxed whitespace-pre-wrap border border-slate-800 shadow-inner">
+                      {editedContent || previewDetail?.content || 'No hay contenido de texto extraído para esta plantilla.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 bg-slate-50/80">
+              <span className="text-xs text-slate-500">
+                Tamaño: {formatFileSize(previewTemplate.file_size)} • Fecha: {previewTemplate.created_at}
+              </span>
               <button
                 type="button"
                 onClick={() => setPreviewTemplate(null)}
-                className="btn btn-primary text-xs py-1.5 px-4"
+                className="btn btn-primary text-xs py-1.5 px-4 cursor-pointer"
               >
                 Cerrar Visualización
               </button>
@@ -453,4 +647,8 @@ export const TemplatesPanel = () => {
       )}
     </div>
   )
+}
+
+function setDraftContent(value: string, setter: (v: string) => void) {
+  setter(value)
 }
