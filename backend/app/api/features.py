@@ -3,8 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
+
+from app.core.template_storage import (
+  delete_template,
+  list_templates,
+  save_template_file,
+  update_template_metadata,
+)
 
 from app.ai.catalog import get_model_catalog
 from app.ai.logging import list_logs
@@ -415,4 +422,47 @@ async def export_docx(body: DocxExportRequest) -> Response:
     )
   except Exception as exc:
     raise HTTPException(status_code=500, detail=f"Error al generar archivo .docx: {str(exc)}") from exc
+
+
+class TemplateMetadataUpdate(BaseModel):
+  title: str | None = None
+  module: str | None = None
+
+
+@router.get("/templates")
+async def get_templates() -> dict[str, Any]:
+  return {"templates": list_templates()}
+
+
+@router.post("/templates/upload")
+async def upload_template(
+  file: UploadFile = File(...),
+  title: str = Form(default=""),
+  module: str = Form(default="general"),
+) -> dict[str, Any]:
+  content = await file.read()
+  item = save_template_file(
+    filename=file.filename or "template",
+    file_bytes=content,
+    title=title,
+    module=module,
+  )
+  return {"template": item}
+
+
+@router.put("/templates/{template_id}")
+async def edit_template(template_id: str, body: TemplateMetadataUpdate) -> dict[str, Any]:
+  updated = update_template_metadata(template_id, title=body.title, module=body.module)
+  if not updated:
+    raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+  return {"template": updated}
+
+
+@router.delete("/templates/{template_id}")
+async def remove_template(template_id: str) -> dict[str, Any]:
+  success = delete_template(template_id)
+  if not success:
+    raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+  return {"ok": True, "template_id": template_id}
+
 

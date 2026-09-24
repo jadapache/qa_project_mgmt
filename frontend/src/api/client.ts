@@ -114,6 +114,16 @@ export type ModelCatalogResponse = {
   error?: string
 }
 
+export type CorporateTemplate = {
+  id: string
+  title: string
+  filename: string
+  file_type: string
+  file_size: number
+  module: string
+  created_at: string
+}
+
 export type FeaturePayload = {
   query: string
   document_ids: string[]
@@ -497,6 +507,33 @@ export const api = {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     }).then((r) => handleResponse<{ status: string; user: AuthUser }>(r)),
+
+  getTemplates: () =>
+    fetch(`${API_BASE}/api/templates`).then((r) =>
+      handleResponse<{ templates: CorporateTemplate[] }>(r),
+    ),
+
+  uploadTemplate: async (file: File, title?: string, module?: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (title) form.append('title', title)
+    if (module) form.append('module', module)
+    return fetch(`${API_BASE}/api/templates/upload`, { method: 'POST', body: form }).then((r) =>
+      handleResponse<{ template: CorporateTemplate }>(r),
+    )
+  },
+
+  updateTemplate: (id: string, payload: { title?: string; module?: string }) =>
+    fetch(`${API_BASE}/api/templates/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<{ template: CorporateTemplate }>(r)),
+
+  deleteTemplate: (id: string) =>
+    fetch(`${API_BASE}/api/templates/${id}`, { method: 'DELETE' }).then((r) =>
+      handleResponse<{ ok: boolean; template_id: string }>(r),
+    ),
 }
 
 export const apiClient = api
