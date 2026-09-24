@@ -40,6 +40,8 @@ async def test_groq_provider_with_litellm():
 async def test_all_litellm_model_formatting():
     groq_p = GroqProvider("key")
     assert groq_p._format_model_name("llama3") == "groq/llama3"
+    assert groq_p._format_model_name("qwen-2.5-32b") == "groq/qwen-2.5-32b"
+    assert groq_p._format_model_name("groq/qwen-2.5-32b") == "groq/qwen-2.5-32b"
 
     claude_p = ClaudeProvider("key")
     assert claude_p._format_model_name("claude-3-5-haiku-latest") == "anthropic/claude-3-5-haiku-latest"

@@ -25,5 +25,11 @@ class AIProvider(ABC):
   name: str
 
   @abstractmethod
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
+  async def complete(
+    self,
+    messages: list[AIMessage],
+    *,
+    model: str | None = None,
+    max_tokens: int | None = None,
+  ) -> AICompletion:
     raise NotImplementedError
