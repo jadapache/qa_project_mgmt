@@ -1,9 +1,12 @@
+"""Unified LiteLLM provider implementation backed by ProviderSpec registry."""
+
 from __future__ import annotations
 
 import litellm
 from typing import Any
 
 from app.ai.providers.base import AICompletion, AIMessage, AIProvider
+from app.ai.providers.registry import ProviderSpec, find_provider_spec
 
 # Disable litellm telemetry and set quiet mode
 litellm.telemetry = False
@@ -11,49 +14,69 @@ litellm.suppress_debug_info = True
 
 
 class LiteLLMProvider(AIProvider):
-  id = "litellm"
-  name = "LiteLLM Unified Provider"
+  id: str
+  name: str
+  spec: ProviderSpec
 
   def __init__(
     self,
-    provider_id: str,
+    provider_id: str | ProviderSpec,
     api_key: str | None = None,
     base_url: str | None = None,
-    default_model: str = "gpt-4o-mini",
+    default_model: str | None = None,
   ) -> None:
-    self.id = provider_id
+    if isinstance(provider_id, ProviderSpec):
+      self.spec = provider_id
+      self.id = self.spec.id
+      self.name = self.spec.name
+    else:
+      found = find_provider_spec(provider_id)
+      if found:
+        self.spec = found
+        self.id = found.id
+        self.name = found.name
+      else:
+        self.id = provider_id
+        self.name = provider_id.capitalize()
+        self.spec = ProviderSpec(
+          id=provider_id,
+          name=self.name,
+          litellm_prefix=provider_id,
+        )
+
     self.api_key = api_key
-    self.base_url = base_url
-    self.default_model = default_model
+    self.base_url = base_url or self.spec.default_base_url
+    self.default_model = default_model or self.spec.default_model
 
   def _format_model_name(self, model: str) -> str:
     m = model.strip()
-    # Normalize model prefixes for LiteLLM format
-    if self.id == "groq":
-      if m.startswith("groq/"):
+    prefix = self.spec.litellm_prefix
+
+    # Special handling for Ollama
+    if self.spec.id in {"ollama", "builtin", "local"} or prefix == "ollama_chat":
+      if m.startswith("ollama/") or m.startswith("ollama_chat/"):
         return m
-      return f"groq/{m}"
-    if self.id in {"claude", "anthropic"}:
-      if m.startswith("anthropic/"):
-        return m
-      return f"anthropic/{m}"
-    if self.id in {"gemini", "google"}:
+      return f"ollama_chat/{m}"
+
+    # Special handling for OpenAI (LiteLLM accepts direct model names for openai)
+    if self.spec.id == "openai" or prefix == "":
+      if m.startswith("openai/"):
+        return m[7:]
+      return m
+
+    # Special handling for Gemini/Google models prefix
+    if self.spec.id in {"gemini", "google"}:
       if m.startswith("gemini/"):
         return m
       if m.startswith("models/"):
         return f"gemini/{m[7:]}"
       return f"gemini/{m}"
-    if self.id in {"ollama", "builtin", "local"}:
-      if m.startswith("ollama/"):
-        return m
-      if m.startswith("ollama_chat/"):
-        return m
-      return f"ollama_chat/{m}"
-    if self.id == "openai":
-      if m.startswith("openai/"):
-        return m[7:]
+
+    # General prefix rule: if model already starts with prefix/, don't double prefix
+    if prefix and m.startswith(f"{prefix}/"):
       return m
-    return m
+
+    return f"{prefix}/{m}" if prefix else m
 
   async def complete(
     self,
@@ -69,11 +92,12 @@ class LiteLLMProvider(AIProvider):
       "model": formatted_model,
       "messages": [message.model_dump() for message in messages],
       "temperature": 0.2,
+      **self.spec.extra_kwargs,
     }
-    if max_tokens is not None:
-      kwargs["max_tokens"] = max_tokens
-    elif self.id == "groq":
-      kwargs["max_tokens"] = 512
+
+    effective_max_tokens = max_tokens if max_tokens is not None else self.spec.default_max_tokens
+    if effective_max_tokens is not None:
+      kwargs["max_tokens"] = effective_max_tokens
 
     if self.api_key:
       kwargs["api_key"] = self.api_key
@@ -93,36 +117,27 @@ class LiteLLMProvider(AIProvider):
     return AICompletion(text=text, provider=self.id, model=clean_model_name, raw=raw_dict)
 
 
+# Backwards-compatible aliases mapping to the registry
 class OpenAIProvider(LiteLLMProvider):
-  name = "OpenAI"
-
   def __init__(self, api_key: str, default_model: str = "gpt-4o-mini") -> None:
     super().__init__("openai", api_key=api_key, default_model=default_model)
 
 
 class ClaudeProvider(LiteLLMProvider):
-  name = "Claude"
-
   def __init__(self, api_key: str, default_model: str = "claude-3-5-haiku-latest") -> None:
     super().__init__("claude", api_key=api_key, default_model=default_model)
 
 
 class GroqProvider(LiteLLMProvider):
-  name = "Groq"
-
   def __init__(self, api_key: str, default_model: str = "llama-3.3-70b-versatile") -> None:
     super().__init__("groq", api_key=api_key, default_model=default_model)
 
 
 class GeminiProvider(LiteLLMProvider):
-  name = "Google Gemini"
-
   def __init__(self, api_key: str, default_model: str = "gemini-1.5-flash") -> None:
     super().__init__("gemini", api_key=api_key, default_model=default_model)
 
 
 class OllamaProvider(LiteLLMProvider):
-  name = "Ollama (local)"
-
-  def __init__(self, base_url: str = "http://127.0.0.1:11434", default_model: str = "llama3.2") -> None:
+  def __init__(self, base_url: str = "http://127.0.0.1:11434", default_model: str = "qwen2.5:2b") -> None:
     super().__init__("ollama", base_url=base_url, default_model=default_model)

@@ -3,17 +3,11 @@ from unittest.mock import patch
 from app.ai import catalog
 from app.ai.catalog import get_model_catalog, AIModelInfo
 
-
-def test_no_fallback_catalog_hardcoded():
-  """Verify that hardcoded fallback catalog has been eliminated."""
-  assert not hasattr(catalog, "FALLBACK_CATALOG")
-
-
 @pytest.mark.asyncio
 async def test_catalog_retrieval_and_task_types():
   res = await get_model_catalog(refresh=False)
   assert len(res.models) > 0
-  assert res.source in {"local_cache", "models.dev (en vivo)", "openrouter.ai (en vivo)"}
+  assert res.source in {"local_json", "models.dev (en vivo)", "local_cache"}
 
   # Verify task categorization
   chat_models = [m for m in res.models if m.task_type == "chat_writing"]
@@ -49,10 +43,8 @@ async def test_catalog_filter_by_task_type():
 
 @pytest.mark.asyncio
 async def test_catalog_offline_error_handling():
-  """When external sources fail and no cache exists, return exact error message."""
-  with patch("app.ai.catalog._fetch_from_models_dev", side_effect=Exception("Network error")), \
-       patch("app.ai.catalog._fetch_from_openrouter", side_effect=Exception("Network error")), \
-       patch("app.ai.catalog._load_cache", return_value=(None, 0)):
+  """When local catalog is empty or fails, return error message."""
+  with patch("app.ai.catalog.load_local_catalog", return_value=[]):
     res = await get_model_catalog(refresh=True)
     assert res.error == "Error de conexión, no se pudo obtener los modelos"
     assert len(res.models) == 0

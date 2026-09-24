@@ -1,4 +1,4 @@
-"""Resolve configured AI provider from local settings + env."""
+"""Resolve configured AI provider from local settings + env using ProviderSpec registry."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import os
 from typing import Any
 
 from app.ai.providers.base import AIProvider
-from app.ai.providers.implementations import ClaudeProvider, GeminiProvider, GroqProvider, OllamaProvider, OpenAIProvider
+from app.ai.providers.implementations import LiteLLMProvider
+from app.ai.providers.registry import find_provider_spec
 from app.core.storage import load_app_settings
 
 
@@ -28,34 +29,37 @@ def get_ai_settings() -> dict[str, Any]:
   }
 
 
-def resolve_provider() -> AIProvider:
+def resolve_provider(
+  provider_name: str | None = None,
+  model_name: str | None = None,
+  api_key: str | None = None,
+  base_url: str | None = None,
+) -> AIProvider:
   config = get_ai_settings()
-  provider = (config.get("provider") or "").lower()
-  if provider == "openai":
-    key = config.get("openai_api_key") or ""
-    if not key:
-      raise ValueError("OpenAI is selected but OPENAI_API_KEY / settings key is missing.")
-    return OpenAIProvider(key, default_model=config.get("model") or "gpt-4o-mini")
-  if provider in {"claude", "anthropic"}:
-    key = config.get("claude_api_key") or ""
-    if not key:
-      raise ValueError("Claude is selected but ANTHROPIC_API_KEY / settings key is missing.")
-    return ClaudeProvider(key, default_model=config.get("model") or "claude-3-5-haiku-latest")
-  if provider == "groq":
-    key = config.get("groq_api_key") or ""
-    if not key:
-      raise ValueError("Groq is selected but GROQ_API_KEY / settings key is missing.")
-    return GroqProvider(key, default_model=config.get("model") or "llama-3.3-70b-versatile")
-  if provider in {"gemini", "google"}:
-    key = config.get("gemini_api_key") or ""
-    if not key:
-      raise ValueError("Gemini is selected but GEMINI_API_KEY / settings key is missing.")
-    return GeminiProvider(key, default_model=config.get("model") or "gemini-1.5-flash")
-  if provider in {"ollama", "builtin", "local"}:
-    return OllamaProvider(
-      base_url=config.get("ollama_base_url") or "http://127.0.0.1:11434",
-      default_model=config.get("model") or "qwen2.5:2b",
+  target_name = (provider_name or config.get("provider") or "").lower()
+  spec = find_provider_spec(target_name)
+
+  if not spec:
+    raise ValueError(
+      f"No valid AI provider found for '{target_name}'. "
+      "Configure provider in Settings (groq | gemini | claude | openai | ollama | openrouter | deepseek)."
     )
-  raise ValueError(
-    "No AI provider configured. Set provider in Settings (builtin | ollama | groq | gemini | openai | claude) and provide credentials."
+
+  chosen_model = model_name or config.get("model") or spec.default_model
+
+  if spec.is_local:
+    target_base_url = base_url or config.get("ollama_base_url") or spec.default_base_url
+    return LiteLLMProvider(spec, base_url=target_base_url, default_model=chosen_model)
+
+  # Cloud provider
+  key = (
+    api_key
+    or (config.get(spec.config_key) if spec.config_key else None)
+    or (os.getenv(spec.env_key) if spec.env_key else None)
+    or ""
   )
+  if not key:
+    env_hint = f" ({spec.env_key})" if spec.env_key else ""
+    raise ValueError(f"{spec.name} is selected but API key{env_hint} is missing.")
+
+  return LiteLLMProvider(spec, api_key=key, default_model=chosen_model)

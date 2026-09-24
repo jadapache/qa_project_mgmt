@@ -529,7 +529,7 @@ export const SettingsPage = () => {
 
     try {
       const res = await api.testAiConnection(payload)
-      if (res.status === 'ok') {
+      if (res.ok || res.status === 'ok') {
         notifySuccess(res.message || 'Prueba de conexión exitosa con el modelo de IA.')
       } else {
         notifyError(res.message || 'La prueba de conexión con el modelo ha fallado.')
@@ -891,7 +891,9 @@ export const SettingsPage = () => {
                                 : 'custom'
                             }
                             onChange={(e) => {
-                              if (e.target.value !== 'custom') {
+                              if (e.target.value === 'custom') {
+                                setModel('')
+                              } else {
                                 setModel(e.target.value)
                               }
                             }}
@@ -1095,7 +1097,9 @@ export const SettingsPage = () => {
                                   : 'custom'
                               }
                               onChange={(e) => {
-                                if (e.target.value !== 'custom') {
+                                if (e.target.value === 'custom') {
+                                  setModel('')
+                                } else {
                                   setModel(e.target.value)
                                 }
                               }}

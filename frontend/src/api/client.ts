@@ -350,7 +350,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    }).then((r) => handleResponse<{ status: string; message: string; response?: string }>(r)),
+    }).then((r) => handleResponse<{ ok: boolean; status?: string; message: string; response?: string }>(r)),
 
   listOllamaModels: (baseUrl?: string) =>
     fetch(`${API_BASE}/api/ai/ollama/models${baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : ''}`).then(
