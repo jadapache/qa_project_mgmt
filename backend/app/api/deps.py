@@ -9,43 +9,43 @@ from app.db.interfaces import (
     ITestPlanRepository,
 )
 from app.db.repositories import (
-    SqliteUserRepository,
-    SqliteSettingsRepository,
-    SqliteChatRepository,
-    SqliteStandupRepository,
-    SqlitePRDRepository,
-    SqliteTestPlanRepository,
+    UserRepository,
+    SettingsRepository,
+    ChatRepository,
+    StandupRepository,
+    PRDRepository,
+    TestPlanRepository,
 )
 
 
 def get_user_repository() -> IUserRepository:
     """Proveedor de inyección de dependencias para el repositorio de Usuarios."""
-    return SqliteUserRepository()
+    return UserRepository()
 
 
 def get_settings_repository() -> ISettingsRepository:
     """Proveedor de inyección de dependencias para el repositorio de Ajustes."""
-    return SqliteSettingsRepository()
+    return SettingsRepository()
 
 
 def get_chat_repository() -> IChatRepository:
     """Proveedor de inyección de dependencias para el repositorio de Chat."""
-    return SqliteChatRepository()
+    return ChatRepository()
 
 
 def get_standup_repository() -> IStandupRepository:
     """Proveedor de inyección de dependencias para el repositorio de Standups."""
-    return SqliteStandupRepository()
+    return StandupRepository()
 
 
 def get_prd_repository() -> IPRDRepository:
     """Proveedor de inyección de dependencias para el repositorio de PRDs."""
-    return SqlitePRDRepository()
+    return PRDRepository()
 
 
 def get_test_plan_repository() -> ITestPlanRepository:
     """Proveedor de inyección de dependencias para el repositorio de Planes de Prueba."""
-    return SqliteTestPlanRepository()
+    return TestPlanRepository()
 
 
 async def get_current_user(
@@ -71,4 +71,3 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
     return {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
-

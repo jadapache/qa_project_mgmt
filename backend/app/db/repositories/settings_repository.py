@@ -1,12 +1,13 @@
 import json
 from typing import Any, Dict
 from app.db.interfaces.settings_repository import ISettingsRepository
-from app.db.repositories.base_sqlite import BaseSqliteRepository
+from app.db.repositories.base_repository import BaseRepository
 from app.db.database import get_db
+from app.schemas.settings import SettingBase
 
 
-class SqliteSettingsRepository(BaseSqliteRepository, ISettingsRepository):
-    """Implementación concreta con aiosqlite de ISettingsRepository."""
+class SettingsRepository(BaseRepository, ISettingsRepository):
+    """Implementación concreta de ISettingsRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
         super().__init__(table_name="settings", id_column="key")
@@ -23,7 +24,8 @@ class SqliteSettingsRepository(BaseSqliteRepository, ISettingsRepository):
         return default
 
     async def set_setting(self, key: str, value: Any) -> None:
-        value_json = json.dumps(value, ensure_ascii=False)
+        setting_schema = SettingBase(key=key, value=value)
+        value_json = json.dumps(setting_schema.value, ensure_ascii=False)
         async with get_db() as db:
             await db.execute(
                 """
@@ -33,7 +35,7 @@ class SqliteSettingsRepository(BaseSqliteRepository, ISettingsRepository):
                     value_json = excluded.value_json,
                     updated_at = CURRENT_TIMESTAMP
                 """,
-                (key, value_json),
+                (setting_schema.key, value_json),
             )
             await db.commit()
 
@@ -44,7 +46,9 @@ class SqliteSettingsRepository(BaseSqliteRepository, ISettingsRepository):
                 result = {}
                 for row in rows:
                     try:
-                        result[row["key"]] = json.loads(row["value_json"])
+                        val = json.loads(row["value_json"])
                     except Exception:
-                        result[row["key"]] = row["value_json"]
+                        val = row["value_json"]
+                    setting_schema = SettingBase(key=row["key"], value=val)
+                    result[setting_schema.key] = setting_schema.value
                 return result

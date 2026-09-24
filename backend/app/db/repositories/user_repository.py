@@ -1,12 +1,13 @@
 import uuid
 from typing import Any, Dict, Optional
 from app.db.interfaces.user_repository import IUserRepository
-from app.db.repositories.base_sqlite import BaseSqliteRepository
+from app.db.repositories.base_repository import BaseRepository
 from app.db.database import get_db
+from app.schemas.user import UserCreate
 
 
-class SqliteUserRepository(BaseSqliteRepository, IUserRepository):
-    """Implementación concreta con aiosqlite de IUserRepository."""
+class UserRepository(BaseRepository, IUserRepository):
+    """Implementación concreta de IUserRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
         super().__init__(table_name="users", id_column="id")
@@ -19,15 +20,18 @@ class SqliteUserRepository(BaseSqliteRepository, IUserRepository):
                     return dict(row)
         return None
 
-    async def create_user(self, username: str, email: str = "", full_name: str = "", role: str = "user") -> Dict[str, Any]:
+    async def create_user(
+        self, username: str, email: str = "", full_name: str = "", role: str = "user"
+    ) -> Dict[str, Any]:
         user_id = str(uuid.uuid4())
-        entity = {
-            "id": user_id,
-            "username": username,
-            "email": email,
-            "full_name": full_name,
-            "role": role,
-        }
+        user_schema = UserCreate(
+            username=username,
+            email=email,
+            full_name=full_name,
+            role=role,
+            status="pending",
+        )
+        entity = {"id": user_id, **user_schema.model_dump(exclude_none=True)}
         return await self.add(entity)
 
     async def create_user_with_password(
@@ -49,16 +53,16 @@ class SqliteUserRepository(BaseSqliteRepository, IUserRepository):
         final_status = "approved" if user_count == 0 else status
         final_role = "admin" if user_count == 0 else role
 
-        entity = {
-            "id": user_id,
-            "username": username,
-            "email": email,
-            "full_name": full_name,
-            "role": final_role,
-            "password_hash": password_hash,
-            "password_salt": password_salt,
-            "status": final_status,
-        }
+        user_schema = UserCreate(
+            username=username,
+            email=email,
+            full_name=full_name,
+            role=final_role,
+            status=final_status,
+            password_hash=password_hash,
+            password_salt=password_salt,
+        )
+        entity = {"id": user_id, **user_schema.model_dump(exclude_none=True)}
         return await self.add(entity)
 
     async def get_pending_users(self) -> list[Dict[str, Any]]:
@@ -72,5 +76,3 @@ class SqliteUserRepository(BaseSqliteRepository, IUserRepository):
             await db.execute("UPDATE users SET status = ? WHERE id = ?", (status, user_id))
             await db.commit()
         return await self.get_by_id(user_id)
-
-
