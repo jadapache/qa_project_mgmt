@@ -33,9 +33,10 @@ import { JiraOAuthSetup } from '../../components/integrations/JiraOAuthSetup'
 import { JiraProjectsPanel } from '../../components/integrations/JiraProjectsPanel'
 import { OAuthSetup } from '../../components/integrations/GitOAuthSetup'
 import { AiModelsSkeleton, IntegrationsSkeleton, UserApprovalsSkeleton } from '../../components/common'
+import { TemplatesPanel } from '../../components/settings/TemplatesPanel'
 import { useToast } from '../../context/ToastContext'
 
-type TabType = 'ai_models' | 'integrations' | 'user_approvals'
+type TabType = 'ai_models' | 'integrations' | 'user_approvals' | 'templates'
 
 type BuiltInModel = {
   id: string
@@ -140,7 +141,7 @@ export const SettingsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    if (t === 'integrations' || t === 'user_approvals' || t === 'ai_models') {
+    if (t === 'integrations' || t === 'user_approvals' || t === 'ai_models' || t === 'templates') {
       return t
     }
     if (
@@ -241,7 +242,7 @@ export const SettingsPage = () => {
 
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab === 'integrations' || tab === 'user_approvals' || tab === 'ai_models') {
+    if (tab === 'integrations' || tab === 'user_approvals' || tab === 'ai_models' || tab === 'templates') {
       setActiveTab(tab)
     } else if (searchParams.get('jira') || searchParams.get('github') || searchParams.get('gitlab')) {
       setActiveTab('integrations')
@@ -578,6 +579,12 @@ export const SettingsPage = () => {
         label: 'Modelos de IA',
         subtitle: 'Configuración de modelos locales y APIs',
         icon: Cpu,
+      },
+      {
+        id: 'templates',
+        label: 'Plantillas',
+        subtitle: 'Plantillas corporativas (.doc, .docx, .xlsx)',
+        icon: FileText,
       },
       {
         id: 'integrations',
@@ -1672,6 +1679,9 @@ export const SettingsPage = () => {
           )}
         </div>
       )}
+
+      {/* TAB 4: PLANTILLAS CORPORATIVAS */}
+      {activeTab === 'templates' && <TemplatesPanel />}
     </div>
   )
 }
