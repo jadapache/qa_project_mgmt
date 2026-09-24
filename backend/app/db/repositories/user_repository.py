@@ -3,14 +3,14 @@ from typing import Any, Dict, Optional
 from app.db.interfaces.user_repository import IUserRepository
 from app.db.repositories.base_repository import BaseRepository
 from app.db.database import get_db
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserInDB
 
 
 class UserRepository(BaseRepository, IUserRepository):
     """Implementación concreta de IUserRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
-        super().__init__(table_name="users", id_column="id")
+        super().__init__(table_name="users", schema=UserInDB, id_column="id")
 
     async def get_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         async with get_db() as db:

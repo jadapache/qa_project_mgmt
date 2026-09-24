@@ -4,10 +4,8 @@ from app.db.repositories import (
     UserRepository,
     SettingsRepository,
     ChatRepository,
-    StandupRepository,
-    PRDRepository,
-    TestPlanRepository,
 )
+from app.schemas.user import UserCreate
 
 
 @pytest.mark.asyncio
@@ -15,8 +13,7 @@ async def test_user_repository_create_and_get():
     await init_db()
     repo = UserRepository()
     username = "test_user_unit"
-    
-    # Clean up if exists
+
     existing = await repo.get_by_username(username)
     if existing:
         await repo.delete(existing["id"])
@@ -30,8 +27,37 @@ async def test_user_repository_create_and_get():
     assert fetched is not None
     assert fetched["id"] == user["id"]
 
-    # Cleanup
     await repo.delete(user["id"])
+
+
+@pytest.mark.asyncio
+async def test_repository_generic_methods():
+    await init_db()
+    repo = UserRepository()
+
+    u1 = await repo.create(UserCreate(username="user_gen_1", email="u1@test.com", role="user"))
+    u2 = await repo.create(UserCreate(username="user_gen_2", email="u2@test.com", role="user"))
+
+    total = await repo.count()
+    assert total >= 2
+
+    found = await repo.find_one(username="user_gen_1")
+    assert found is not None
+    assert found.username == "user_gen_1"
+
+    many = await repo.find_many(role="user")
+    assert len(many) >= 2
+
+    # Bulk update
+    u1_id = u1.id if hasattr(u1, "id") else u1["id"]
+    u2_id = u2.id if hasattr(u2, "id") else u2["id"]
+
+    updated = await repo.update_bulk([u1_id, u2_id], {"status": "approved"})
+    assert len(updated) == 2
+
+    # Bulk delete
+    deleted = await repo.delete_bulk([u1_id, u2_id])
+    assert deleted is True
 
 
 @pytest.mark.asyncio
@@ -60,7 +86,7 @@ async def test_chat_repository_save_and_retrieve():
         session_id=session_id,
         role="user",
         content="Hello world test",
-        context_sources=[{"title": "Doc1"}]
+        context_sources=[{"title": "Doc1"}],
     )
     assert msg["session_id"] == session_id
     assert msg["content"] == "Hello world test"

@@ -11,7 +11,7 @@ class StandupRepository(BaseRepository, IStandupRepository):
     """Implementación concreta de IStandupRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
-        super().__init__(table_name="standups", id_column="id")
+        super().__init__(table_name="standups", schema=StandupInDB, id_column="id")
 
     async def create_standup(
         self, title: str, content: str, sources: Optional[List[str]] = None, user_id: str = "default"
@@ -52,7 +52,7 @@ class StandupRepository(BaseRepository, IStandupRepository):
                         raw_sources = json.loads(item.pop("sources_json") or "[]")
                     except Exception:
                         raw_sources = []
-                    
+
                     standup = StandupInDB(
                         id=item["id"],
                         user_id=item.get("user_id", "default"),

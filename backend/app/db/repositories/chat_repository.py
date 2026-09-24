@@ -11,7 +11,7 @@ class ChatRepository(BaseRepository, IChatRepository):
     """Implementación concreta de IChatRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
-        super().__init__(table_name="chat_messages", id_column="id")
+        super().__init__(table_name="chat_messages", schema=ChatMessageInDB, id_column="id")
 
     async def get_session_messages(self, session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         async with get_db() as db:
@@ -33,7 +33,7 @@ class ChatRepository(BaseRepository, IChatRepository):
                         raw_sources = json.loads(item.pop("context_sources_json") or "[]")
                     except Exception:
                         raw_sources = []
-                    
+
                     msg_schema = ChatMessageInDB(
                         id=item["id"],
                         session_id=item["session_id"],

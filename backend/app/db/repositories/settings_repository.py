@@ -3,14 +3,14 @@ from typing import Any, Dict
 from app.db.interfaces.settings_repository import ISettingsRepository
 from app.db.repositories.base_repository import BaseRepository
 from app.db.database import get_db
-from app.schemas.settings import SettingBase
+from app.schemas.settings import SettingBase, SettingInDB
 
 
 class SettingsRepository(BaseRepository, ISettingsRepository):
     """Implementación concreta de ISettingsRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
-        super().__init__(table_name="settings", id_column="key")
+        super().__init__(table_name="settings", schema=SettingInDB, id_column="key")
 
     async def get_setting(self, key: str, default: Any = None) -> Any:
         async with get_db() as db:

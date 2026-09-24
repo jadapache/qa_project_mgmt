@@ -10,7 +10,7 @@ class PRDRepository(BaseRepository, IPRDRepository):
     """Implementación concreta de IPRDRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
-        super().__init__(table_name="prd_reviews", id_column="id")
+        super().__init__(table_name="prd_reviews", schema=PRDReviewInDB, id_column="id")
 
     async def create_prd_review(
         self, prd_title: str, content: str, score: int = 0, risk_level: str = "MEDIUM"
