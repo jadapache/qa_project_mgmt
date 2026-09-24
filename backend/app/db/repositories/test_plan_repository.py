@@ -11,7 +11,7 @@ class TestPlanRepository(BaseRepository, ITestPlanRepository):
     __test__ = False
 
     def __init__(self):
-        super().__init__(table_name="test_plans", id_column="id")
+        super().__init__(table_name="test_plans", schema=TestPlanInDB, id_column="id")
 
     async def create_test_plan(
         self, feature_name: str, content: str, test_type: str = "regression"
