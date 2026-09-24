@@ -12,6 +12,7 @@ from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from app.core.secrets import decrypt_ai_settings, encrypt_ai_settings
 from app.core.settings import CONNECTIONS_DIR, SETTINGS_DIR, ensure_local_dirs, get_settings
 
 try:
@@ -113,7 +114,10 @@ def load_app_settings() -> dict[str, Any]:
     return dict(DEFAULT_APP_SETTINGS)
   try:
     stored = json.loads(path.read_text(encoding="utf-8"))
-    return {**DEFAULT_APP_SETTINGS, **stored}
+    res = {**DEFAULT_APP_SETTINGS, **stored}
+    if "ai" in res and isinstance(res["ai"], dict):
+      res["ai"] = decrypt_ai_settings(res["ai"])
+    return res
   except (json.JSONDecodeError, OSError):
     return dict(DEFAULT_APP_SETTINGS)
 
@@ -121,6 +125,11 @@ def load_app_settings() -> dict[str, Any]:
 def save_app_settings(payload: dict[str, Any]) -> dict[str, Any]:
   current = load_app_settings()
   current.update(payload)
+
+  to_store = dict(current)
+  if "ai" in to_store and isinstance(to_store["ai"], dict):
+    to_store["ai"] = encrypt_ai_settings(to_store["ai"])
+
   path = _settings_path()
-  path.write_text(json.dumps(current, indent=2), encoding="utf-8")
+  path.write_text(json.dumps(to_store, indent=2), encoding="utf-8")
   return current
