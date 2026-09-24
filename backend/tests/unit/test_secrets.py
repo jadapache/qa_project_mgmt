@@ -1,0 +1,73 @@
+import json
+import pytest
+from app.core.secrets import (
+    encrypt_secret,
+    decrypt_secret,
+    is_encrypted,
+    encrypt_ai_settings,
+    decrypt_ai_settings,
+)
+from app.core.storage import save_app_settings, load_app_settings, _settings_path
+
+
+def test_secret_encrypt_and_decrypt():
+    raw_key = "gsk_test1234567890abcdef"
+    
+    encrypted = encrypt_secret(raw_key)
+    assert is_encrypted(encrypted)
+    assert encrypted.startswith("enc::")
+    assert encrypted != raw_key
+
+    # Re-encrypting should return same encrypted string
+    re_encrypted = encrypt_secret(encrypted)
+    assert re_encrypted == encrypted
+
+    decrypted = decrypt_secret(encrypted)
+    assert decrypted == raw_key
+
+
+def test_decrypt_unencrypted_fallback():
+    raw_text = "plain_unencrypted_text"
+    assert is_encrypted(raw_text) is False
+    assert decrypt_secret(raw_text) == raw_text
+
+
+def test_ai_settings_dict_encryption():
+    ai_config = {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile",
+        "groq_api_key": "gsk_sample123",
+        "openai_api_key": "sk-proj-sample456",
+    }
+
+    encrypted_dict = encrypt_ai_settings(ai_config)
+    assert encrypted_dict["provider"] == "groq"
+    assert is_encrypted(encrypted_dict["groq_api_key"])
+    assert is_encrypted(encrypted_dict["openai_api_key"])
+
+    decrypted_dict = decrypt_ai_settings(encrypted_dict)
+    assert decrypted_dict["groq_api_key"] == "gsk_sample123"
+    assert decrypted_dict["openai_api_key"] == "sk-proj-sample456"
+
+
+def test_storage_encryption_roundtrip():
+    ai_payload = {
+        "ai": {
+            "provider": "groq",
+            "groq_api_key": "gsk_real_secret_key_999",
+        }
+    }
+    save_app_settings(ai_payload)
+
+    # Inspect stored raw JSON file content on disk
+    path = _settings_path()
+    raw_json = json.loads(path.read_text(encoding="utf-8"))
+    stored_groq_key = raw_json["ai"]["groq_api_key"]
+    
+    # Assert key is encrypted in stored JSON file
+    assert stored_groq_key.startswith("enc::")
+    assert "gsk_real_secret_key_999" not in stored_groq_key
+
+    # Assert load_app_settings decrypts key in memory
+    loaded = load_app_settings()
+    assert loaded["ai"]["groq_api_key"] == "gsk_real_secret_key_999"
