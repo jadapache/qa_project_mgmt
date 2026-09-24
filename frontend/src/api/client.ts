@@ -121,7 +121,21 @@ export type CorporateTemplate = {
   file_type: string
   file_size: number
   module: string
+  tags?: string[]
   created_at: string
+}
+
+export type SystemTag = {
+  tag: string
+  label: string
+  description: string
+}
+
+export type TemplateDetail = {
+  template: CorporateTemplate
+  content: string
+  detected_tags: string[]
+  system_tags: SystemTag[]
 }
 
 export type FeaturePayload = {
@@ -513,6 +527,11 @@ export const api = {
       handleResponse<{ templates: CorporateTemplate[] }>(r),
     ),
 
+  getTemplateContent: (id: string) =>
+    fetch(`${API_BASE}/api/templates/${id}/content`).then((r) =>
+      handleResponse<TemplateDetail>(r),
+    ),
+
   uploadTemplate: async (file: File, title?: string, module?: string) => {
     const form = new FormData()
     form.append('file', file)
@@ -523,7 +542,10 @@ export const api = {
     )
   },
 
-  updateTemplate: (id: string, payload: { title?: string; module?: string }) =>
+  updateTemplate: (
+    id: string,
+    payload: { title?: string; module?: string; tags?: string[]; content?: string },
+  ) =>
     fetch(`${API_BASE}/api/templates/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
