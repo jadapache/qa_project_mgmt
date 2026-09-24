@@ -134,6 +134,8 @@ local/ai/prompts/**
 !local/ai/prompts/.gitkeep
 local/ai/rubrics/**
 !local/ai/rubrics/.gitkeep
+local/templates/**
+!local/templates/.gitkeep
 
 # Legacy & reference folders
 _legacy_archive/
