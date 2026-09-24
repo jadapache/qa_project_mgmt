@@ -65,7 +65,7 @@ def _format_context(length: int) -> str:
 
 
 def _enrich_groq_model(raw_id: str, name: str, desc: str, context_len: int) -> AIModelInfo:
-  clean_id = raw_id.split("/")[-1] if "/" in raw_id else raw_id
+  clean_id = raw_id.removeprefix("groq/") if raw_id.startswith("groq/") else raw_id
   is_whisper = "whisper" in clean_id.lower()
   is_70b = "70b" in clean_id.lower() or "deepseek" in clean_id.lower()
   is_8b = "8b" in clean_id.lower() or "instant" in clean_id.lower()

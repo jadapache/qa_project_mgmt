@@ -55,7 +55,13 @@ class LiteLLMProvider(AIProvider):
       return m
     return m
 
-  async def complete(self, messages: list[AIMessage], *, model: str | None = None) -> AICompletion:
+  async def complete(
+    self,
+    messages: list[AIMessage],
+    *,
+    model: str | None = None,
+    max_tokens: int | None = None,
+  ) -> AICompletion:
     chosen_raw = model or self.default_model
     formatted_model = self._format_model_name(chosen_raw)
 
@@ -64,6 +70,11 @@ class LiteLLMProvider(AIProvider):
       "messages": [message.model_dump() for message in messages],
       "temperature": 0.2,
     }
+    if max_tokens is not None:
+      kwargs["max_tokens"] = max_tokens
+    elif self.id == "groq":
+      kwargs["max_tokens"] = 512
+
     if self.api_key:
       kwargs["api_key"] = self.api_key
     if self.base_url:

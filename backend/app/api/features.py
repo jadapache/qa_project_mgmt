@@ -145,33 +145,33 @@ async def test_ai_connection(body: AITestConnectionRequest) -> dict[str, Any]:
       if not key:
         raise ValueError("No se ha especificado la clave API de OpenAI.")
       p = OpenAIProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
+      res = await p.complete(test_messages, model=model_name, max_tokens=100)
 
     elif provider_name in {"claude", "anthropic"}:
       key = body.api_key or config.get("claude_api_key") or ""
       if not key:
         raise ValueError("No se ha especificado la clave API de Anthropic Claude.")
       p = ClaudeProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
+      res = await p.complete(test_messages, model=model_name, max_tokens=100)
 
     elif provider_name == "groq":
       key = body.api_key or config.get("groq_api_key") or ""
       if not key:
         raise ValueError("No se ha especificado la clave API de Groq.")
       p = GroqProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
+      res = await p.complete(test_messages, model=model_name, max_tokens=100)
 
     elif provider_name in {"gemini", "google"}:
       key = body.api_key or config.get("gemini_api_key") or ""
       if not key:
         raise ValueError("No se ha especificado la clave API de Google Gemini.")
       p = GeminiProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
+      res = await p.complete(test_messages, model=model_name, max_tokens=100)
 
     elif provider_name in {"ollama", "builtin", "local"}:
       target_url = body.ollama_base_url or config.get("ollama_base_url") or "http://127.0.0.1:11434"
       p = OllamaProvider(base_url=target_url, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
+      res = await p.complete(test_messages, model=model_name, max_tokens=100)
 
     else:
       raise ValueError(f"Proveedor '{body.provider}' no soportado.")
