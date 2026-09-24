@@ -12,6 +12,7 @@ import { ProfilePage } from './pages/configuraciones/ProfilePage'
 import { SettingsPage } from './pages/configuraciones/SettingsPage'
 import { LevantamientoPage } from './pages/funcional/LevantamientoPage'
 import { MejorasPage } from './pages/funcional/MejorasPage'
+import { FuncionalFeaturePage } from './pages/funcional/FuncionalFeaturePage'
 import { PmFeaturePage } from './pages/pm/PmFeaturePage'
 import { StandupPage } from './pages/pm/StandupPage'
 import { QaFeaturePage } from './pages/qa/QaFeaturePage'
@@ -31,6 +32,7 @@ export const App = () => {
                 <Route path="pm/:slug" element={<PmFeaturePage />} />
                 <Route path="funcional/levantamiento" element={<LevantamientoPage />} />
                 <Route path="funcional/mejoras" element={<MejorasPage />} />
+                <Route path="funcional/:slug" element={<FuncionalFeaturePage />} />
                 <Route path="qa/:slug" element={<QaFeaturePage />} />
                 <Route path="knowledge" element={<KnowledgePage />} />
                 <Route path="knowledge/ask" element={<AskProductPage />} />
