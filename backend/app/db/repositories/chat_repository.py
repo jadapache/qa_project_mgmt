@@ -2,12 +2,13 @@ import json
 import uuid
 from typing import Any, Dict, List, Optional
 from app.db.interfaces.chat_repository import IChatRepository
-from app.db.repositories.base_sqlite import BaseSqliteRepository
+from app.db.repositories.base_repository import BaseRepository
 from app.db.database import get_db
+from app.schemas.chat import ChatMessageCreate, ChatMessageInDB
 
 
-class SqliteChatRepository(BaseSqliteRepository, IChatRepository):
-    """Implementación concreta con aiosqlite de IChatRepository."""
+class ChatRepository(BaseRepository, IChatRepository):
+    """Implementación concreta de IChatRepository utilizando esquemas Pydantic."""
 
     def __init__(self):
         super().__init__(table_name="chat_messages", id_column="id")
@@ -29,10 +30,19 @@ class SqliteChatRepository(BaseSqliteRepository, IChatRepository):
                 for row in rows:
                     item = dict(row)
                     try:
-                        item["context_sources"] = json.loads(item.pop("context_sources_json") or "[]")
+                        raw_sources = json.loads(item.pop("context_sources_json") or "[]")
                     except Exception:
-                        item["context_sources"] = []
-                    history.append(item)
+                        raw_sources = []
+                    
+                    msg_schema = ChatMessageInDB(
+                        id=item["id"],
+                        session_id=item["session_id"],
+                        role=item["role"],
+                        content=item["content"],
+                        context_sources=raw_sources,
+                        created_at=item.get("created_at"),
+                    )
+                    history.append(msg_schema.model_dump())
                 return history
 
     async def save_message(
@@ -43,21 +53,28 @@ class SqliteChatRepository(BaseSqliteRepository, IChatRepository):
         context_sources: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         msg_id = str(uuid.uuid4())
-        context_json = json.dumps(context_sources or [], ensure_ascii=False)
+        sources = context_sources or []
+        msg_schema = ChatMessageCreate(
+            session_id=session_id,
+            role=role,
+            content=content,
+            context_sources=sources,
+        )
+        context_json = json.dumps(sources, ensure_ascii=False)
         entity = {
             "id": msg_id,
-            "session_id": session_id,
-            "role": role,
-            "content": content,
+            "session_id": msg_schema.session_id,
+            "role": msg_schema.role,
+            "content": msg_schema.content,
             "context_sources_json": context_json,
         }
         await self.add(entity)
         return {
             "id": msg_id,
-            "session_id": session_id,
-            "role": role,
-            "content": content,
-            "context_sources": context_sources or [],
+            "session_id": msg_schema.session_id,
+            "role": msg_schema.role,
+            "content": msg_schema.content,
+            "context_sources": msg_schema.context_sources,
         }
 
     async def clear_session(self, session_id: str) -> bool:
