@@ -593,11 +593,6 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
         onRedo={docHistory.redo}
         isDirty={docHistory.isDirty}
         isSaving={isSaving}
-        onSave={() => {
-          setIsSaving(true)
-          docHistory.markSaved()
-          setTimeout(() => setIsSaving(false), 200)
-        }}
       />
     </div>
   )

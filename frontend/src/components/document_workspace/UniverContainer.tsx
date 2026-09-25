@@ -21,6 +21,7 @@ interface UniverContainerProps {
   onExport: (format: 'docx' | 'xlsx' | 'json') => void
   onReloadFixture: () => void
   onContentChange?: (newContent: string) => void
+  hideHeader?: boolean
 }
 
 export const UniverContainer = ({
@@ -33,6 +34,7 @@ export const UniverContainer = ({
   onExport,
   onReloadFixture,
   onContentChange,
+  hideHeader = false,
 }: UniverContainerProps) => {
   const mountRef = useRef<HTMLDivElement>(null)
   const [activeSheetTab, setActiveSheetTab] = useState('Casos de Prueba')
@@ -62,63 +64,65 @@ export const UniverContainer = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-100 overflow-hidden border border-slate-200 rounded-xl shadow-xs">
-      {/* Top Workspace Toolbar */}
-      <div className="bg-white px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl text-white ${kind === 'spreadsheet' ? 'bg-emerald-600' : 'bg-blue-600'}`}>
-            {kind === 'spreadsheet' ? <FileSpreadsheet className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-slate-900 text-sm">{title}</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Runtime: Univer v1.0.2
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Edición Directa Habilitada
-              </span>
+    <div className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden border-0">
+      {/* Top Workspace Toolbar (Hidden if hideHeader=true) */}
+      {!hideHeader && (
+        <div className="bg-white px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl text-white ${kind === 'spreadsheet' ? 'bg-emerald-600' : 'bg-[#002777]'}`}>
+              {kind === 'spreadsheet' ? <FileSpreadsheet className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
             </div>
-            <p className="text-xs text-slate-500">
-              Modo: <span className="font-semibold text-slate-700">{kind === 'spreadsheet' ? 'Hoja de Cálculo (XLSX)' : 'Documento Estructurado (DOCX)'}</span> • Haz clic en el documento para editar directamente
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-slate-900 text-sm">{title}</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-50 text-[#002777] border border-blue-200">
+                  Runtime: Univer v1.0.2
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Edición Directa Habilitada
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Modo: <span className="font-semibold text-slate-700">{kind === 'spreadsheet' ? 'Hoja de Cálculo (XLSX)' : 'Documento Estructurado (DOCX)'}</span> • Haz clic en el documento para editar directamente
+              </p>
+            </div>
+          </div>
+
+          {/* Toolbar Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onInspect}
+              className="px-3 py-1.5 bg-slate-50 hover:bg-blue-50 hover:text-[#002777] text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Inspecciona el modelo canónico del documento"
+            >
+              <Eye className="h-4 w-4 text-[#002777]" />
+              <span>Inspeccionar (Canónico)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onReloadFixture}
+              className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Recargar fixture original"
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+              <span>Recargar Fixture</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => onExport(kind === 'spreadsheet' ? 'xlsx' : 'docx')}
+              className="px-3.5 py-1.5 bg-[#002777] hover:bg-[#003399] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Exportar {kind === 'spreadsheet' ? 'XLSX' : 'DOCX'}</span>
+            </button>
           </div>
         </div>
-
-        {/* Toolbar Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onInspect}
-            className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Inspecciona el modelo canónico del documento"
-          >
-            <Eye className="h-4 w-4 text-indigo-600" />
-            <span>Inspeccionar (Canónico)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onReloadFixture}
-            className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Recargar fixture original"
-          >
-            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
-            <span>Recargar Fixture</span>
-          </button>
-
-          <div className="h-4 w-px bg-slate-200 mx-1" />
-
-          <button
-            type="button"
-            onClick={() => onExport(kind === 'spreadsheet' ? 'xlsx' : 'docx')}
-            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Exportar {kind === 'spreadsheet' ? 'XLSX' : 'DOCX'}</span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Main Univer Document / Spreadsheet Canvas */}
       <div className="flex-1 overflow-y-auto p-6 flex justify-center">
