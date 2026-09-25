@@ -34,10 +34,9 @@ import { JiraProjectsPanel } from '../../components/integrations/JiraProjectsPan
 import { OAuthSetup } from '../../components/integrations/GitOAuthSetup'
 import { AiModelsSkeleton, IntegrationsSkeleton, UserApprovalsSkeleton } from '../../components/common'
 import { TemplatesPanel } from '../../components/settings/TemplatesPanel'
-import { UniverPoCView } from '../../components/document_workspace/UniverPoCView'
 import { useToast } from '../../context/ToastContext'
 
-type TabType = 'ai_models' | 'integrations' | 'user_approvals' | 'templates' | 'univer_poc'
+type TabType = 'ai_models' | 'integrations' | 'user_approvals' | 'templates'
 
 type BuiltInModel = {
   id: string
@@ -142,7 +141,7 @@ export const SettingsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    if (t === 'integrations' || t === 'user_approvals' || t === 'ai_models' || t === 'templates' || t === 'univer_poc') {
+    if (t === 'integrations' || t === 'user_approvals' || t === 'ai_models' || t === 'templates') {
       return t
     }
     if (
@@ -247,8 +246,7 @@ export const SettingsPage = () => {
       tab === 'integrations' ||
       tab === 'user_approvals' ||
       tab === 'ai_models' ||
-      tab === 'templates' ||
-      tab === 'univer_poc'
+      tab === 'templates'
     ) {
       setActiveTab(tab)
     } else if (searchParams.get('jira') || searchParams.get('github') || searchParams.get('gitlab')) {
@@ -592,12 +590,6 @@ export const SettingsPage = () => {
         label: 'Plantillas',
         subtitle: 'Plantillas corporativas (.doc, .docx, .xlsx)',
         icon: FileText,
-      },
-      {
-        id: 'univer_poc',
-        label: 'PoC Univer',
-        subtitle: 'Motor documental desacoplado + Agentic RAG',
-        icon: Sparkles,
       },
       {
         id: 'integrations',
@@ -1695,9 +1687,6 @@ export const SettingsPage = () => {
 
       {/* TAB 4: PLANTILLAS CORPORATIVAS */}
       {activeTab === 'templates' && <TemplatesPanel />}
-
-      {/* TAB 5: POC UNIVER (AGENTIC RAG + DOCUMENT AGENT) */}
-      {activeTab === 'univer_poc' && <UniverPoCView />}
     </div>
   )
 }

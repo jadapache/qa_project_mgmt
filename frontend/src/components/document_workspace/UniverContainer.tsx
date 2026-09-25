@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Image as ImageIcon,
   Check,
+  Tag,
 } from 'lucide-react'
 import type { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
 import type { DocumentKind } from '../../document_agent/core/types'
@@ -159,8 +160,21 @@ export const UniverContainer = ({
             <div className="space-y-2 text-sm leading-relaxed">
               {(() => {
                 const renderFormattedInlineText = (text: string) => {
-                  const parts = text.split(/(\*\*.*?\*\*|_.*?_|\*.*?\*)/g)
+                  const parts = text.split(/(\{\{[A-Za-z0-9_\-\.]+\}\}|\*\*.*?\*\*|_.*?_|\*.*?\*)/g)
                   return parts.map((part, i) => {
+                    if (part.startsWith('{{') && part.endsWith('}}')) {
+                      return (
+                        <span
+                          key={i}
+                          contentEditable={false}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold shadow-2xs font-mono my-0.5 select-none bg-blue-50 border border-blue-200 text-[#002777]"
+                          title={`Placeholder: ${part}`}
+                        >
+                          <Tag className="h-3 w-3 text-blue-600" />
+                          <span>{part}</span>
+                        </span>
+                      )
+                    }
                     if (part.startsWith('**') && part.endsWith('**')) {
                       return (
                         <strong key={i} className="font-bold text-slate-900">
@@ -186,11 +200,6 @@ export const UniverContainer = ({
                 return lines.map((line, idx) => {
                   const trimmed = line.trim()
                   if (!trimmed) return <div key={idx} className="h-1.5" />
-
-                  // Hide standalone tag lines
-                  if (trimmed.startsWith('{{') && trimmed.endsWith('}}')) {
-                    return null
-                  }
 
                   // Dividers / Horizontal lines
                   if (trimmed === '---' || trimmed === '***') {
