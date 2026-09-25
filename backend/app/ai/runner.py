@@ -20,6 +20,7 @@ async def run_grounded_feature(
   sources: list[str] | None = None,
   document_ids: list[str] | None = None,
   chat_context: str | None = None,
+  template_content: str | None = None,
 ) -> dict[str, Any]:
   prompt = get_prompt(feature)
   rubric = get_rubric(feature)
@@ -96,9 +97,12 @@ async def run_grounded_feature(
     "rubric": rubric_to_text(rubric),
     "query": query,
     "chat_context": chat_block or "(none)",
+    "template": template_content or "",
   }
   if "{chat_context}" not in user_template:
     format_kwargs.pop("chat_context", None)
+  if "{template}" not in user_template:
+    format_kwargs.pop("template", None)
   user_prompt = user_template.format(**format_kwargs)
   messages = [
     AIMessage(role="system", content=str(prompt.get("system") or "")),

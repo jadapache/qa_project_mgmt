@@ -91,7 +91,7 @@ export const AgenticDocumentWorkspace = ({
   // Dynamic prompt textarea height & expansion (capped at 40% max of chat container height)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const BASE_TEXTAREA_HEIGHT = 44
+  const BASE_TEXTAREA_HEIGHT = 20
   const MAX_PANEL_PERCENT_HEIGHT = 230 // Maximum 40% of chat panel height cap
 
   const [textareaHeight, setTextareaHeight] = useState<number>(BASE_TEXTAREA_HEIGHT)
@@ -119,7 +119,7 @@ export const AgenticDocumentWorkspace = ({
     const lineCount = draft.split('\n').length
 
     // Auto-expand to fit text smoothly up to 40% max height cap
-    if (lineCount > 2 || scrollH > 48) {
+    if (lineCount > 1 || scrollH > 40) {
       const targetH = Math.max(
         BASE_TEXTAREA_HEIGHT,
         Math.min(MAX_PANEL_PERCENT_HEIGHT, scrollH + 4),
@@ -188,7 +188,7 @@ export const AgenticDocumentWorkspace = ({
     if (activeArtifact) {
       docHistory.resetHistory(activeArtifact.content || '')
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeArtifactId, activeConversationId])
 
   // Autosave debounce for active artifact
@@ -344,8 +344,8 @@ export const AgenticDocumentWorkspace = ({
           s.id === '1'
             ? { ...s, status: 'completed' }
             : s.id === '2'
-            ? { ...s, status: 'in_progress' }
-            : s,
+              ? { ...s, status: 'in_progress' }
+              : s,
         ),
       )
 
@@ -365,8 +365,8 @@ export const AgenticDocumentWorkspace = ({
           s.id === '2'
             ? { ...s, status: 'completed' }
             : s.id === '3'
-            ? { ...s, status: 'in_progress' }
-            : s,
+              ? { ...s, status: 'in_progress' }
+              : s,
         ),
       )
 
@@ -396,10 +396,10 @@ export const AgenticDocumentWorkspace = ({
           s.id === '3'
             ? { ...s, status: 'completed' }
             : s.id === '4'
-            ? { ...s, status: 'completed' }
-            : s.id === '5'
-            ? { ...s, status: 'completed' }
-            : s,
+              ? { ...s, status: 'completed' }
+              : s.id === '5'
+                ? { ...s, status: 'completed' }
+                : s,
         ),
       )
 
@@ -541,11 +541,10 @@ export const AgenticDocumentWorkspace = ({
                     className={`flex gap-3 text-xs ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-2xl p-3.5 space-y-1.5 ${
-                        m.role === 'user'
+                      className={`max-w-[85%] rounded-2xl p-3.5 space-y-1.5 ${m.role === 'user'
                           ? 'bg-[#002777] text-white rounded-br-none shadow-sm'
                           : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-none'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-4 text-[10px] opacity-70 font-medium">
                         <span>{m.role === 'user' ? 'Tú' : 'Asistente IA'}</span>
@@ -617,7 +616,7 @@ export const AgenticDocumentWorkspace = ({
                   placeholder={config.placeholder || 'Escribe tu indicación o consulta...'}
                   disabled={isGenerating}
                   style={{ height: `${textareaHeight}px` }}
-                  className="w-full bg-transparent px-1 pr-16 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans overflow-y-auto scrollbar-thin transition-[height] duration-150 ease-out leading-relaxed"
+                  className="w-full bg-transparent px-1 pr-16 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans overflow-y-auto scrollbar-thin transition-[height] duration-150 ease-out leading-normal"
                 />
 
                 {/* Attached Files Inline Badge Row (Inside prompt card) */}
@@ -661,11 +660,10 @@ export const AgenticDocumentWorkspace = ({
                     <button
                       type="button"
                       onClick={() => toggleSource('knowledge')}
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition cursor-pointer ${
-                        isKnowledgeActive
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition cursor-pointer ${isKnowledgeActive
                           ? 'bg-[#002777] text-white border-[#002777] shadow-2xs'
                           : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800'
-                      }`}
+                        }`}
                     >
                       <BookOpen className="h-3.5 w-3.5" />
                       <span>Biblioteca</span>
@@ -680,11 +678,10 @@ export const AgenticDocumentWorkspace = ({
                       <button
                         type="button"
                         onClick={toggleAllIntegrations}
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition cursor-pointer ${
-                          isIntegrationsActive
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition cursor-pointer ${isIntegrationsActive
                             ? 'bg-[#002777] text-white border-[#002777] shadow-2xs'
                             : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800'
-                        }`}
+                          }`}
                       >
                         <Layers className="h-3.5 w-3.5" />
                         <span>Integraciones</span>
@@ -760,6 +757,14 @@ export const AgenticDocumentWorkspace = ({
           onRedo={docHistory.redo}
           isDirty={docHistory.isDirty}
           isSaving={isSaving}
+          onRegenerate={() => {
+            const lastUserMsg = (activeConversation?.messages ?? [])
+              .filter((m) => m.role === 'user')
+              .pop()
+            if (lastUserMsg) {
+              handleSendMessage(lastUserMsg.content)
+            }
+          }}
         />
       </div>
     </div>

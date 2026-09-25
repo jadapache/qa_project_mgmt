@@ -469,6 +469,7 @@ export const api = {
     chat_context?: string[]
     sources?: string[]
     document_ids?: string[]
+    template_id?: string
   }) =>
     fetch(`${API_BASE}/api/doc-agent/agentic-prompt`, {
       method: 'POST',
@@ -480,6 +481,7 @@ export const api = {
         chat_context: payload.chat_context,
         sources: payload.sources,
         document_ids: payload.document_ids,
+        templateId: payload.template_id,
       }),
     }).then((r) =>
       handleResponse<{

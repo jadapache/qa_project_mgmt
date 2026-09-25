@@ -24,9 +24,12 @@ INDEX_FILE = SETTINGS_DIR / "templates_index.json"
 
 DEFAULT_SYSTEM_TAGS: List[Dict[str, str]] = [
     # AI Content Tags
-    {"tag": "NECESIDAD", "label": "Necesidad Identificada", "description": "Descripción del funcionamiento actual y pantallas", "type": "ai"},
+    {"tag": "NECESIDAD", "label": "Necesidad Identificada", "description": "Generalidad de la oportunidad o requerimiento", "type": "ai"},
+    {"tag": "DESCRIPCION", "label": "Descripción del funcionamiento actual", "description": "Descripción detallada del comportamiento actual y pantallas", "type": "ai"},
+    {"tag": "REQ_FUNCIONAL", "label": "Requerimiento Funcional", "description": "Comportamiento y reglas de negocio esperadas", "type": "ai"},
+    {"tag": "REQ_TECNICO", "label": "Requerimiento Técnico", "description": "Especificaciones técnicas, integraciones y esquema de BD", "type": "ai"},
+    {"tag": "BENEFICIO", "label": "Beneficio Esperado", "description": "Beneficios operativos, retorno de inversión y valor", "type": "ai"},
     {"tag": "IMPACTO", "label": "Impacto en Negocio", "description": "Impacto operacional en tiempo, costos y reprocesos", "type": "ai"},
-    {"tag": "SOLUCION", "label": "Requerimiento Deseado", "description": "Comportamiento y flujo esperado en el nuevo sistema", "type": "ai"},
     {"tag": "OBSERVACIONES", "label": "Observaciones Complementarias", "description": "Casos de borde, restricciones y recomendaciones", "type": "ai"},
     {"tag": "FIRMAS", "label": "Firma Participantes", "description": "Tabla de participantes y aprobadores", "type": "ai"},
     {"tag": "AREA", "label": "Área / Sede", "description": "Sedes (HIC / ICV / IMAP) y área solicitante", "type": "ai"},
@@ -298,11 +301,15 @@ def update_template_metadata(
                 item["tags"] = sorted(list(set(tags)))
 
             if content is not None:
+                item["custom_content"] = content
                 file_path = TEMPLATES_DIR / item.get("stored_filename", "")
                 ext = file_path.suffix.lower()
                 if ext in [".md", ".txt", ".json", ".html", ".xml", ".csv"]:
                     file_path.write_text(content, encoding="utf-8")
-                    item["file_size"] = len(content.encode("utf-8"))
+                else:
+                    sidecar = TEMPLATES_DIR / f"{item['stored_filename']}.content.md"
+                    sidecar.write_text(content, encoding="utf-8")
+                item["file_size"] = len(content.encode("utf-8"))
 
             _save_index(items)
             return item
@@ -320,13 +327,24 @@ def get_template_detail(template_id: str) -> Optional[Dict[str, Any]]:
     header_text = ""
     footer_text = ""
 
-    if file_path.suffix.lower() == ".docx":
-        parsed = extract_docx_structure(file_path)
-        content = parsed["content"]
-        header_text = parsed["header"]
-        footer_text = parsed["footer"]
+    if "custom_content" in item:
+        content = item["custom_content"]
     else:
-        content = extract_template_content(stored_name)
+        sidecar = TEMPLATES_DIR / f"{stored_name}.content.md"
+        if sidecar.exists():
+            content = sidecar.read_text(encoding="utf-8")
+        elif file_path.suffix.lower() == ".docx":
+            parsed = extract_docx_structure(file_path)
+            content = parsed["content"]
+            header_text = parsed["header"]
+            footer_text = parsed["footer"]
+        else:
+            content = extract_template_content(stored_name)
+
+    if file_path.suffix.lower() == ".docx" and not header_text:
+        parsed = extract_docx_structure(file_path)
+        header_text = parsed.get("header", "")
+        footer_text = parsed.get("footer", "")
 
     full_text_for_tags = f"{header_text}\n{content}\n{footer_text}"
     detected = detect_tags(full_text_for_tags)

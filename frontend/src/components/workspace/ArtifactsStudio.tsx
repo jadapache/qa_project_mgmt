@@ -18,6 +18,7 @@ import {
   Edit3,
   FileCheck,
   Copy,
+  RefreshCw,
 } from 'lucide-react'
 import type { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
 import { UniverContainer } from '../document_workspace/UniverContainer'
@@ -54,6 +55,9 @@ interface ArtifactsStudioProps {
   // Save state
   isDirty: boolean
   isSaving: boolean
+
+  // Regenerar callback
+  onRegenerate?: () => void
 }
 
 /**
@@ -78,6 +82,7 @@ export const ArtifactsStudio = ({
   onRedo,
   isDirty,
   isSaving,
+  onRegenerate,
 }: ArtifactsStudioProps) => {
   const { toast } = useToast()
 
@@ -558,6 +563,18 @@ export const ArtifactsStudio = ({
                 <Copy className="h-3.5 w-3.5" />
                 <span>Copiar</span>
               </button>
+
+              {onRegenerate && (
+                <button
+                  type="button"
+                  onClick={onRegenerate}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#002777] hover:bg-[#003399] text-white text-xs font-semibold shadow-sm transition cursor-pointer"
+                  title="Regenerar documento"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Regenerar</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -581,20 +598,14 @@ export const ArtifactsStudio = ({
                 />
               </div>
 
-              {/* Bottom Footer Bar Inside Card Container */}
               <div className="px-5 py-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-50 text-[#002777] border border-blue-200">
                     Runtime: Univer v1.0.2
                   </span>
-                  <span>•</span>
-                  <span>
-                    Modo: <span className="font-semibold text-slate-700">{activeArtifact.extension === 'xlsx' ? 'Hoja de Cálculo (XLSX)' : 'Documento Estructurado (DOCX)'}</span>
-                  </span>
                 </div>
-
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                  <span>Edición Directa Habilitada</span>
+                <div className="text-[11px] text-slate-400">
+                  {activeArtifact.content ? `${activeArtifact.content.split(/\s+/).filter(Boolean).length} palabras` : ''}
                 </div>
               </div>
             </div>
