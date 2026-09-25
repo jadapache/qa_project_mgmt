@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { FUNCIONAL_FEATURE_BY_SLUG } from '../../constants/funcionalFeatures'
-import { GroundedChatWorkspace } from '../../components/workspace/GroundedChatWorkspace'
+import { AgenticDocumentWorkspace } from '../../components/workspace/AgenticDocumentWorkspace'
 
 export const FuncionalFeaturePage = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -15,7 +15,7 @@ export const FuncionalFeaturePage = () => {
     )
   }
 
-  return <GroundedChatWorkspace config={config} />
+  return <AgenticDocumentWorkspace config={config} />
 }
 
 export default FuncionalFeaturePage

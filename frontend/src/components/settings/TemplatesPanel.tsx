@@ -948,13 +948,13 @@ export const TemplatesPanel = () => {
                       />
                     </div>
                   ) : (
-                    /* DIRECT VISUAL DOCUMENT PAPER SHEET EDITOR MODE */
+                    /* DIRECT VISUAL DOCUMENT CANVAS — Editable Inline (No separate preview) */
                     <div className="flex-1 space-y-5 pt-2 font-sans">
                       <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#002777] flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
                           <span>
-                            <strong>Edición Directa en Hoja:</strong> Escribe directamente sobre el pliego de papel abajo o haz clic en <strong>+ Insertar</strong> en el panel izquierdo.
+                            <strong>Edición Directa en Documento:</strong> Edita el contenido directamente sobre el canvas renderizado, o haz clic en <strong>+ Insertar</strong> en el panel izquierdo para agregar placeholders.
                           </span>
                         </div>
 
@@ -981,29 +981,24 @@ export const TemplatesPanel = () => {
                         </div>
                       ) : null}
 
-                      {/* Direct Live Textarea Editor on Paper Canvas */}
+                      {/* Direct Inline Canvas — rendered and editable in one single surface */}
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-[#002777] uppercase tracking-wider block">
-                          CONTENIDO DEL CUERPO DEL DOCUMENTO
+                          CONTENIDO DEL DOCUMENTO (EDICIÓN DIRECTA)
                         </label>
 
-                        <textarea
-                          ref={editorRef}
-                          value={editedContent}
-                          onChange={(e) => setEditedContent(e.target.value)}
-                          className="w-full min-h-[380px] p-4 text-xs md:text-sm font-sans leading-relaxed text-slate-800 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#002777] focus:border-transparent focus:outline-none transition resize-y shadow-xs"
-                          placeholder="Escribe el texto de la plantilla directamente sobre la hoja..."
-                        />
-                      </div>
-
-                      {/* Live Formatted Visual Preview Section Below Paper Textarea */}
-                      <div className="pt-4 border-t border-dashed border-slate-200 space-y-2">
-                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          <span>VISTA PREVIA FORMATEADA (TABLAS Y PLACEHOLDERS DETECTADOS)</span>
-                          <span className="font-mono text-blue-700">Renderizado en tiempo real</span>
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 text-xs text-slate-800 space-y-3">
+                        <div
+                          ref={editorRef as any}
+                          contentEditable
+                          suppressContentEditableWarning
+                          onInput={(e) => {
+                            const el = e.target as HTMLElement
+                            setEditedContent(el.innerText)
+                          }}
+                          onDragOver={handleDragOverCanvas}
+                          onDrop={handleDropOnCanvas}
+                          className="w-full min-h-[450px] p-5 text-xs md:text-sm font-sans leading-relaxed text-slate-800 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#002777] focus:border-transparent focus:outline-none transition shadow-xs cursor-text"
+                        >
                           {parseMarkdownBlock(editedContent, systemFields)}
                         </div>
                       </div>
