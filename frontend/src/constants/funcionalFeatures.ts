@@ -18,10 +18,8 @@ export type FuncionalFeatureConfig = {
 }
 
 export const FUNCIONAL_SOURCE_OPTIONS = [
-  { id: 'knowledge', label: 'Biblioteca de Conocimiento' },
+  { id: 'knowledge', label: 'Biblioteca' },
   { id: 'jira', label: 'Jira' },
-  { id: 'github', label: 'GitHub' },
-  { id: 'gitlab', label: 'GitLab' },
 ]
 
 export const FUNCIONAL_FEATURES: FuncionalFeatureConfig[] = [

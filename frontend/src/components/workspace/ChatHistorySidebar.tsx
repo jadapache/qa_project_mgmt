@@ -64,9 +64,11 @@ export const ChatHistorySidebar = ({
       const date = new Date(isoString)
       const now = new Date()
       const diffMs = now.getTime() - date.getTime()
+      const diffMinutes = diffMs / (1000 * 60)
       const diffHours = diffMs / (1000 * 60 * 60)
 
-      if (diffHours < 1) return 'Hace unos minutos'
+      if (diffMinutes < 2) return 'Hace un instante'
+      if (diffMinutes < 60) return `Hace ${Math.floor(diffMinutes)}m`
       if (diffHours < 24) return `Hace ${Math.floor(diffHours)}h`
 
       const diffDays = Math.floor(diffHours / 24)
