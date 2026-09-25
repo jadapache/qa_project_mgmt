@@ -490,6 +490,7 @@ export const api = {
         document_updates?: string
       }>(r).then((res) => ({
         answer: res.answer || res.assistant_message || 'Procesado correctamente.',
+        assistant_message: res.assistant_message,
         operations: res.operations || res.planned_operations || [],
         document_updates: res.document_updates,
       })),

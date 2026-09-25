@@ -67,8 +67,14 @@ AgenticPromptResponse.model_rebuild()
 
 
 class ExportDocxRequest(CamelModel):
-    markdown_content: str
+    markdown_content: Optional[str] = Field(None, alias="markdown")
+    markdown: Optional[str] = Field(None, alias="content")
+    content: Optional[str] = None
     title: str = "Documento de Especificación Funcional"
+
+    @property
+    def text(self) -> str:
+        return self.markdown_content or self.markdown or self.content or ""
 
 
 class ExportXlsxRequest(CamelModel):
@@ -279,6 +285,8 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
 
         sources_used = rag_res.get("context", {}).get("used_sources", sources_to_use)
 
+        brief_msg = "He generado y estructurado el documento de mejoras con base en las especificaciones y el contexto recuperado. Puedes previsualizarlo, editarlo en directo o descargarlo desde el panel de Artefactos a la derecha."
+
         return AgenticPromptResponse(
             intent_detected="agentic_rag_generation",
             requires_document_mutation=True,
@@ -286,7 +294,7 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
             planned_operations=[],
             operations=[],
             validation_status={"valid": True, "details": ["Grounded RAG generation successful."]},
-            assistant_message=answer_text,
+            assistant_message=brief_msg,
             answer=answer_text,
             document_updates=answer_text,
         )
@@ -312,7 +320,7 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
 def export_native_docx(req: ExportDocxRequest):
     """Generates and downloads a native Microsoft Word .docx binary file."""
     try:
-        docx_bytes = create_mejoras_docx(req.markdown_content, title=req.title)
+        docx_bytes = create_mejoras_docx(req.text, title=req.title)
         safe_title = re.sub(r'[^a-zA-Z0-9_\-]', '_', req.title)
         filename = f"{safe_title}.docx"
 
