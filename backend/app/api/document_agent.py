@@ -28,6 +28,41 @@ from app.features.mejoras.docx_builder import create_mejoras_docx
 router = APIRouter(prefix="/doc-agent", tags=["document-agent"])
 
 
+def _load_active_template_content(template_id: str | None = None) -> str:
+    """Load the active mejoras template content to inject into the AI prompt.
+
+    Tries in order:
+    1. The explicitly requested template_id
+    2. The first template with module 'mejoras' or 'funcional'
+    3. The first available template
+    4. Fallback empty string (AI uses its own default structure)
+    """
+    try:
+        from app.core.template_storage import list_templates, get_template_detail
+
+        if template_id:
+            detail = get_template_detail(template_id)
+            if detail and detail.get("content", "").strip():
+                return detail["content"].strip()
+
+        templates = list_templates()
+        # Prefer mejoras/funcional templates
+        candidates = [
+            t for t in templates
+            if any(kw in (t.get("module") or "").lower() for kw in ("mejora", "funcional", "requerimiento"))
+        ]
+        if not candidates:
+            candidates = templates
+
+        for tmpl in candidates:
+            detail = get_template_detail(tmpl["id"])
+            if detail and detail.get("content", "").strip():
+                return detail["content"].strip()
+    except Exception:
+        pass
+    return ""
+
+
 class AgenticPromptRequest(CamelModel):
     prompt: Optional[str] = Field(None, alias="query")
     query: Optional[str] = None
@@ -38,6 +73,7 @@ class AgenticPromptRequest(CamelModel):
     chat_context: Optional[Union[List[str], str]] = None
     sources: Optional[List[str]] = Field(default_factory=list)
     document_ids: Optional[List[str]] = Field(default_factory=list, alias="documentIds")
+    template_id: Optional[str] = Field(None, alias="templateId")
 
     @property
     def prompt_text(self) -> str:
@@ -274,6 +310,7 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
             sources=sources_to_use,
             document_ids=req.document_ids or [],
             chat_context=chat_ctx_str,
+            template_content=_load_active_template_content(req.template_id),
         )
 
         answer_text = (

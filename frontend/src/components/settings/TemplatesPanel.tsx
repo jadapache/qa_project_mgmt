@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
+  ChevronRight,
   Copy,
   Edit3,
   FileCode,
@@ -57,6 +59,10 @@ export const TemplatesPanel = () => {
   const [viewMode, setViewMode] = useState<'preview' | 'editor'>('preview')
   const [savingContent, setSavingContent] = useState<boolean>(false)
   const [filterQuery, setFilterQuery] = useState<string>('')
+  const [activeLineIdx, setActiveLineIdx] = useState<number | null>(0)
+  const [collapseFunction, setCollapseFunction] = useState<boolean>(false)
+  const [collapseAi, setCollapseAi] = useState<boolean>(false)
+  const [collapseCustom, setCollapseCustom] = useState<boolean>(false)
 
   const univerAdapter = useMemo(() => new UniverAdapter('document'), [])
 
@@ -223,8 +229,16 @@ export const TemplatesPanel = () => {
         textarea.setSelectionRange(newCursorPos, newCursorPos)
       }, 50)
     } else {
-      // Append tag to document text when in visual document mode
-      setEditedContent((prev) => (prev.trim() ? `${prev}\n${formattedTag}` : formattedTag))
+      // Insert tag into the active targeted line in visual document mode
+      const lines = (editedContent || '').split(/\r?\n/)
+      const targetIdx =
+        activeLineIdx !== null && activeLineIdx >= 0 && activeLineIdx < lines.length
+          ? activeLineIdx
+          : Math.max(0, lines.length - 1)
+
+      const targetLine = lines[targetIdx] || ''
+      lines[targetIdx] = targetLine.trim() ? `${targetLine} ${formattedTag}` : formattedTag
+      setEditedContent(lines.join('\n'))
     }
 
     toast.success(`Placeholder ${formattedTag} insertado en la plantilla`)
@@ -733,137 +747,175 @@ export const TemplatesPanel = () => {
                   {/* 1. FUNCTION TAGS SECTION (CORPORATE DARK BLUE PALETTE) */}
                   {functionFields.length > 0 ? (
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setCollapseFunction(!collapseFunction)}
+                        className="w-full flex items-center justify-between text-left py-1 hover:text-[#002777] transition cursor-pointer select-none"
+                      >
                         <span className="text-[11px] font-bold text-[#002777] uppercase tracking-wide flex items-center gap-1">
                           <Zap className="h-3.5 w-3.5 text-[#002777]" />
                           <span>Etiquetas de Función ({functionFields.length})</span>
                         </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500">
-                        Se evalúan automáticamente al generar/exportar Word/PDF.
-                      </p>
+                        {collapseFunction ? (
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                        )}
+                      </button>
 
-                      <div className="grid gap-1.5">
-                        {functionFields.map((f) => (
-                          <div
-                            key={f.tag}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, f.tag)}
-                            className="group flex items-center justify-between p-2 bg-slate-50 border border-blue-200/80 rounded-lg shadow-2xs hover:border-[#002777] transition cursor-grab active:cursor-grabbing select-none"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <GripVertical className="h-3.5 w-3.5 text-slate-300 group-hover:text-[#002777] shrink-0" />
-                              <div className="min-w-0">
-                                <span className="text-xs font-bold text-[#002777] block truncate">{f.label}</span>
-                                <span className="text-[10px] font-mono text-[#004497] font-semibold">{`{{${f.tag}}}`}</span>
-                              </div>
-                            </div>
+                      {!collapseFunction && (
+                        <>
+                          <p className="text-[10px] text-slate-500">
+                            Se evalúan automáticamente al generar/exportar Word/PDF.
+                          </p>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => insertTagAtCursor(f.tag)}
-                                className="px-2 py-0.5 rounded bg-[#002777] hover:bg-[#004497] text-white text-[10px] font-bold transition cursor-pointer"
+                          <div className="grid gap-1.5">
+                            {functionFields.map((f) => (
+                              <div
+                                key={f.tag}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, f.tag)}
+                                className="group flex items-center justify-between p-2 bg-slate-50 border border-blue-200/80 rounded-lg shadow-2xs hover:border-[#002777] transition cursor-grab active:cursor-grabbing select-none"
                               >
-                                + Insertar
-                              </button>
-                            </div>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <GripVertical className="h-3.5 w-3.5 text-slate-300 group-hover:text-[#002777] shrink-0" />
+                                  <div className="min-w-0">
+                                    <span className="text-xs font-bold text-[#002777] block truncate">{f.label}</span>
+                                    <span className="text-[10px] font-mono text-[#004497] font-semibold">{`{{${f.tag}}}`}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => insertTagAtCursor(f.tag)}
+                                    className="px-2 py-0.5 rounded bg-[#002777] hover:bg-[#004497] text-white text-[10px] font-bold transition cursor-pointer"
+                                  >
+                                    + Insertar
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </>
+                      )}
                     </div>
                   ) : null}
 
                   {/* 2. AI CONTENT FIELDS SECTION */}
                   <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setCollapseAi(!collapseAi)}
+                      className="w-full flex items-center justify-between text-left py-1 hover:text-slate-900 transition cursor-pointer select-none"
+                    >
                       <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1">
                         <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                         <span>Campos de Contenido IA ({aiFields.length})</span>
                       </span>
-                    </div>
+                      {collapseAi ? (
+                        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                      )}
+                    </button>
 
-                    <div className="grid gap-1.5">
-                      {aiFields.map((f) => (
-                        <div
-                          key={f.tag}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, f.tag)}
-                          className="group flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg shadow-2xs hover:border-blue-400 hover:shadow-xs transition cursor-grab active:cursor-grabbing select-none"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <GripVertical className="h-3.5 w-3.5 text-slate-300 group-hover:text-slate-500 shrink-0" />
-                            <div className="min-w-0">
-                              <span className="text-xs font-bold text-slate-800 block truncate">{f.label}</span>
-                              <span className="text-[10px] font-mono text-[#002777] font-semibold">{`{{${f.tag}}}`}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100">
-                            <button
-                              type="button"
-                              onClick={() => insertTagAtCursor(f.tag)}
-                              className="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-[#002777] text-[10px] font-bold transition cursor-pointer"
-                              title="Insertar en la plantilla"
-                            >
-                              + Insertar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => copyTagToClipboard(f.tag)}
-                              className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-                              title="Copiar etiqueta"
-                            >
-                              <Copy className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 3. CUSTOM FIELDS SECTION */}
-                  {customTags.length > 0 ? (
-                    <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                      <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wide block">
-                        Campos Personalizados ({customTags.length})
-                      </span>
-
+                    {!collapseAi && (
                       <div className="grid gap-1.5">
-                        {customTags.map((ct) => (
+                        {aiFields.map((f) => (
                           <div
-                            key={ct}
+                            key={f.tag}
                             draggable
-                            onDragStart={(e) => handleDragStart(e, ct)}
-                            className="group flex items-center justify-between p-2 bg-blue-50/40 border border-blue-200 rounded-lg shadow-2xs hover:border-blue-400 transition cursor-grab active:cursor-grabbing select-none"
+                            onDragStart={(e) => handleDragStart(e, f.tag)}
+                            className="group flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg shadow-2xs hover:border-blue-400 hover:shadow-xs transition cursor-grab active:cursor-grabbing select-none"
                           >
                             <div className="flex items-center gap-2 min-w-0">
-                              <GripVertical className="h-3.5 w-3.5 text-blue-300 group-hover:text-blue-500 shrink-0" />
+                              <GripVertical className="h-3.5 w-3.5 text-slate-300 group-hover:text-slate-500 shrink-0" />
                               <div className="min-w-0">
-                                <span className="text-xs font-bold text-blue-900 block truncate font-mono">{`{{${ct}}}`}</span>
+                                <span className="text-xs font-bold text-slate-800 block truncate">{f.label}</span>
+                                <span className="text-[10px] font-mono text-[#002777] font-semibold">{`{{${f.tag}}}`}</span>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100">
                               <button
                                 type="button"
-                                onClick={() => insertTagAtCursor(ct)}
-                                className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition cursor-pointer"
+                                onClick={() => insertTagAtCursor(f.tag)}
+                                className="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-[#002777] text-[10px] font-bold transition cursor-pointer"
+                                title="Insertar en la plantilla"
                               >
                                 + Insertar
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveCustomTag(ct)}
-                                className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
-                                title="Eliminar este placeholder"
+                                onClick={() => copyTagToClipboard(f.tag)}
+                                className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                                title="Copiar etiqueta"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Copy className="h-3 w-3" />
                               </button>
                             </div>
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
+
+                  {/* 3. CUSTOM FIELDS SECTION */}
+                  {customTags.length > 0 ? (
+                    <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setCollapseCustom(!collapseCustom)}
+                        className="w-full flex items-center justify-between text-left py-1 hover:text-slate-900 transition cursor-pointer select-none"
+                      >
+                        <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wide block">
+                          Campos Personalizados ({customTags.length})
+                        </span>
+                        {collapseCustom ? (
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                        )}
+                      </button>
+
+                      {!collapseCustom && (
+                        <div className="grid gap-1.5">
+                          {customTags.map((ct) => (
+                            <div
+                              key={ct}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, ct)}
+                              className="group flex items-center justify-between p-2 bg-blue-50/40 border border-blue-200 rounded-lg shadow-2xs hover:border-blue-400 transition cursor-grab active:cursor-grabbing select-none"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <GripVertical className="h-3.5 w-3.5 text-blue-300 group-hover:text-blue-500 shrink-0" />
+                                <div className="min-w-0">
+                                  <span className="text-xs font-bold text-blue-900 block truncate font-mono">{`{{${ct}}}`}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => insertTagAtCursor(ct)}
+                                  className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition cursor-pointer"
+                                >
+                                  + Insertar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCustomTag(ct)}
+                                  className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                                  title="Eliminar este placeholder"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : null}
                 </div>
@@ -923,19 +975,6 @@ export const TemplatesPanel = () => {
               ) : (
                 /* A4 PAPER CANVAS CONTAINER WITH INLINE EDITING */
                 <div className="w-full max-w-3xl bg-white shadow-2xl rounded-sm border border-slate-300 min-h-[850px] p-8 md:p-14 flex flex-col justify-between relative transition-all font-sans">
-                  {/* Paper Document Header Bar */}
-                  <div className="border-b-2 border-slate-900 pb-4 mb-6 flex items-start justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#002777]">FORMATO OFICIAL DE DOCUMENTACIÓN</p>
-                      <h1 className="text-xl md:text-2xl font-bold text-slate-900 font-serif mt-1">
-                        {previewTemplate.title}
-                      </h1>
-                    </div>
-                    <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                      Módulo: {previewTemplate.module.toUpperCase()}
-                    </span>
-                  </div>
-
                   {/* DOCUMENT CANVAS CONTENT (DIRECT INLINE EDITING OR MARKDOWN EDITOR) */}
                   {viewMode === 'editor' ? (
                     <div className="flex-1 flex flex-col space-y-2">
@@ -949,41 +988,27 @@ export const TemplatesPanel = () => {
                         value={editedContent}
                         onChange={(e) => setEditedContent(e.target.value)}
                         className="w-full flex-1 min-h-[600px] p-4 font-mono text-xs text-slate-900 bg-slate-50/50 rounded-lg border border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#002777] focus:outline-none leading-relaxed resize-none font-medium shadow-inner"
-                        placeholder="Edita la plantilla e inserta placeholders {{FECHA}}, {{AREA}}, {{NECESIDAD}}, etc..."
+                        placeholder="Edita la plantilla e inserta placeholders {{FECHA}}, {{AREA}}, {{DESCRIPCION}}, etc..."
                       />
                     </div>
                   ) : (
                     /* DIRECT VISUAL DOCUMENT CANVAS — Contenedor Oficial Univer */
-                    <div className="flex-1 space-y-3 pt-2 font-sans flex flex-col min-h-[600px]">
-                      <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#002777] flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
-                          <span>
-                            <strong>Edición Directa en Contenedor Univer:</strong> Edita el contenido directamente en el lienzo oficial, o haz clic en <strong>+ Insertar</strong> en el panel izquierdo para incorporar placeholders en vivo.
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setViewMode('editor')}
-                          className="btn btn-secondary text-[11px] py-1 px-2.5 inline-flex items-center gap-1 cursor-pointer shrink-0"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                          <span>Modo Código Markdown</span>
-                        </button>
-                      </div>
-
+                    <div className="flex-1 space-y-3 font-sans flex flex-col min-h-[600px]">
                       <div className="flex-1 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
                         <UniverContainer
                           adapter={univerAdapter}
                           kind={previewTemplate.file_type === 'xlsx' ? 'spreadsheet' : 'document'}
                           title={previewTemplate.title}
                           content={editedContent}
+                          headerContent={previewDetail?.header_content}
+                          footerContent={previewDetail?.footer_content}
                           images={[]}
                           onInspect={() => {}}
                           onExport={() => {}}
                           onReloadFixture={() => {}}
                           onContentChange={(newContent) => setEditedContent(newContent)}
+                          activeLineIndex={activeLineIdx}
+                          onActiveLineChange={(idx) => setActiveLineIdx(idx)}
                           hideHeader={true}
                         />
                       </div>

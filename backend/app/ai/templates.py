@@ -167,48 +167,36 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
     ),
   },
   "mejoras_doc": {
-    "version": 1,
+    "version": 2,
     "feature": "mejoras_doc",
     "allowed_sources": ["jira", "github", "gitlab", "knowledge"],
     "system": (
       "Eres un analista funcional senior especializado en elaborar 'Documentación de Mejoras' corporativas. "
-      "Utiliza ÚNICAMENTE la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
-      "Estructura el documento formalmente en Markdown siguiendo el formato corporativo exacto especificado a continuación:\n\n"
-      "## **FORMATO DOCUMENTACIÓN DE MEJORAS**\n\n"
-      "**_Objetivo del Formato:_** _Registrar de manera estructurada las necesidades funcionales, oportunidades de mejora y nuevos requerimientos identificados por los usuarios funcionales del proyecto, con el fin de facilitar su análisis, evaluación, priorización y definición por parte del equipo del proyecto para su posible incorporación en el nuevo Sistema de Información_\n\n"
-      "**_Código Requerimiento:_** [Indicar código ej. M1, M2, M6 según inventario]\n\n"
-      "| Fecha: [Fecha] | Módulo/Funcionalidad: [Nombre] |\n"
-      "| --- | --- |\n"
-      "| Sede(s): [HIC / ICV / IMAP] | Área(s): [Nombre de área(s)] |\n\n"
-      "# Necesidad identificada\n\n"
-      "**Describe ¿Cómo funciona actualmente?** (incluye pantallas)\n"
-      "[Detallar flujo actual, pantallas involucradas e ineficiencias identificadas]\n\n"
-      "**Impacto para el negocio (en tiempo, costos, reprocesos, etc)**\n"
-      "[Detallar cuantificación o calificación del impacto operacional/negocio]\n\n"
-      "**¿Cómo le gustaría que funcionara en el nuevo sistema?**\n"
-      "[Detallar requerimiento funcional deseado, comportamiento y criterios de aceptación]\n\n"
-      "**Prioridad**\n"
-      "[Alta / Media / Baja - Justificada]\n\n"
-      "**Observaciones complementarias o recomendaciones a tener en cuenta**\n"
-      "[Reglas de negocio adicionales, restricciones o consideraciones especiales]\n\n"
-      "**Observaciones del Equipo del Proyecto**\n"
-      "[Evaluación del equipo técnico/QA y recomendaciones]\n\n"
-      "# Firma Participantes o Aprobadores\n\n"
-      "| **Nombre** | **Cargo** | **Sede** | **Rol** | **Aprobación** |\n"
-      "| ---------- | --------- | -------- | ------- | -------------- |\n"
-      "|            |           |          |         |                |\n\n"
-      "_Formato Elaborado por: Ing María Eugenia Gutiérrez - Jefe Corporativo de Proyectos de Software_\n\n"
-      "Cita las evidencias y fuentes utilizadas como [1], [2]."
+      "Tu tarea es completar CADA sección del documento de mejoras con contenido específico, detallado y bien redactado, "
+      "basándote ÚNICAMENTE en la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
+      "\n\nREGLAS CRÍTICAS DE GENERACIÓN:"
+      "\n1. DEBES completar TODAS las secciones del template proporcionado, sin excepción. No omitas ninguna."
+      "\n2. Cuando el template contenga placeholders {{TAG_NAME}}, reemplázalos con el contenido correspondiente generado."
+      "\n3. Mantén la estructura exacta de encabezados Markdown del template (# para H1, ## para H2, **Texto** para sub-secciones)."
+      "\n4. Si el template incluye tablas Markdown, consérvales con datos apropiados."
+      "\n5. Genera contenido sustancial para CADA placeholder y sección, no solo los primeros 3."
+      "\n6. El documento final debe ser completo de principio a fin."
+      "\n7. Cita las evidencias y fuentes utilizadas como [1], [2] al final."
     ),
     "user_template": (
       "Solicitud de mejora: {query}\n\n"
       "CONTEXTO ADICIONAL / CHAT / Q&A:\n{chat_context}\n\n"
       "DOCUMENTACIÓN Y EVIDENCIA:\n{context}\n\n"
       "RÚBRICA CORPORATIVA:\n{rubric}\n\n"
-      "Genera el Formato de Documentación de Mejoras siguiendo estrictamente la plantilla corporativa."
+      "PLANTILLA CORPORATIVA ACTIVA (respeta EXACTAMENTE esta estructura, completa CADA sección):\n"
+      "```\n{template}\n```\n\n"
+      "INSTRUCCIÓN: Genera el documento de mejoras completando absolutamente TODAS las secciones de la plantilla anterior. "
+      "Reemplaza los placeholders {{TAG_NAME}} con contenido real. No dejes ninguna sección vacía ni la omitas. "
+      "Responde SOLO con el documento en Markdown, sin explicaciones adicionales."
     ),
   },
 }
+
 
 DEFAULT_RUBRICS: dict[str, dict[str, Any]] = {
   "standup": {
