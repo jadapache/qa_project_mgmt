@@ -244,15 +244,6 @@ export const ArtifactsStudio = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onCreateArtifact('Nuevo Documento', 'docx')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#002777] text-white hover:bg-[#003399] text-xs font-semibold shadow-xs transition cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Nuevo Documento</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={onToggleCollapse}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                 title="Colapsar panel"
@@ -571,9 +562,9 @@ export const ArtifactsStudio = ({
           </div>
 
           {/* Main Visual Document Canvas Container */}
-          <div className="flex-1 overflow-hidden bg-slate-100/60 p-4 flex flex-col">
-            <div className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden bg-slate-100/60 p-4 flex flex-col min-h-0">
+            <div className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden min-h-0">
+              <div className="flex-1 overflow-y-auto min-h-0">
                 <UniverContainer
                   adapter={adapter}
                   kind={activeArtifact.extension === 'xlsx' ? 'spreadsheet' : 'document'}

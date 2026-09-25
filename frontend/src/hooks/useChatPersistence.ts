@@ -83,26 +83,15 @@ export function useChatPersistence(featureSlug: string) {
    * Create a brand new conversation and set it as active.
    */
   const createConversation = useCallback(
-    (name?: string, initialArtifactContent?: string, initialArtifactTitle?: string): ChatConversation => {
-      const artId = crypto.randomUUID()
-      const initialArtifact: DocumentArtifact = {
-        id: artId,
-        title: initialArtifactTitle || 'Documento de Mejora y Requerimientos Funcionales',
-        subtitle: 'Informe de Levantamiento y Especificaciones Funcionales',
-        extension: 'docx',
-        content: initialArtifactContent || '',
-        createdAt: new Date().toLocaleDateString([], { hour: '2-digit', minute: '2-digit' }),
-        updatedAt: 'Hace un momento',
-      }
-
+    (name?: string): ChatConversation => {
       const newConv: ChatConversation = {
         id: crypto.randomUUID(),
         name: name || `Conversación ${conversations.length + 1}`,
         lastInteraction: new Date().toISOString(),
         messages: [],
-        documentContent: initialArtifactContent || '',
-        artifacts: [initialArtifact],
-        activeArtifactId: artId,
+        documentContent: '',
+        artifacts: [],
+        activeArtifactId: undefined,
       }
       setConversations((prev) => [newConv, ...prev])
       setActiveConversationId(newConv.id)
