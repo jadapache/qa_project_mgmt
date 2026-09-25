@@ -1,5 +1,5 @@
 import { FUNCIONAL_FEATURE_BY_SLUG } from '../../constants/funcionalFeatures'
-import { GroundedChatWorkspace } from '../../components/workspace/GroundedChatWorkspace'
+import { AgenticDocumentWorkspace } from '../../components/workspace/AgenticDocumentWorkspace'
 
 export const MejorasPage = () => {
   const config = FUNCIONAL_FEATURE_BY_SLUG['mejoras']
@@ -10,7 +10,7 @@ export const MejorasPage = () => {
       </div>
     )
   }
-  return <GroundedChatWorkspace config={config} />
+  return <AgenticDocumentWorkspace config={config} />
 }
 
 export default MejorasPage

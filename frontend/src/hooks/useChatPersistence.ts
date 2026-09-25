@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 
+export interface DocumentArtifact {
+  id: string
+  title: string
+  subtitle?: string
+  extension: 'docx' | 'xlsx' | 'txt'
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ChatConversation {
   id: string
   name: string
   lastInteraction: string // ISO string
   messages: ChatPersistMessage[]
   documentContent: string
+  artifacts?: DocumentArtifact[]
+  activeArtifactId?: string
 }
 
 export interface ChatPersistMessage {
@@ -71,13 +83,26 @@ export function useChatPersistence(featureSlug: string) {
    * Create a brand new conversation and set it as active.
    */
   const createConversation = useCallback(
-    (name?: string): ChatConversation => {
+    (name?: string, initialArtifactContent?: string, initialArtifactTitle?: string): ChatConversation => {
+      const artId = crypto.randomUUID()
+      const initialArtifact: DocumentArtifact = {
+        id: artId,
+        title: initialArtifactTitle || 'Documento de Mejora y Requerimientos Funcionales',
+        subtitle: 'Informe de Levantamiento y Especificaciones Funcionales',
+        extension: 'docx',
+        content: initialArtifactContent || '',
+        createdAt: new Date().toLocaleDateString([], { hour: '2-digit', minute: '2-digit' }),
+        updatedAt: 'Hace un momento',
+      }
+
       const newConv: ChatConversation = {
         id: crypto.randomUUID(),
         name: name || `Conversación ${conversations.length + 1}`,
         lastInteraction: new Date().toISOString(),
         messages: [],
-        documentContent: '',
+        documentContent: initialArtifactContent || '',
+        artifacts: [initialArtifact],
+        activeArtifactId: artId,
       }
       setConversations((prev) => [newConv, ...prev])
       setActiveConversationId(newConv.id)
@@ -90,7 +115,7 @@ export function useChatPersistence(featureSlug: string) {
    * Update the active conversation's messages and/or document content.
    */
   const updateConversation = useCallback(
-    (updates: Partial<Pick<ChatConversation, 'messages' | 'documentContent' | 'name'>>) => {
+    (updates: Partial<Pick<ChatConversation, 'messages' | 'documentContent' | 'name' | 'artifacts' | 'activeArtifactId'>>) => {
       if (!activeConversationId) return
       setConversations((prev) =>
         prev.map((c) =>
@@ -123,7 +148,6 @@ export function useChatPersistence(featureSlug: string) {
     (id: string) => {
       setConversations((prev) => {
         const filtered = prev.filter((c) => c.id !== id)
-        // If we deleted the active one, switch to the first remaining or null
         if (activeConversationId === id) {
           setActiveConversationId(filtered.length > 0 ? filtered[0].id : null)
         }
