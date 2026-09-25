@@ -129,11 +129,14 @@ export type SystemTag = {
   tag: string
   label: string
   description: string
+  type?: 'ai' | 'function'
 }
 
 export type TemplateDetail = {
   template: CorporateTemplate
   content: string
+  header_content?: string
+  footer_content?: string
   detected_tags: string[]
   system_tags: SystemTag[]
 }
