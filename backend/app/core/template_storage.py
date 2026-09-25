@@ -23,15 +23,22 @@ TEMPLATES_DIR = LOCAL_DIR / "templates"
 INDEX_FILE = SETTINGS_DIR / "templates_index.json"
 
 DEFAULT_SYSTEM_TAGS: List[Dict[str, str]] = [
-    {"tag": "FECHA", "label": "Fecha del Documento", "description": "Fecha actual de elaboración o generación"},
-    {"tag": "AREA", "label": "Área / Sede", "description": "Sedes (HIC / ICV / IMAP) y área solicitante"},
-    {"tag": "MODULO", "label": "Módulo / Funcionalidad", "description": "Módulo o sistema de información impactado"},
-    {"tag": "OBSERVACIONES", "label": "Observaciones Complementarias", "description": "Casos de borde, restricciones y recomendaciones"},
-    {"tag": "NECESIDAD", "label": "Necesidad Identificada", "description": "Descripción del funcionamiento actual y pantallas"},
-    {"tag": "IMPACTO", "label": "Impacto en Negocio", "description": "Impacto operacional en tiempo, costos y reprocesos"},
-    {"tag": "SOLUCION", "label": "Requerimiento Deseado", "description": "Comportamiento y flujo esperado en el nuevo sistema"},
-    {"tag": "PRIORIDAD", "label": "Prioridad", "description": "Nivel de prioridad (Alta / Media / Baja)"},
-    {"tag": "FIRMAS", "label": "Firma Participantes", "description": "Tabla de participantes y aprobadores"},
+    # AI Content Tags
+    {"tag": "NECESIDAD", "label": "Necesidad Identificada", "description": "Descripción del funcionamiento actual y pantallas", "type": "ai"},
+    {"tag": "IMPACTO", "label": "Impacto en Negocio", "description": "Impacto operacional en tiempo, costos y reprocesos", "type": "ai"},
+    {"tag": "SOLUCION", "label": "Requerimiento Deseado", "description": "Comportamiento y flujo esperado en el nuevo sistema", "type": "ai"},
+    {"tag": "OBSERVACIONES", "label": "Observaciones Complementarias", "description": "Casos de borde, restricciones y recomendaciones", "type": "ai"},
+    {"tag": "FIRMAS", "label": "Firma Participantes", "description": "Tabla de participantes y aprobadores", "type": "ai"},
+    {"tag": "AREA", "label": "Área / Sede", "description": "Sedes (HIC / ICV / IMAP) y área solicitante", "type": "ai"},
+    {"tag": "MODULO", "label": "Módulo / Funcionalidad", "description": "Módulo o sistema de información impactado", "type": "ai"},
+    {"tag": "PRIORIDAD", "label": "Prioridad", "description": "Nivel de prioridad (Alta / Media / Baja)", "type": "ai"},
+
+    # System Function Tags (Computed automatically during export without AI)
+    {"tag": "PAGINA", "label": "Número de Página", "description": "Número de página actual (Función automática en Word/PDF)", "type": "function"},
+    {"tag": "TOTAL_PAGINAS", "label": "Total de Páginas", "description": "Conteo total de páginas (Función automática en Word/PDF)", "type": "function"},
+    {"tag": "FECHA_HOY", "label": "Fecha Actual (DD/MM/AAAA)", "description": "Fecha actual del sistema al generar el archivo", "type": "function"},
+    {"tag": "HORA_ACTUAL", "label": "Hora de Generación", "description": "Hora exacta de generación del documento", "type": "function"},
+    {"tag": "USUARIO_ACTUAL", "label": "Usuario Solicitante", "description": "Nombre del usuario activo en el sistema", "type": "function"},
 ]
 
 
@@ -73,6 +80,114 @@ def get_template(template_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def extract_docx_structure(file_path: Path) -> Dict[str, Any]:
+    if docx is None:
+        return {"content": "Librería python-docx no disponible.", "header": "", "footer": ""}
+
+    try:
+        doc = docx.Document(file_path)
+        header_parts = []
+        footer_parts = []
+
+        if doc.sections:
+            sec = doc.sections[0]
+            if sec.header:
+                for t in sec.header.tables:
+                    table_md_rows = []
+                    for r_idx, row in enumerate(t.rows):
+                        cells = []
+                        seen_tc = set()
+                        for c in row.cells:
+                            if c._tc not in seen_tc:
+                                seen_tc.add(c._tc)
+                                cells.append(c.text.strip().replace("\n", " "))
+                        if any(cells):
+                            table_md_rows.append("| " + " | ".join(cells) + " |")
+                            if r_idx == 0:
+                                table_md_rows.append("| " + " | ".join(["---"] * len(cells)) + " |")
+                    if table_md_rows:
+                        header_parts.append("\n".join(table_md_rows))
+
+                for p in sec.header.paragraphs:
+                    txt = p.text.strip()
+                    if txt and not any(txt in hp for hp in header_parts):
+                        header_parts.append(txt)
+
+            if sec.footer:
+                for t in sec.footer.tables:
+                    table_md_rows = []
+                    for r_idx, row in enumerate(t.rows):
+                        cells = []
+                        seen_tc = set()
+                        for c in row.cells:
+                            if c._tc not in seen_tc:
+                                seen_tc.add(c._tc)
+                                cells.append(c.text.strip().replace("\n", " "))
+                        if any(cells):
+                            table_md_rows.append("| " + " | ".join(cells) + " |")
+                            if r_idx == 0:
+                                table_md_rows.append("| " + " | ".join(["---"] * len(cells)) + " |")
+                    if table_md_rows:
+                        footer_parts.append("\n".join(table_md_rows))
+
+                for p in sec.footer.paragraphs:
+                    txt = p.text.strip()
+                    if txt and not any(txt in fp for fp in footer_parts):
+                        footer_parts.append(txt)
+
+        # Parse body elements preserving exact order (paragraphs and tables)
+        body_lines = []
+        from docx.oxml.text.paragraph import CT_P
+        from docx.oxml.table import CT_Tbl
+        from docx.text.paragraph import Paragraph
+        from docx.table import Table
+
+        for child in doc.element.body:
+            if isinstance(child, CT_P):
+                p = Paragraph(child, doc)
+                text = p.text.strip()
+                if text:
+                    style_name = p.style.name if p.style else ""
+                    if "Heading 1" in style_name:
+                        body_lines.append(f"# {text}")
+                    elif "Heading 2" in style_name:
+                        body_lines.append(f"## {text}")
+                    elif "Heading 3" in style_name:
+                        body_lines.append(f"### {text}")
+                    else:
+                        body_lines.append(text)
+            elif isinstance(child, CT_Tbl):
+                t = Table(child, doc)
+                table_md_rows = []
+                for r_idx, row in enumerate(t.rows):
+                    cells = []
+                    seen_tc = set()
+                    for c in row.cells:
+                        if c._tc not in seen_tc:
+                            seen_tc.add(c._tc)
+                            cells.append(c.text.strip().replace("\n", " "))
+                    if any(cells):
+                        table_md_rows.append("| " + " | ".join(cells) + " |")
+                        if r_idx == 0:
+                            table_md_rows.append("| " + " | ".join(["---"] * len(cells)) + " |")
+                if table_md_rows:
+                    body_lines.append("\n" + "\n".join(table_md_rows) + "\n")
+
+        # Fallback if body_lines empty
+        if not body_lines:
+            for p in doc.paragraphs:
+                if p.text.strip():
+                    body_lines.append(p.text.strip())
+
+        return {
+            "content": "\n\n".join(body_lines),
+            "header": "\n".join(header_parts) if header_parts else "Página {{PAGINA}} | FORMATO CORPORATIVO",
+            "footer": "\n".join(footer_parts) if footer_parts else "Documento Confidencial • Página {{PAGINA}} de {{TOTAL_PAGINAS}}",
+        }
+    except Exception as e:
+        return {"content": f"Error al extraer estructura .docx: {e}", "header": "", "footer": ""}
+
+
 def extract_template_content(stored_filename: str) -> str:
     file_path = TEMPLATES_DIR / stored_filename
     if not file_path.exists():
@@ -90,23 +205,10 @@ def extract_template_content(stored_filename: str) -> str:
             except Exception as e:
                 return f"Error al leer el archivo de texto: {e}"
 
-    # DOCX format
+    # DOCX format with rich table/header extraction
     if ext == ".docx":
-        if docx is not None:
-            try:
-                doc = docx.Document(file_path)
-                lines = []
-                for p in doc.paragraphs:
-                    if p.text.strip():
-                        lines.append(p.text)
-                for t in doc.tables:
-                    for row in t.rows:
-                        row_cells = [c.text.strip() for c in row.cells if c.text.strip()]
-                        if row_cells:
-                            lines.append(" | ".join(row_cells))
-                return "\n\n".join(lines) if lines else "Archivo Word (.docx) procesado (sin texto visible)."
-            except Exception as e:
-                return f"Error al procesar el documento Word (.docx): {e}"
+        res = extract_docx_structure(file_path)
+        return res["content"]
 
     # XLSX format (Extract text from sharedStrings or sheet XML)
     if ext == ".xlsx":
@@ -136,7 +238,6 @@ def extract_template_content(stored_filename: str) -> str:
 
 def detect_tags(content: str) -> List[str]:
     found = set()
-    # Matches {{TAG}}, [[TAG]], or {TAG}
     matches = re.findall(r"\{\{\s*([A-Za-z0-9_\-\.]+)\s*\}\}|\[\[\s*([A-Za-z0-9_\-\.]+)\s*\]\]", content)
     for m in matches:
         tag = m[0] or m[1]
@@ -196,7 +297,6 @@ def update_template_metadata(
             if tags is not None:
                 item["tags"] = sorted(list(set(tags)))
 
-            # If user updated text content for text/md files
             if content is not None:
                 file_path = TEMPLATES_DIR / item.get("stored_filename", "")
                 ext = file_path.suffix.lower()
@@ -214,12 +314,28 @@ def get_template_detail(template_id: str) -> Optional[Dict[str, Any]]:
     if not item:
         return None
 
-    content = extract_template_content(item.get("stored_filename", ""))
-    detected = detect_tags(content)
+    stored_name = item.get("stored_filename", "")
+    file_path = TEMPLATES_DIR / stored_name
+
+    header_text = ""
+    footer_text = ""
+
+    if file_path.suffix.lower() == ".docx":
+        parsed = extract_docx_structure(file_path)
+        content = parsed["content"]
+        header_text = parsed["header"]
+        footer_text = parsed["footer"]
+    else:
+        content = extract_template_content(stored_name)
+
+    full_text_for_tags = f"{header_text}\n{content}\n{footer_text}"
+    detected = detect_tags(full_text_for_tags)
 
     return {
         "template": item,
         "content": content,
+        "header_content": header_text,
+        "footer_content": footer_text,
         "detected_tags": detected,
         "system_tags": DEFAULT_SYSTEM_TAGS,
     }
@@ -245,4 +361,5 @@ def delete_template(template_id: str) -> bool:
                 pass
         return True
     return False
+
 
