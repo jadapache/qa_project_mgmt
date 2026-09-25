@@ -32,7 +32,27 @@ export const FUNCIONAL_FEATURES: FuncionalFeatureConfig[] = [
     uploadTags: 'mejoras_doc',
     placeholder: 'Escribe tu indicación o consulta...',
     defaultQuery: 'Genera el Documento de Mejora detallado basado en la información recopilada.',
-    defaultTemplate: '',
+    defaultTemplate: `# Documento de Mejora y Requerimientos Funcionales
+
+## 1. Información General del Proyecto
+- **Proyecto / Módulo:** Sistema de Gestión QA / Módulo Funcional
+- **Fecha:** {{FECHA}}
+- **Responsables:** {{RESPONSABLES}}
+
+## 2. Diagnóstico y Situación Actual
+{{SITUACIÓN_ACTUAL}}
+
+## 3. Propuesta de Solución y Mejoras Requeridas
+{{SOLUCIÓN}}
+
+## 4. Matriz de Requerimientos Funcionales
+| ID | Requerimiento | Prioridad | Impacto en Negocio |
+|---|---|---|---|
+| RF-01 | Automatización de flujo funcional | Alta | Reducción de tiempos manuales |
+
+## 5. Recomendaciones de Pruebas y Criterios de Aceptación
+- Cobertura de pruebas unitarias e integración.
+- Validación de rendimiento e impacto en la arquitectura.`,
     defaultSources: ['knowledge'],
     icon: FileEdit,
     runApi: (payload) => api.runMejoras(payload),

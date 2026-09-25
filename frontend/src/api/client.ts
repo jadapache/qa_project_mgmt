@@ -463,6 +463,25 @@ export const api = {
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<GroundedResult>(r)),
 
+  agenticPrompt: (payload: {
+    query: string
+    current_document?: string
+    chat_context?: string[]
+    sources?: string[]
+    document_ids?: string[]
+  }) =>
+    fetch(`${API_BASE}/api/doc-agent/agentic-prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    }).then((r) =>
+      handleResponse<{
+        answer: string
+        operations: any[]
+        document_updates?: string
+      }>(r),
+    ),
+
   exportMejorasDocx: async (markdown: string, title?: string): Promise<Blob> => {
     const res = await fetch(`${API_BASE}/api/features/export-docx`, {
       method: 'POST',

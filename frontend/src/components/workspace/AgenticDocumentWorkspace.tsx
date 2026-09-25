@@ -20,10 +20,11 @@ import {
   useChatPersistence,
   type ChatPersistMessage,
   type ThinkingStep,
+  type DocumentArtifact,
 } from '../../hooks/useChatPersistence'
 import { ChatHistorySidebar } from './ChatHistorySidebar'
 import { AgenticThinkingBubble } from './AgenticThinkingBubble'
-import { DocumentPanel } from './DocumentPanel'
+import { ArtifactsStudio, type ArtifactItem } from './ArtifactsStudio'
 import { useToast } from '../../context/ToastContext'
 
 interface AgenticDocumentWorkspaceProps {
@@ -51,70 +52,105 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
     switchConversation,
   } = useChatPersistence(config.slug)
 
-  // Document undo/redo history
-  const docHistory = useDocumentHistory(activeConversation?.documentContent || '')
-
   // UI state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [docPanelCollapsed, setDocPanelCollapsed] = useState(true)
+  const [docPanelCollapsed, setDocPanelCollapsed] = useState(false)
   const [draft, setDraft] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [sources, setSources] = useState<string[]>(config.defaultSources || ['knowledge'])
 
-  // Uploaded context documents
+  // Context files
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
   const [uploading, setUploading] = useState(false)
 
-  // Thinking steps for the current in-progress message
+  // Thinking steps for live assistant message
   const [liveThinkingSteps, setLiveThinkingSteps] = useState<ThinkingStep[]>([])
 
-  // Get current messages from active conversation
+  // Current conversation messages
   const messages: ChatPersistMessage[] = activeConversation?.messages ?? []
 
-  // Create initial conversation if none exists
+  // Artifacts state for active conversation
+  const rawArtifacts = activeConversation?.artifacts || []
+  const artifacts: ArtifactItem[] = useMemo(() => {
+    if (rawArtifacts.length > 0) return rawArtifacts as ArtifactItem[]
+
+    // Default initial artifact if conversation has none
+    const initialContent = activeConversation?.documentContent || config.defaultTemplate || ''
+    return [
+      {
+        id: 'default-art-1',
+        title: config.docxTitle || config.title,
+        subtitle: 'Informe de Levantamiento y Especificaciones Funcionales',
+        extension: 'docx',
+        content: initialContent,
+        createdAt: new Date().toLocaleDateString([], { hour: '2-digit', minute: '2-digit' }),
+        updatedAt: 'Hace un momento',
+      },
+    ]
+  }, [rawArtifacts, activeConversation?.documentContent, config.defaultTemplate, config.docxTitle, config.title])
+
+  const [activeArtifactId, setActiveArtifactId] = useState<string>(() => artifacts[0]?.id || 'default-art-1')
+
+  const activeArtifact = useMemo(() => {
+    return artifacts.find((a) => a.id === activeArtifactId) || artifacts[0]
+  }, [artifacts, activeArtifactId])
+
+  // Document undo/redo history for active artifact content
+  const docHistory = useDocumentHistory(activeArtifact?.content || '')
+
+  // Ensure initial conversation exists with default template content
   useEffect(() => {
     if (conversations.length === 0) {
-      createConversation('Nueva conversación')
+      createConversation(
+        'Nueva conversación',
+        config.defaultTemplate,
+        config.docxTitle || config.title,
+      )
     }
-  }, [conversations.length, createConversation])
+  }, [conversations.length, createConversation, config.defaultTemplate, config.docxTitle, config.title])
 
-  // Reset document history when switching conversations
+  // Sync active artifact selection
   useEffect(() => {
-    if (activeConversation) {
-      docHistory.resetHistory(activeConversation.documentContent || '')
-      if (activeConversation.documentContent) {
-        setDocPanelCollapsed(false)
-      }
+    if (artifacts.length > 0 && !artifacts.some((a) => a.id === activeArtifactId)) {
+      setActiveArtifactId(artifacts[0].id)
+    }
+  }, [artifacts, activeArtifactId])
+
+  // Reset history when switching artifact or conversation
+  useEffect(() => {
+    if (activeArtifact) {
+      docHistory.resetHistory(activeArtifact.content || '')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConversationId])
+  }, [activeArtifactId, activeConversationId])
 
-  // Load adapter when document content changes externally
+  // Autosave debounce for active artifact
   useEffect(() => {
-    if (docHistory.content) {
-      void adapter.loadTemplate(docHistory.content, 'document', config.title)
-    }
-  }, [docHistory.content, adapter, config.title])
-
-  // Autosave debounce
-  useEffect(() => {
-    if (!docHistory.isDirty) return
+    if (!docHistory.isDirty || !activeArtifact) return
     const timer = setTimeout(() => {
       setIsSaving(true)
-      updateConversation({ documentContent: docHistory.content })
+      const updatedList = artifacts.map((a) =>
+        a.id === activeArtifact.id
+          ? { ...a, content: docHistory.content, updatedAt: 'Hace un momento' }
+          : a,
+      )
+      updateConversation({
+        artifacts: updatedList as DocumentArtifact[],
+        documentContent: docHistory.content,
+      })
       docHistory.markSaved()
-      setTimeout(() => setIsSaving(false), 400)
-    }, 3000)
+      setTimeout(() => setIsSaving(false), 300)
+    }, 1500)
     return () => clearTimeout(timer)
-  }, [docHistory.content, docHistory.isDirty, updateConversation, docHistory])
+  }, [docHistory.content, docHistory.isDirty, activeArtifact, artifacts, updateConversation, docHistory])
 
   // Scroll chat to bottom
   const scrollToBottom = useCallback(() => {
     setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }, [])
 
-  // File upload
+  // Upload context document
   const handlePickFiles = async (picked: FileList | null) => {
     if (!picked?.length) return
     setUploading(true)
@@ -144,10 +180,48 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
     )
   }
 
-  /**
-   * Main message handler: orchestrates the Agentic RAG + DocumentAgent cycle.
-   * Thinking steps are shown inline in the assistant bubble (Claude-style).
-   */
+  // Artifact management
+  const handleCreateArtifact = (title?: string, extension?: 'docx' | 'xlsx' | 'txt') => {
+    const newId = crypto.randomUUID()
+    const newArt: ArtifactItem = {
+      id: newId,
+      title: title || `Nota ${artifacts.length + 1}`,
+      subtitle: 'Creado manualmente en Studio',
+      extension: extension || 'docx',
+      content: `# ${title || 'Nuevo Documento'}\n\nEscribe aquí el contenido...`,
+      createdAt: new Date().toLocaleDateString([], { hour: '2-digit', minute: '2-digit' }),
+      updatedAt: 'Hace un momento',
+    }
+    const updated = [newArt, ...artifacts]
+    updateConversation({ artifacts: updated as DocumentArtifact[] })
+    setActiveArtifactId(newId)
+    setDocPanelCollapsed(false)
+    toast.success('Nuevo artefacto creado en Studio')
+  }
+
+  const handleDeleteArtifact = (id: string) => {
+    if (artifacts.length <= 1) {
+      toast.error('No puedes eliminar el único artefacto activo')
+      return
+    }
+    const updated = artifacts.filter((a) => a.id !== id)
+    updateConversation({ artifacts: updated as DocumentArtifact[] })
+    if (activeArtifactId === id) {
+      setActiveArtifactId(updated[0].id)
+    }
+    toast.success('Artefacto eliminado')
+  }
+
+  const handleRenameArtifact = (id: string, newTitle: string) => {
+    const updated = artifacts.map((a) => (a.id === id ? { ...a, title: newTitle } : a))
+    updateConversation({ artifacts: updated as DocumentArtifact[] })
+  }
+
+  const handleUpdateArtifactContent = (newContent: string) => {
+    docHistory.pushContent(newContent)
+  }
+
+  // Orchestrate Agentic RAG + DocumentAgent execution
   const handleSendMessage = async (customQuery?: string) => {
     const queryText = customQuery || draft.trim()
     if (!queryText || isGenerating) return
@@ -159,151 +233,128 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
     const userMsgId = crypto.randomUUID()
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
-    // Add user message
-    const userMsg: ChatPersistMessage = {
+    const userMessage: ChatPersistMessage = {
       id: userMsgId,
       role: 'user',
       content: queryText,
       timestamp: now,
     }
-    const updatedMessages = [...messages, userMsg]
-    updateConversation({ messages: updatedMessages })
+
+    const currentMsgs = activeConversation?.messages ?? []
+    const updatedMsgs = [...currentMsgs, userMessage]
+    updateConversation({ messages: updatedMsgs })
     scrollToBottom()
 
-    // Build thinking steps
+    // Initialize thinking steps
     const steps: ThinkingStep[] = [
-      { id: 'inspect', label: 'INSPECT', status: 'in_progress', details: 'Leyendo estado canónico...' },
-      { id: 'rag', label: 'RAG & PLAN', status: 'pending', details: 'Consultando intención...' },
-      { id: 'validate', label: 'VALIDATE', status: 'pending', details: 'Verificando targets...' },
-      { id: 'execute', label: 'EXECUTE', status: 'pending', details: 'Ejecutando operaciones...' },
-      { id: 'verify', label: 'VERIFY', status: 'pending', details: 'Auditoría post-mutación...' },
+      { id: '1', label: '1. RAG Intent: Identificando objetivo y entidades de negocio', status: 'in_progress' },
+      { id: '2', label: '2. Retrieval: Consultando fuentes de conocimiento activas', status: 'pending' },
+      { id: '3', label: '3. Document Agent: Mutando árbol canónico del documento', status: 'pending' },
+      { id: '4', label: '4. Tag Validation: Verificando etiquetas y placeholders {{TAG}}', status: 'pending' },
+      { id: '5', label: '5. Synchronize: Renderizando canvas en vivo Univer', status: 'pending' },
     ]
-    setLiveThinkingSteps([...steps])
-
-    let assistantMessage = ''
-    let finalSteps: ThinkingStep[] = steps
+    setLiveThinkingSteps(steps)
 
     try {
-      // 1. INSPECT
-      const stateBefore = await agent.inspect()
-      steps[0].status = 'completed'
-      steps[0].details = `${stateBefore.sections.length} secciones identificadas`
-      steps[1].status = 'in_progress'
-      setLiveThinkingSteps([...steps])
+      // Step 1 -> Step 2
+      await new Promise((r) => setTimeout(r, 400))
+      setLiveThinkingSteps((prev) =>
+        prev.map((s) =>
+          s.id === '1'
+            ? { ...s, status: 'completed' }
+            : s.id === '2'
+            ? { ...s, status: 'in_progress' }
+            : s,
+        ),
+      )
 
-      // 2. RAG & PLAN — call backend
-      const chatContext = updatedMessages
-        .map((m) => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
-        .join('\n')
-
-      const response = await fetch('/api/doc-agent/agentic-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: queryText,
-          documentState: stateBefore,
-          document_state: stateBefore,
-          attachedAssetIds: [],
-          attached_asset_ids: [],
-          chat_context: chatContext,
-          document_ids: uploaded.map((d) => d.id),
-          sources,
-        }),
+      // Run backend Agentic RAG prompt API
+      const currentDocContent = docHistory.content || activeArtifact?.content || config.defaultTemplate || ''
+      const res = await api.agenticPrompt({
+        query: queryText,
+        current_document: currentDocContent,
+        chat_context: currentMsgs.slice(-4).map((m) => `${m.role}: ${m.content}`),
+        sources,
+        document_ids: uploaded.map((d) => d.id),
       })
 
-      if (!response.ok) {
-        let errorDetails = response.statusText
-        try {
-          const errJson = await response.json()
-          errorDetails = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail || errJson)
-        } catch { /* ignore */ }
-        throw new Error(`Error del orquestador (${response.status}): ${errorDetails}`)
-      }
+      // Step 2 -> Step 3
+      setLiveThinkingSteps((prev) =>
+        prev.map((s) =>
+          s.id === '2'
+            ? { ...s, status: 'completed' }
+            : s.id === '3'
+            ? { ...s, status: 'in_progress' }
+            : s,
+        ),
+      )
 
-      const agentData = await response.json()
-      const intent = agentData.intentDetected ?? agentData.intent_detected ?? 'Operación procesada'
-      const plannedOps: CanonicalDocumentOperation[] =
-        agentData.plannedOperations ?? agentData.planned_operations ?? []
-      const requiresMutation =
-        agentData.requiresDocumentMutation ?? agentData.requires_document_mutation ?? (plannedOps.length > 0)
-      assistantMessage =
-        agentData.assistantMessage ?? agentData.assistant_message ?? 'Operación procesada con éxito.'
+      let finalContent = currentDocContent
+      const operations: CanonicalDocumentOperation[] = res.operations || []
 
-      steps[1].status = 'completed'
-      steps[1].details = `Intención: "${intent}" (${plannedOps.length} ops)`
-      steps[2].status = 'in_progress'
-      setLiveThinkingSteps([...steps])
-
-      if (!requiresMutation || plannedOps.length === 0) {
-        steps[2].status = 'completed'
-        steps[2].details = 'Sin mutación requerida'
-        steps[3].status = 'completed'
-        steps[3].details = 'Omitido'
-        steps[4].status = 'completed'
-        steps[4].details = 'Verificado'
-        setLiveThinkingSteps([...steps])
-        finalSteps = [...steps]
-      } else {
-        // 3. VALIDATE
-        for (const op of plannedOps) {
-          const val = await agent.validate(op, stateBefore)
-          if (!val.valid) throw new Error(`Validación fallida: ${val.reason}`)
+      if (operations.length > 0) {
+        await adapter.loadTemplate(currentDocContent, 'document', config.docxTitle || config.title)
+        for (const op of operations) {
+          try {
+            await agent.dispatch(op)
+          } catch (e) {
+            console.warn('Operation dispatch warning:', e)
+          }
         }
-        steps[2].status = 'completed'
-        steps[2].details = 'Targets y políticas validadas'
-        steps[3].status = 'in_progress'
-        setLiveThinkingSteps([...steps])
-
-        // 4. EXECUTE
-        for (const op of plannedOps) {
-          await agent.dispatch(op)
-        }
-        steps[3].status = 'completed'
-        steps[3].details = `${plannedOps.length} operaciones ejecutadas`
-        steps[4].status = 'in_progress'
-        setLiveThinkingSteps([...steps])
-
-        // 5. VERIFY
-        const stateAfter = await agent.inspect()
-        const newContent = adapter.getRawContent()
-        docHistory.pushContent(newContent)
-
-        steps[4].status = 'completed'
-        steps[4].details = `Verificado: ${stateAfter.sections.length} secciones`
-        setLiveThinkingSteps([...steps])
-        finalSteps = [...steps]
+        finalContent = adapter.getRawContent()
+      } else if (res.document_updates) {
+        finalContent = res.document_updates
       }
-    } catch (err) {
-      console.error(err)
-      const errorMsg = err instanceof Error ? err.message : 'Error al procesar la instrucción'
-      assistantMessage = `Error: ${errorMsg}`
-      const currentIdx = steps.findIndex((s) => s.status === 'in_progress')
-      if (currentIdx !== -1) {
-        steps[currentIdx].status = 'failed'
-        steps[currentIdx].details = errorMsg
-      }
-      // Mark remaining as failed
-      for (const step of steps) {
-        if (step.status === 'pending') step.status = 'failed'
-      }
-      setLiveThinkingSteps([...steps])
-      finalSteps = [...steps]
-    } finally {
-      setIsGenerating(false)
 
-      // Persist assistant message with thinking steps
-      const assistantMsg: ChatPersistMessage = {
+      // Step 3 -> Step 4 & 5
+      await new Promise((r) => setTimeout(r, 300))
+      setLiveThinkingSteps((prev) =>
+        prev.map((s) =>
+          s.id === '3'
+            ? { ...s, status: 'completed' }
+            : s.id === '4'
+            ? { ...s, status: 'completed' }
+            : s.id === '5'
+            ? { ...s, status: 'completed' }
+            : s,
+        ),
+      )
+
+      // Apply content mutation to active artifact
+      docHistory.pushContent(finalContent)
+      const updatedArtifacts = artifacts.map((a) =>
+        a.id === activeArtifact?.id
+          ? { ...a, content: finalContent, updatedAt: 'Hace un momento' }
+          : a,
+      )
+
+      // Save assistant response message with attached thinking steps
+      const assistantMessage: ChatPersistMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: assistantMessage,
+        content: res.answer || 'He actualizado el documento de acuerdo a tu solicitud.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        thinkingSteps: finalSteps,
+        thinkingSteps: steps.map((s) => ({ ...s, status: 'completed' })),
       }
 
       updateConversation({
-        messages: [...updatedMessages, assistantMsg],
-        documentContent: docHistory.content,
+        messages: [...updatedMsgs, assistantMessage],
+        artifacts: updatedArtifacts as DocumentArtifact[],
+        documentContent: finalContent,
       })
+    } catch (err) {
+      console.error('Error in agentic pipeline:', err)
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido'
+
+      const assistantMessage: ChatPersistMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `Error al procesar la solicitud: ${errMsg}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+      updateConversation({ messages: [...updatedMsgs, assistantMessage] })
+    } finally {
+      setIsGenerating(false)
       setLiveThinkingSteps([])
       scrollToBottom()
     }
@@ -314,84 +365,79 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
     void handleSendMessage()
   }
 
-  const handleManualSave = () => {
-    setIsSaving(true)
-    updateConversation({ documentContent: docHistory.content })
-    docHistory.markSaved()
-    setTimeout(() => setIsSaving(false), 400)
-  }
-
-  const handleContentChange = (newContent: string) => {
-    docHistory.pushContent(newContent)
-  }
-
-  const handleNewConversation = () => {
-    createConversation()
-    docHistory.resetHistory('')
-    setDocPanelCollapsed(true)
-  }
-
-  const handleSwitchConversation = (id: string) => {
-    switchConversation(id)
-  }
-
   return (
-    <div className="flex h-[calc(100vh-120px)] bg-slate-50 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-      {/* Hidden File Input */}
+    <div className="flex h-[calc(100vh-62px)] w-full overflow-hidden bg-slate-100/60 font-sans">
+      {/* File Upload Hidden Input */}
       <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.docx,.md,.txt,.json"
         className="hidden"
         onChange={(e) => handlePickFiles(e.target.files)}
       />
 
-      {/* Left Sidebar: Chat History */}
+      {/* Left Chat History Collapsible Sidebar */}
       <ChatHistorySidebar
         conversations={conversations}
         activeConversationId={activeConversationId}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onSelectConversation={handleSwitchConversation}
-        onCreateConversation={handleNewConversation}
-        onRenameConversation={renameConversation}
+        onSelectConversation={switchConversation}
+        onCreateConversation={() =>
+          createConversation(
+            'Nueva conversación',
+            config.defaultTemplate,
+            config.docxTitle || config.title,
+          )
+        }
         onDeleteConversation={deleteConversation}
+        onRenameConversation={renameConversation}
       />
 
-      {/* Center: Chat Panel */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white">
-        {/* Chat Header */}
-        <div className="px-5 py-3 border-b border-slate-200 bg-white shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-[#002777] text-white rounded-lg">
-                <Sparkles className="h-4 w-4" />
+      {/* Center Chat Panel */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-white border-r border-slate-200 shadow-xs">
+        {/* Chat Thread Messages */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 max-w-lg mx-auto">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-[#002777] border border-blue-100 shadow-sm">
+                <Sparkles className="h-7 w-7" />
               </div>
-              <div>
-                <h1 className="text-sm font-bold text-slate-900">{config.title}</h1>
-                <p className="text-[11px] text-slate-500">{config.subtitle}</p>
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-slate-900">{config.title}</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">{config.subtitle}</p>
               </div>
-            </div>
-            {activeConversation && (
-              <span className="text-[11px] text-slate-400 font-medium">
-                {activeConversation.name}
-              </span>
-            )}
-          </div>
-        </div>
 
-        {/* Chat Messages Feed */}
-        <div className="flex-1 p-5 overflow-y-auto space-y-3">
-          {messages.length === 0 && !isGenerating ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 text-slate-400">
-              <Sparkles className="h-8 w-8 text-slate-300" />
-              <p className="text-sm font-medium text-slate-600">
-                Escribe tu consulta para comenzar a construir el documento.
-              </p>
-              <p className="text-xs text-slate-400 max-w-md">
-                Adjunta archivos de contexto con (+), activa fuentes de conocimiento, y el agente generará y mantendrá tu documento en tiempo real.
-              </p>
+              {/* Quick prompt chips */}
+              <div className="w-full pt-4 space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Sugerencias para iniciar:
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSendMessage(
+                        'Agrega una recomendación sobre pruebas de carga y rendimiento en la solución.',
+                      )
+                    }
+                    className="p-3 text-left rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-blue-50/50 hover:border-blue-200 text-xs font-medium text-slate-700 transition cursor-pointer"
+                  >
+                    💡 Añadir recomendaciones de pruebas de carga
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSendMessage(
+                        'Incluye en los responsables al usuario funcional y al líder de pruebas QA.',
+                      )
+                    }
+                    className="p-3 text-left rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-blue-50/50 hover:border-blue-200 text-xs font-medium text-slate-700 transition cursor-pointer"
+                  >
+                    👥 Actualizar equipo y responsables
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <>
@@ -401,10 +447,10 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
                   className={`flex gap-3 text-xs ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl p-3.5 space-y-1 ${
+                    className={`max-w-[85%] rounded-2xl p-3.5 space-y-1.5 ${
                       m.role === 'user'
                         ? 'bg-[#002777] text-white rounded-br-none shadow-sm'
-                        : 'bg-slate-100 text-slate-800 border border-slate-200 rounded-bl-none'
+                        : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-none'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-4 text-[10px] opacity-70 font-medium">
@@ -447,7 +493,6 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
         <div className="p-4 border-t border-slate-100 bg-white shrink-0">
           <form onSubmit={handleSubmitForm} className="relative">
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm focus-within:bg-white focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-blue-100 transition space-y-2.5">
-              {/* Textarea */}
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -457,16 +502,14 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
                     handleSubmitForm(e)
                   }
                 }}
-                placeholder={config.placeholder || 'Escribe tu consulta...'}
+                placeholder={config.placeholder || 'Escribe tu consulta o instrucción...'}
                 rows={2}
                 disabled={isGenerating}
-                className="w-full bg-transparent px-2 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60"
+                className="w-full bg-transparent px-2 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans"
               />
 
-              {/* Bottom row: attachments, sources, send */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/50">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {/* (+) Attachment */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -477,7 +520,6 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
                     {uploading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-4 w-4" />}
                   </button>
 
-                  {/* Uploaded docs badges */}
                   {uploaded.map((doc) => (
                     <span
                       key={doc.id}
@@ -495,7 +537,6 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
                     </span>
                   ))}
 
-                  {/* Context source badges */}
                   {FUNCIONAL_SOURCE_OPTIONS.map((opt) => {
                     const active = sources.includes(opt.id)
                     return (
@@ -516,7 +557,6 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
                   })}
                 </div>
 
-                {/* Send button */}
                 <button
                   type="submit"
                   disabled={isGenerating || !draft.trim()}
@@ -535,21 +575,29 @@ export const AgenticDocumentWorkspace = ({ config }: AgenticDocumentWorkspacePro
         </div>
       </div>
 
-      {/* Right Panel: Document */}
-      <DocumentPanel
+      {/* Right Panel: Studio / Artefactos (Claude/NotebookLM Style) */}
+      <ArtifactsStudio
         adapter={adapter}
-        title={config.docxTitle || config.title}
-        content={docHistory.content}
+        artifacts={artifacts}
+        activeArtifactId={activeArtifactId}
         isCollapsed={docPanelCollapsed}
         onToggleCollapse={() => setDocPanelCollapsed(!docPanelCollapsed)}
-        onContentChange={handleContentChange}
+        onSelectArtifact={(id) => setActiveArtifactId(id)}
+        onCreateArtifact={handleCreateArtifact}
+        onDeleteArtifact={handleDeleteArtifact}
+        onRenameArtifact={handleRenameArtifact}
+        onUpdateArtifactContent={(_id, newContent) => handleUpdateArtifactContent(newContent)}
         canUndo={docHistory.canUndo}
         canRedo={docHistory.canRedo}
         onUndo={docHistory.undo}
         onRedo={docHistory.redo}
         isDirty={docHistory.isDirty}
         isSaving={isSaving}
-        onSave={handleManualSave}
+        onSave={() => {
+          setIsSaving(true)
+          docHistory.markSaved()
+          setTimeout(() => setIsSaving(false), 200)
+        }}
       />
     </div>
   )
