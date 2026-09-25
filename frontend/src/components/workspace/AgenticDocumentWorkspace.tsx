@@ -91,7 +91,7 @@ export const AgenticDocumentWorkspace = ({
   // Dynamic prompt textarea height & expansion (capped at 40% max of chat container height)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const BASE_TEXTAREA_HEIGHT = 20
+  const BASE_TEXTAREA_HEIGHT = 35
   const MAX_PANEL_PERCENT_HEIGHT = 230 // Maximum 40% of chat panel height cap
 
   const [textareaHeight, setTextareaHeight] = useState<number>(BASE_TEXTAREA_HEIGHT)
@@ -542,8 +542,8 @@ export const AgenticDocumentWorkspace = ({
                   >
                     <div
                       className={`max-w-[85%] rounded-2xl p-3.5 space-y-1.5 ${m.role === 'user'
-                          ? 'bg-[#002777] text-white rounded-br-none shadow-sm'
-                          : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-none'
+                        ? 'bg-[#002777] text-white rounded-br-none shadow-sm'
+                        : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-none'
                         }`}
                     >
                       <div className="flex items-center justify-between gap-4 text-[10px] opacity-70 font-medium">
@@ -661,8 +661,8 @@ export const AgenticDocumentWorkspace = ({
                       type="button"
                       onClick={() => toggleSource('knowledge')}
                       className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition cursor-pointer ${isKnowledgeActive
-                          ? 'bg-[#002777] text-white border-[#002777] shadow-2xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800'
+                        ? 'bg-[#002777] text-white border-[#002777] shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800'
                         }`}
                     >
                       <BookOpen className="h-3.5 w-3.5" />
@@ -679,8 +679,8 @@ export const AgenticDocumentWorkspace = ({
                         type="button"
                         onClick={toggleAllIntegrations}
                         className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition cursor-pointer ${isIntegrationsActive
-                            ? 'bg-[#002777] text-white border-[#002777] shadow-2xs'
-                            : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800'
+                          ? 'bg-[#002777] text-white border-[#002777] shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800'
                           }`}
                       >
                         <Layers className="h-3.5 w-3.5" />

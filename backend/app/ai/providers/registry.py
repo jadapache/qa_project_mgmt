@@ -32,7 +32,7 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
     env_key="GROQ_API_KEY",
     config_key="groq_api_key",
     default_model="llama-3.3-70b-versatile",
-    default_max_tokens=512,
+    default_max_tokens=4096,
   ),
   "gemini": ProviderSpec(
     id="gemini",

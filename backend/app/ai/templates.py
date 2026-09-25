@@ -175,12 +175,12 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
       "Tu tarea es completar CADA sección del documento de mejoras con contenido específico, detallado y bien redactado, "
       "basándote ÚNICAMENTE en la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
       "\n\nREGLAS CRÍTICAS DE GENERACIÓN:"
-      "\n1. DEBES completar TODAS las secciones del template proporcionado, sin excepción. No omitas ninguna."
-      "\n2. Cuando el template contenga placeholders {{TAG_NAME}}, reemplázalos con el contenido correspondiente generado."
-      "\n3. Mantén la estructura exacta de encabezados Markdown del template (# para H1, ## para H2, **Texto** para sub-secciones)."
-      "\n4. Si el template incluye tablas Markdown, consérvales con datos apropiados."
-      "\n5. Genera contenido sustancial para CADA placeholder y sección, no solo los primeros 3."
-      "\n6. El documento final debe ser completo de principio a fin."
+      "\n1. DEBES completar TODAS las secciones del template proporcionado sin excepción. No omitas ni dejes vacía ninguna sección."
+      "\n2. Para la sección '## Necesidad identificada', redacta OBLIGATORIAMENTE una explicación amplia, clara y estructurada del problema u oportunidad planteada. NUNCA la dejes vacía ni en blanco."
+      "\n3. ELIMINA por completo todos los textos y prefijos de ejemplo tipo 'Ej: “Que el sistema contemple…”' o 'Ej: “Actualmente, cuando…”'."
+      "\n4. Reemplaza todos los placeholders {{TAG_NAME}} (como {{NECESIDAD}}, {{DESCRIPCION}}, {{IMPACTO}}, {{REQ_FUNCIONAL}}, {{REQ_TECNICO}}, {{BENEFICIO}}, {{PRIORIDAD}}, {{OBSERVACIONES}}, {{FIRMAS}}) con la redacción completa de cada punto."
+      "\n5. Mantén la estructura exacta de encabezados Markdown del template (# para H1, ## para H2, **Texto** para sub-secciones) y conserva o genera tablas Markdown estructuradas donde corresponda."
+      "\n6. Redacta de forma continua y exhaustiva desde la primera sección hasta la sección final de 'Firmas Participantes', asegurando un documento corporativo profesional y completo."
       "\n7. Cita las evidencias y fuentes utilizadas como [1], [2] al final."
     ),
     "user_template": (
@@ -191,8 +191,9 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
       "PLANTILLA CORPORATIVA ACTIVA (respeta EXACTAMENTE esta estructura, completa CADA sección):\n"
       "```\n{template}\n```\n\n"
       "INSTRUCCIÓN: Genera el documento de mejoras completando absolutamente TODAS las secciones de la plantilla anterior. "
-      "Reemplaza los placeholders {{TAG_NAME}} con contenido real. No dejes ninguna sección vacía ni la omitas. "
-      "Responde SOLO con el documento en Markdown, sin explicaciones adicionales."
+      "Llena con especial detalle la sección '## Necesidad identificada' y elimina todos los prefijos 'Ej: ...'. "
+      "Reemplaza los placeholders {{TAG_NAME}} por el texto correspondiente. "
+      "Responde SOLO con el documento completo en Markdown, sin cortar la respuesta ni explicaciones adicionales."
     ),
   },
 }
