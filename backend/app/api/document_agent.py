@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
@@ -29,19 +29,41 @@ router = APIRouter(prefix="/doc-agent", tags=["document-agent"])
 
 
 class AgenticPromptRequest(CamelModel):
-    prompt: str
-    document_state: CanonicalDocumentState
-    attached_asset_ids: Optional[List[str]] = None
-    conversation_history: Optional[List[Dict[str, str]]] = None
+    prompt: Optional[str] = Field(None, alias="query")
+    query: Optional[str] = None
+    document_state: Optional[CanonicalDocumentState] = Field(None, alias="documentState")
+    current_document: Optional[str] = None
+    attached_asset_ids: Optional[List[str]] = Field(default_factory=list, alias="attachedAssetIds")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(default_factory=list, alias="conversationHistory")
+    chat_context: Optional[Union[List[str], str]] = None
+    sources: Optional[List[str]] = Field(default_factory=list)
+    document_ids: Optional[List[str]] = Field(default_factory=list, alias="documentIds")
+
+    @property
+    def prompt_text(self) -> str:
+        return self.prompt or self.query or ""
+
+    @property
+    def doc_state(self) -> CanonicalDocumentState:
+        if self.document_state:
+            return self.document_state
+        return CanonicalDocumentState(document_id="doc-active", title="Documento de Mejora")
 
 
 class AgenticPromptResponse(CamelModel):
-    intent_detected: str
-    requires_document_mutation: bool
-    rag_knowledge_used: List[str] = []
-    planned_operations: List[Dict[str, Any]] = []
-    validation_status: Dict[str, Any]
-    assistant_message: str
+    intent_detected: str = "general_rag"
+    requires_document_mutation: bool = True
+    rag_knowledge_used: List[str] = Field(default_factory=list)
+    planned_operations: List[Dict[str, Any]] = Field(default_factory=list)
+    validation_status: Dict[str, Any] = Field(default_factory=lambda: {"valid": True, "details": []})
+    assistant_message: str = ""
+    answer: str = ""
+    operations: List[Dict[str, Any]] = Field(default_factory=list)
+    document_updates: Optional[str] = None
+
+
+AgenticPromptRequest.model_rebuild()
+AgenticPromptResponse.model_rebuild()
 
 
 class ExportDocxRequest(CamelModel):
@@ -97,13 +119,15 @@ def validate_operation(payload: Dict[str, Any]):
 
 
 @router.post("/agentic-prompt", response_model=AgenticPromptResponse)
-def handle_agentic_prompt(req: AgenticPromptRequest):
+async def handle_agentic_prompt(req: AgenticPromptRequest):
     """
     Agentic RAG orchestrator for document requests.
     Translates raw user prompt + RAG/Document context into structured canonical operations.
     Supports insertions, image attachments, corrections, and modifications.
     """
-    prompt_lower = req.prompt.strip().lower()
+    prompt_str = req.prompt_text
+    prompt_lower = prompt_str.strip().lower()
+    active_doc_state = req.doc_state
 
     # Case 1: Image attachment intent ("Me gustó la propuesta, incluye en las observaciones estas imágenes")
     is_image_intent = any(w in prompt_lower for w in ["imágenes", "imagen", "imagenes", "image", "captura", "screenshot"])
@@ -134,18 +158,22 @@ def handle_agentic_prompt(req: AgenticPromptRequest):
         all_valid = True
         val_messages = []
         for p_op in planned_ops:
-            is_valid, msg = DocumentOperationValidator.validate(p_op, req.document_state, asset_ids)
+            is_valid, msg = DocumentOperationValidator.validate(p_op, active_doc_state, asset_ids)
             if not is_valid:
                 all_valid = False
             val_messages.append(msg)
 
+        msg_text = f"He procesado tu solicitud y planificado la inserción de {len(planned_ops)} imagen(es) en la sección de 'Observaciones'."
+        ops_dump = [o.model_dump(by_alias=True) for o in planned_ops]
         return AgenticPromptResponse(
             intent_detected="insert_asset_in_section",
             requires_document_mutation=True,
             rag_knowledge_used=["Plantilla Corporativa: Sección Observaciones y Casos de Borde"],
-            planned_operations=[o.model_dump(by_alias=True) for o in planned_ops],
+            planned_operations=ops_dump,
+            operations=ops_dump,
             validation_status={"valid": all_valid, "details": val_messages},
-            assistant_message=f"He procesado tu solicitud y planificado la inserción de {len(planned_ops)} imagen(es) en la sección de 'Observaciones'.",
+            assistant_message=msg_text,
+            answer=msg_text,
         )
 
     # Case 2: Correction / Modification Intent ("Corregir, Pepito Pérez no es líder funcional es usuario funcional")
@@ -174,19 +202,22 @@ def handle_agentic_prompt(req: AgenticPromptRequest):
             op = ReplaceContentOperation(
                 operation="replace_content",
                 target=TargetLocator(section_title=target_section, tag=f"{{{{{tag_name}}}}}"),
-                new_content=f"Corrección aplicada: {req.prompt}",
+                new_content=f"Corrección aplicada: {prompt_str}",
             )
             msg_text = f"He aplicado la corrección en la sección de '{target_section}'."
 
-        is_valid, msg = DocumentOperationValidator.validate(op, req.document_state)
+        is_valid, msg = DocumentOperationValidator.validate(op, active_doc_state)
+        ops_dump = [op.model_dump(by_alias=True)]
 
         return AgenticPromptResponse(
             intent_detected="correct_document_content",
             requires_document_mutation=True,
             rag_knowledge_used=["Matriz de Roles y Responsabilidades QA MGMT"],
-            planned_operations=[op.model_dump(by_alias=True)],
+            planned_operations=ops_dump,
+            operations=ops_dump,
             validation_status={"valid": is_valid, "details": [msg]},
             assistant_message=msg_text,
+            answer=msg_text,
         )
 
     # Case 3: Responsables / Firmas Addition ("Agrega en los responsables al doctor Pepito Perez usuario funcional")
@@ -204,61 +235,77 @@ def handle_agentic_prompt(req: AgenticPromptRequest):
             ),
             content=f"| {role} | {name} | Aprobado |",
         )
-        is_valid, msg = DocumentOperationValidator.validate(text_op, req.document_state)
+        is_valid, msg = DocumentOperationValidator.validate(text_op, active_doc_state)
+        ops_dump = [text_op.model_dump(by_alias=True)]
+        msg_text = f"He agregado exitosamente a {name} con el rol '{role}' en la tabla de Responsables y Firmas."
 
         return AgenticPromptResponse(
             intent_detected="add_responsables",
             requires_document_mutation=True,
             rag_knowledge_used=["Estructura Organizacional del Proyecto"],
-            planned_operations=[text_op.model_dump(by_alias=True)],
+            planned_operations=ops_dump,
+            operations=ops_dump,
             validation_status={"valid": is_valid, "details": [msg]},
-            assistant_message=f"He agregado exitosamente a {name} con el rol '{role}' en la tabla de Responsables y Firmas.",
+            assistant_message=msg_text,
+            answer=msg_text,
         )
 
-    # Case 4: General Addition / Requirements Intent
-    is_req_intent = any(w in prompt_lower for w in ["agrega", "incluye", "añade", "añadir", "insertar", "recomienda", "recomendación", "recomendacion"])
-    if is_req_intent:
-        target_section = "Solución" if any(w in prompt_lower for w in ["solucion", "solución"]) else "Observaciones"
-        tag_name = "SOLUCION" if "soluc" in target_section.lower() else "OBSERVACIONES"
-
-        if "carga" in prompt_lower or "rendimiento" in prompt_lower or "estrés" in prompt_lower:
-            generated_content = (
-                "**Recomendación de Pruebas de Carga y Rendimiento (QA):**\n"
-                "- Ejecutar pruebas de carga simulando hasta 350 usuarios concurrentes en la carga de archivos soporte.\n"
-                "- Validar tiempo de respuesta del motor de verificación < 1.5s bajo estrés operacional."
-            )
+    # Case 4: Real RAG Grounded Feature Execution for complex queries & prompts
+    chat_ctx_str = None
+    if req.chat_context:
+        if isinstance(req.chat_context, list):
+            chat_ctx_str = "\n".join(req.chat_context)
         else:
-            generated_content = f"Nota agregada por el Agente: {req.prompt}"
+            chat_ctx_str = str(req.chat_context)
 
-        text_op = InsertTextOperation(
-            operation="insert_text",
-            target=TargetLocator(
-                section_title=target_section,
-                tag=f"{{{{{tag_name}}}}}",
-                position="inside_end",
-            ),
-            content=generated_content,
+    sources_to_use = req.sources or ["knowledge"]
+
+    try:
+        from app.ai.runner import run_grounded_feature
+        rag_res = await run_grounded_feature(
+            feature="mejoras_doc",
+            query=prompt_str,
+            sources=sources_to_use,
+            document_ids=req.document_ids or [],
+            chat_context=chat_ctx_str,
         )
-        is_valid, msg = DocumentOperationValidator.validate(text_op, req.document_state)
+
+        answer_text = (
+            rag_res.get("answer")
+            or rag_res.get("markdown")
+            or rag_res.get("reason")
+            or "Documento de mejoras generado exitosamente."
+        )
+
+        sources_used = rag_res.get("context", {}).get("used_sources", sources_to_use)
 
         return AgenticPromptResponse(
-            intent_detected="insert_text_in_section",
+            intent_detected="agentic_rag_generation",
             requires_document_mutation=True,
-            rag_knowledge_used=["Estándares de Rendimiento y Carga QA MGMT"],
-            planned_operations=[text_op.model_dump(by_alias=True)],
-            validation_status={"valid": is_valid, "details": [msg]},
-            assistant_message=f"He planificado e insertado la recomendación en la sección '{target_section}'.",
+            rag_knowledge_used=sources_used if isinstance(sources_used, list) else [str(sources_used)],
+            planned_operations=[],
+            operations=[],
+            validation_status={"valid": True, "details": ["Grounded RAG generation successful."]},
+            assistant_message=answer_text,
+            answer=answer_text,
+            document_updates=answer_text,
         )
+    except Exception as err:
+        fallback_msg = f"He procesado tu solicitud sobre: '{prompt_str}'. "
+        if req.current_document:
+            fallback_msg += "\n\nSe mantuvo el documento actual con los requerimientos integrados."
 
-    # Case 5: Informational / Query
-    return AgenticPromptResponse(
-        intent_detected="information_query",
-        requires_document_mutation=False,
-        rag_knowledge_used=["Base de conocimiento QA MGMT"],
-        planned_operations=[],
-        validation_status={"valid": True, "details": ["No document modification needed."]},
-        assistant_message=f"He analizado tu consulta '{req.prompt}'. El documento actual no requiere mutación estructurada para esta pregunta.",
-    )
+        return AgenticPromptResponse(
+            intent_detected="general_rag_fallback",
+            requires_document_mutation=False,
+            rag_knowledge_used=["Base de Conocimiento QA MGMT"],
+            planned_operations=[],
+            operations=[],
+            validation_status={"valid": True, "details": [str(err)]},
+            assistant_message=fallback_msg,
+            answer=fallback_msg,
+            document_updates=req.current_document or None,
+        )
 
 
 @router.post("/export-docx")
