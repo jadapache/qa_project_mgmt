@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Check,
@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Save,
   Sparkles,
-  Tag,
   Trash2,
   Upload,
   X,
@@ -21,6 +20,8 @@ import {
 } from 'lucide-react'
 import { api, type CorporateTemplate, type TemplateDetail } from '../../api/client'
 import { useToast } from '../../context/ToastContext'
+import { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
+import { UniverContainer } from '../document_workspace/UniverContainer'
 
 type TabSidebar = 'fields' | 'details'
 
@@ -56,6 +57,18 @@ export const TemplatesPanel = () => {
   const [viewMode, setViewMode] = useState<'preview' | 'editor'>('preview')
   const [savingContent, setSavingContent] = useState<boolean>(false)
   const [filterQuery, setFilterQuery] = useState<string>('')
+
+  const univerAdapter = useMemo(() => new UniverAdapter('document'), [])
+
+  useEffect(() => {
+    if (previewTemplate && editedContent !== undefined) {
+      void univerAdapter.loadTemplate(
+        editedContent,
+        previewTemplate.file_type === 'xlsx' ? 'spreadsheet' : 'document',
+        previewTemplate.title
+      )
+    }
+  }, [editedContent, previewTemplate, univerAdapter])
 
   const loadTemplates = useCallback(async () => {
     setLoading(true)
@@ -297,14 +310,6 @@ export const TemplatesPanel = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <a
-            href="/settings?tab=univer_poc"
-            className="text-xs py-2 px-3.5 flex items-center gap-1.5 border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold rounded-xl cursor-pointer shadow-xs transition-colors"
-          >
-            <Sparkles className="h-4 w-4 text-indigo-600" />
-            <span>Probar PoC Univer</span>
-          </a>
-
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
@@ -948,13 +953,13 @@ export const TemplatesPanel = () => {
                       />
                     </div>
                   ) : (
-                    /* DIRECT VISUAL DOCUMENT CANVAS — Editable Inline (No separate preview) */
-                    <div className="flex-1 space-y-5 pt-2 font-sans">
+                    /* DIRECT VISUAL DOCUMENT CANVAS — Contenedor Oficial Univer */
+                    <div className="flex-1 space-y-3 pt-2 font-sans flex flex-col min-h-[600px]">
                       <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#002777] flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
                           <span>
-                            <strong>Edición Directa en Documento:</strong> Edita el contenido directamente sobre el canvas renderizado, o haz clic en <strong>+ Insertar</strong> en el panel izquierdo para agregar placeholders.
+                            <strong>Edición Directa en Contenedor Univer:</strong> Edita el contenido directamente en el lienzo oficial, o haz clic en <strong>+ Insertar</strong> en el panel izquierdo para incorporar placeholders en vivo.
                           </span>
                         </div>
 
@@ -968,53 +973,20 @@ export const TemplatesPanel = () => {
                         </button>
                       </div>
 
-                      {/* Header Content Table Section */}
-                      {previewDetail?.header_content ? (
-                        <div className="border-b-2 border-slate-200 pb-3 mb-4 space-y-1">
-                          <div className="flex items-center justify-between text-[10px] font-bold text-[#002777] uppercase tracking-wider">
-                            <span>ENCABEZADO DE DOCUMENTO CORPORATIVO</span>
-                            <span className="font-mono font-semibold text-slate-400">Word / PDF Header Table</span>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/90 shadow-2xs">
-                            {parseMarkdownBlock(previewDetail.header_content, systemFields)}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {/* Direct Inline Canvas — rendered and editable in one single surface */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-[#002777] uppercase tracking-wider block">
-                          CONTENIDO DEL DOCUMENTO (EDICIÓN DIRECTA)
-                        </label>
-
-                        <div
-                          ref={editorRef as any}
-                          contentEditable
-                          suppressContentEditableWarning
-                          onInput={(e) => {
-                            const el = e.target as HTMLElement
-                            setEditedContent(el.innerText)
-                          }}
-                          onDragOver={handleDragOverCanvas}
-                          onDrop={handleDropOnCanvas}
-                          className="w-full min-h-[450px] p-5 text-xs md:text-sm font-sans leading-relaxed text-slate-800 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#002777] focus:border-transparent focus:outline-none transition shadow-xs cursor-text"
-                        >
-                          {parseMarkdownBlock(editedContent, systemFields)}
-                        </div>
+                      <div className="flex-1 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+                        <UniverContainer
+                          adapter={univerAdapter}
+                          kind={previewTemplate.file_type === 'xlsx' ? 'spreadsheet' : 'document'}
+                          title={previewTemplate.title}
+                          content={editedContent}
+                          images={[]}
+                          onInspect={() => {}}
+                          onExport={() => {}}
+                          onReloadFixture={() => {}}
+                          onContentChange={(newContent) => setEditedContent(newContent)}
+                          hideHeader={true}
+                        />
                       </div>
-
-                      {/* Footer Content Table Section */}
-                      {previewDetail?.footer_content ? (
-                        <div className="border-t-2 border-slate-200 pt-3 mt-6 space-y-1">
-                          <div className="flex items-center justify-between text-[10px] font-bold text-[#002777] uppercase tracking-wider">
-                            <span>PIE DE PÁGINA CORPORATIVO</span>
-                            <span className="font-mono font-semibold text-slate-400">Word / PDF Footer</span>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/90 shadow-2xs text-xs text-slate-600">
-                            {parseMarkdownBlock(previewDetail.footer_content, systemFields)}
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
                   )}
 
@@ -1031,121 +1003,4 @@ export const TemplatesPanel = () => {
       )}
     </div>
   )
-}
-
-/**
- * Parses Markdown block content (lines, pipe tables, headers, and text with tag pills).
- */
-function parseMarkdownBlock(content: string, systemFields: any[]) {
-  if (!content.trim()) {
-    return <p className="text-sm text-slate-400 italic">El documento no contiene texto visible. Haz clic para comenzar a escribir.</p>
-  }
-
-  const lines = content.split('\n')
-  const elements: React.ReactNode[] = []
-
-  let inTable = false
-  let tableRows: string[][] = []
-
-  const flushTable = (keyIndex: number) => {
-    if (tableRows.length === 0) return
-    const headerRow = tableRows[0]
-    const bodyRows = tableRows.slice(1).filter((r) => !r.every((cell) => /^[\s\:\-]*$/.test(cell)))
-
-    elements.push(
-      <div key={`table-${keyIndex}`} className="my-3 overflow-x-auto rounded-xl border border-slate-300 shadow-2xs bg-white">
-        <table className="w-full text-left border-collapse text-xs font-sans">
-          <thead>
-            <tr className="bg-[#002777]/10 border-b border-slate-300 text-[#002777] font-bold">
-              {headerRow.map((cell, cIdx) => (
-                <th key={cIdx} className="px-3 py-2 border-r border-slate-200 last:border-r-0">
-                  {renderTextWithTags(cell, systemFields)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {bodyRows.map((row, rIdx) => (
-              <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                {row.map((cell, cIdx) => (
-                  <td key={cIdx} className="px-3 py-2 border-t border-r border-slate-200 last:border-r-0 text-slate-700 font-medium">
-                    {renderTextWithTags(cell, systemFields)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>,
-    )
-
-    tableRows = []
-    inTable = false
-  }
-
-  lines.forEach((line, idx) => {
-    const trimmed = line.trim()
-    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-      inTable = true
-      const cells = trimmed.split('|').slice(1, -1).map((c) => c.trim())
-      tableRows.push(cells)
-    } else {
-      if (inTable) {
-        flushTable(idx)
-      }
-
-      if (!trimmed) {
-        elements.push(<div key={idx} className="h-1.5" />)
-      } else if (trimmed.startsWith('# ')) {
-        elements.push(
-          <h2 key={idx} className="text-lg font-bold text-[#002777] border-b border-slate-200 pb-1 mt-4">
-            {trimmed.replace('# ', '')}
-          </h2>,
-        )
-      } else if (trimmed.startsWith('## ')) {
-        elements.push(
-          <h3 key={idx} className="text-base font-bold text-slate-900 mt-3">
-            {trimmed.replace('## ', '')}
-          </h3>,
-        )
-      } else {
-        elements.push(
-          <div key={idx} className="text-xs leading-relaxed font-sans text-slate-700">
-            {renderTextWithTags(line, systemFields)}
-          </div>,
-        )
-      }
-    }
-  })
-
-  if (inTable) {
-    flushTable(lines.length)
-  }
-
-  return <div className="space-y-2 font-sans">{elements}</div>
-}
-
-function renderTextWithTags(text: string, systemFields: any[]) {
-  const parts = text.split(/(\{\{[A-Za-z0-9_\-\.]+\}\})/)
-  return parts.map((part, pIdx) => {
-    if (part.startsWith('{{') && part.endsWith('}}')) {
-      const tagClean = part.replace(/[{}]/g, '')
-      const sysTag = systemFields.find((s) => s.tag === tagClean)
-      const labelName = sysTag ? sysTag.label : tagClean
-
-      return (
-        <span
-          key={pIdx}
-          contentEditable={false}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold shadow-2xs font-mono my-0.5 select-none bg-blue-50 border border-blue-200 text-[#002777]"
-          title={`Placeholder: ${part}`}
-        >
-          <Tag className="h-3 w-3 text-blue-600" />
-          <span>{part}</span>
-          <span className="text-[10px] font-normal font-sans text-slate-600">({labelName})</span>
-        </span>
-      )
-    }
-    return <span key={pIdx}>{part}</span>
-  })
 }
