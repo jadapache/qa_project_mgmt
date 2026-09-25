@@ -108,7 +108,7 @@ async def run_grounded_feature(
     AIMessage(role="system", content=str(prompt.get("system") or "")),
     AIMessage(role="user", content=user_prompt),
   ]
-  completion = await provider.complete(messages)
+  completion = await provider.complete(messages, max_tokens=4096)
 
   citations = [
     {

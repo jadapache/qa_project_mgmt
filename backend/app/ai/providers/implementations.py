@@ -91,11 +91,15 @@ class LiteLLMProvider(AIProvider):
     kwargs: dict[str, Any] = {
       "model": formatted_model,
       "messages": [message.model_dump() for message in messages],
-      "temperature": 0.2,
       **self.spec.extra_kwargs,
     }
 
-    effective_max_tokens = max_tokens if max_tokens is not None else self.spec.default_max_tokens
+    # Gemini 3+ models raise DeprecationWarning when temperature/top_p is passed explicitly
+    if not (self.id == "gemini" or formatted_model.startswith("gemini/")):
+      if "temperature" not in kwargs:
+        kwargs["temperature"] = 0.2
+
+    effective_max_tokens = max_tokens if max_tokens is not None else (self.spec.default_max_tokens or 4096)
     if effective_max_tokens is not None:
       kwargs["max_tokens"] = effective_max_tokens
 
