@@ -16,6 +16,7 @@ import { FuncionalFeaturePage } from './pages/funcional/FuncionalFeaturePage'
 import { PmFeaturePage } from './pages/pm/PmFeaturePage'
 import { StandupPage } from './pages/pm/StandupPage'
 import { QaFeaturePage } from './pages/qa/QaFeaturePage'
+import { UniverPoCView } from './components/document_workspace/UniverPoCView'
 
 export const App = () => {
   return (
@@ -39,6 +40,7 @@ export const App = () => {
                 <Route path="integrations" element={<Navigate to="/settings?tab=integrations" replace />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="univer-poc" element={<UniverPoCView />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>
