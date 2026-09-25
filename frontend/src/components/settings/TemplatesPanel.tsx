@@ -296,14 +296,24 @@ export const TemplatesPanel = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowUploadModal(true)}
-          className="btn btn-primary text-xs py-2 px-4 flex items-center gap-2 shadow-sm shrink-0 cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Cargar Nueva Plantilla</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <a
+            href="/settings?tab=univer_poc"
+            className="text-xs py-2 px-3.5 flex items-center gap-1.5 border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold rounded-xl cursor-pointer shadow-xs transition-colors"
+          >
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span>Probar PoC Univer</span>
+          </a>
+
+          <button
+            type="button"
+            onClick={() => setShowUploadModal(true)}
+            className="btn btn-primary text-xs py-2 px-4 flex items-center gap-2 shadow-sm shrink-0 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Cargar Nueva Plantilla</span>
+          </button>
+        </div>
       </div>
 
       {/* Templates List Grid */}
