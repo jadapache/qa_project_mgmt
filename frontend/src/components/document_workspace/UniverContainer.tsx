@@ -155,62 +155,155 @@ export const UniverContainer = ({
               </div>
             </div>
 
-            {/* Document Content (Tag Pills Hidden) */}
-            <div className="space-y-4 text-sm leading-relaxed">
-              {content.split(/\r?\n/).map((line, idx) => {
-                const trimmed = line.trim()
-                if (!trimmed) return <div key={idx} className="h-2" />
-
-                // Hide tag lines completely from visual reader
-                if (trimmed.startsWith('{{') && trimmed.endsWith('}}')) {
-                  return null
+            {/* Document Content */}
+            <div className="space-y-2 text-sm leading-relaxed">
+              {(() => {
+                const renderFormattedInlineText = (text: string) => {
+                  const parts = text.split(/(\*\*.*?\*\*|_.*?_|\*.*?\*)/g)
+                  return parts.map((part, i) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                      return (
+                        <strong key={i} className="font-bold text-slate-900">
+                          {part.slice(2, -2)}
+                        </strong>
+                      )
+                    }
+                    if (
+                      (part.startsWith('*') && part.endsWith('*')) ||
+                      (part.startsWith('_') && part.endsWith('_'))
+                    ) {
+                      return (
+                        <em key={i} className="italic text-slate-800">
+                          {part.slice(1, -1)}
+                        </em>
+                      )
+                    }
+                    return part
+                  })
                 }
 
-                // Headings
-                if (trimmed.startsWith('# ')) {
-                  return (
-                    <h2 key={idx} className="text-lg font-bold text-slate-900 border-b border-slate-200 pb-1 mt-6">
-                      {trimmed.replace('# ', '')}
-                    </h2>
-                  )
-                }
-                if (trimmed.startsWith('## ')) {
-                  const headingTitle = trimmed.replace('## ', '')
-                  return (
-                    <div key={idx} className="mt-5">
-                      <h3 className="text-base font-bold text-indigo-950">
-                        {headingTitle}
+                const lines = content.split(/\r?\n/)
+                return lines.map((line, idx) => {
+                  const trimmed = line.trim()
+                  if (!trimmed) return <div key={idx} className="h-1.5" />
+
+                  // Hide standalone tag lines
+                  if (trimmed.startsWith('{{') && trimmed.endsWith('}}')) {
+                    return null
+                  }
+
+                  // Dividers / Horizontal lines
+                  if (trimmed === '---' || trimmed === '***') {
+                    return <hr key={idx} className="my-4 border-slate-200" />
+                  }
+
+                  // Headings
+                  if (trimmed.startsWith('# ')) {
+                    return (
+                      <h1
+                        key={idx}
+                        className="text-xl font-bold text-[#002777] border-b-2 border-[#002777]/20 pb-1.5 mt-6 mb-3 uppercase tracking-tight"
+                      >
+                        {renderFormattedInlineText(trimmed.slice(2))}
+                      </h1>
+                    )
+                  }
+                  if (trimmed.startsWith('## ')) {
+                    return (
+                      <h2
+                        key={idx}
+                        className="text-base font-bold text-slate-900 border-b border-slate-200 pb-1 mt-5 mb-2.5"
+                      >
+                        {renderFormattedInlineText(trimmed.slice(3))}
+                      </h2>
+                    )
+                  }
+                  if (trimmed.startsWith('### ')) {
+                    return (
+                      <h3 key={idx} className="text-sm font-bold text-slate-800 mt-4 mb-2">
+                        {renderFormattedInlineText(trimmed.slice(4))}
                       </h3>
-                    </div>
-                  )
-                }
+                    )
+                  }
 
-                // Table Rows
-                if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-                  const cells = trimmed.split('|').filter((_, cIdx, arr) => cIdx > 0 && cIdx < arr.length - 1)
-                  const isHeader = idx > 0 && content.split(/\r?\n/)[idx - 1]?.includes('|Rol|')
+                  // Table Rows
+                  if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+                    // Skip separator rows like | --- | --- |
+                    if (/^\|[\s\-:|]+\|$/.test(trimmed)) {
+                      return null
+                    }
+                    const cells = trimmed
+                      .split('|')
+                      .filter((_, cIdx, arr) => cIdx > 0 && cIdx < arr.length - 1)
+                    const nextLine = lines[idx + 1]?.trim() || ''
+                    const isHeader = /^\|[\s\-:|]+\|$/.test(nextLine) || idx === 0 || lines[idx - 1]?.trim() === ''
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`grid gap-2 p-2.5 rounded-lg border text-xs my-1 transition-colors ${
+                          isHeader
+                            ? 'bg-[#002777] text-white font-bold shadow-2xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-blue-50/50'
+                        }`}
+                        style={{ gridTemplateColumns: `repeat(${Math.max(1, cells.length)}, minmax(0, 1fr))` }}
+                      >
+                        {cells.map((cell, cIdx) => (
+                          <div key={cIdx} className="leading-relaxed break-words">
+                            {renderFormattedInlineText(cell.trim())}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }
+
+                  // Bullet List Items
+                  if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                    return (
+                      <div key={idx} className="flex items-start gap-2.5 ml-2 my-1 text-slate-700">
+                        <span className="text-[#002777] font-bold text-base leading-none">•</span>
+                        <div className="flex-1 leading-relaxed">
+                          {renderFormattedInlineText(trimmed.slice(2))}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Numbered List Items
+                  if (/^\d+\.\s/.test(trimmed)) {
+                    const match = trimmed.match(/^(\d+\.)\s*(.*)/)
+                    const num = match ? match[1] : ''
+                    const rest = match ? match[2] : trimmed
+                    return (
+                      <div key={idx} className="flex items-start gap-2 ml-2 my-1 text-slate-700">
+                        <span className="text-[#002777] font-bold text-xs">{num}</span>
+                        <div className="flex-1 leading-relaxed">
+                          {renderFormattedInlineText(rest)}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Blockquotes / Notes
+                  if (trimmed.startsWith('> ')) {
+                    return (
+                      <blockquote
+                        key={idx}
+                        className="border-l-4 border-blue-500 bg-blue-50/40 p-2.5 rounded-r-lg my-2 text-slate-700 italic text-xs leading-relaxed"
+                      >
+                        {renderFormattedInlineText(trimmed.slice(2))}
+                      </blockquote>
+                    )
+                  }
+
+                  // Standard Paragraph
                   return (
-                    <div
-                      key={idx}
-                      className={`grid grid-cols-3 gap-2 p-2.5 rounded-lg border text-xs ${
-                        isHeader
-                          ? 'bg-indigo-900 text-white font-bold'
-                          : 'bg-slate-50 border-slate-200 font-sans hover:bg-indigo-50/50'
-                      }`}
-                    >
-                      {cells.map((cell, cIdx) => (
-                        <div key={cIdx} className="truncate">{cell.trim()}</div>
-                      ))}
-                    </div>
+                    <p key={idx} className="text-slate-700 leading-relaxed my-1">
+                      {renderFormattedInlineText(line)}
+                    </p>
                   )
-                }
-
-                return (
-                  <p key={idx} className="text-slate-700 leading-normal">
-                    {line}
-                  </p>
-                )
-              })}
+                })
+              })()}
             </div>
 
             {/* Render Dynamically Inserted Images */}

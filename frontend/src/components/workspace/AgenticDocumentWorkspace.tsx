@@ -385,6 +385,8 @@ export const AgenticDocumentWorkspace = ({
         finalContent = adapter.getRawContent()
       } else if (res.document_updates) {
         finalContent = res.document_updates
+      } else if (res.answer && (res.answer.includes('# ') || res.answer.includes('## ') || res.answer.includes('|'))) {
+        finalContent = res.answer
       }
 
       // Step 3 -> Step 4 & 5
@@ -431,11 +433,22 @@ export const AgenticDocumentWorkspace = ({
         )
       }
 
+      // Formulate a concise chat bubble message for the user
+      const isFullDocumentMarkdown =
+        (res.answer && (res.answer.startsWith('#') || res.answer.includes('## ') || res.answer.includes('| --- |'))) ||
+        (res.document_updates && res.document_updates.length > 150)
+
+      let bubbleContent = res.assistant_message
+      if (!bubbleContent || isFullDocumentMarkdown) {
+        bubbleContent =
+          'Documento generado exitosamente. Puedes revisarlo, editarlo en directo o descargarlo desde el panel de Artefactos a la derecha.'
+      }
+
       // Save assistant response message with attached thinking steps
       const assistantMessage: ChatPersistMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: res.answer || 'He actualizado el documento de acuerdo a tu solicitud.',
+        content: bubbleContent,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         thinkingSteps: steps.map((s) => ({ ...s, status: 'completed' })),
       }
