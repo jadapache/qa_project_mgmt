@@ -473,13 +473,26 @@ export const api = {
     fetch(`${API_BASE}/api/doc-agent/agentic-prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        prompt: payload.query,
+        query: payload.query,
+        current_document: payload.current_document,
+        chat_context: payload.chat_context,
+        sources: payload.sources,
+        document_ids: payload.document_ids,
+      }),
     }).then((r) =>
       handleResponse<{
-        answer: string
-        operations: any[]
+        answer?: string
+        assistant_message?: string
+        operations?: any[]
+        planned_operations?: any[]
         document_updates?: string
-      }>(r),
+      }>(r).then((res) => ({
+        answer: res.answer || res.assistant_message || 'Procesado correctamente.',
+        operations: res.operations || res.planned_operations || [],
+        document_updates: res.document_updates,
+      })),
     ),
 
   exportMejorasDocx: async (markdown: string, title?: string): Promise<Blob> => {
