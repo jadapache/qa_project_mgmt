@@ -498,6 +498,105 @@ export const api = {
       })),
     ),
 
+  agenticPromptStream: async (
+    payload: {
+      query: string
+      current_document?: string
+      chat_context?: string[]
+      sources?: string[]
+      document_ids?: string[]
+      template_id?: string
+    },
+    onChunk: (accumulatedText: string, chunk: string) => void,
+  ): Promise<{
+    answer?: string
+    assistant_message?: string
+    operations?: any[]
+    document_updates?: string
+  }> => {
+    const res = await fetch(`${API_BASE}/api/doc-agent/agentic-prompt-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({
+        prompt: payload.query,
+        query: payload.query,
+        current_document: payload.current_document,
+        chat_context: payload.chat_context,
+        sources: payload.sources,
+        document_ids: payload.document_ids,
+        templateId: payload.template_id,
+      }),
+    })
+
+    if (!res.ok) {
+      let detail = `Request failed (${res.status})`
+      try {
+        const body = await res.json()
+        detail = body.detail ?? detail
+      } catch {}
+      throw new Error(detail)
+    }
+
+    if (!res.body) {
+      throw new Error('ReadableStream not supported in this environment.')
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let accumulatedText = ''
+    let buffer = ''
+    let fullResponseData: any = null
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const jsonStr = trimmed.slice(6)
+            const parsed = JSON.parse(jsonStr)
+            if (parsed.type === 'token') {
+              const chunk = parsed.text || ''
+              accumulatedText += chunk
+              onChunk(accumulatedText, chunk)
+            } else if (parsed.type === 'full') {
+              fullResponseData = parsed.data
+              if (parsed.data?.document_updates || parsed.data?.answer) {
+                accumulatedText = parsed.data.document_updates || parsed.data.answer
+                onChunk(accumulatedText, '')
+              }
+            } else if (parsed.type === 'error') {
+              throw new Error(parsed.message || 'Streaming error')
+            }
+          } catch (e) {
+            // ignore JSON parse errors for incomplete data lines
+          }
+        }
+      }
+    }
+
+    if (fullResponseData) {
+      return {
+        answer: fullResponseData.answer || fullResponseData.assistant_message || 'Procesado correctamente.',
+        assistant_message: fullResponseData.assistant_message,
+        operations: fullResponseData.operations || fullResponseData.planned_operations || [],
+        document_updates: fullResponseData.document_updates,
+      }
+    }
+
+    return {
+      answer: accumulatedText,
+      document_updates: accumulatedText,
+    }
+  },
+
+
   exportMejorasDocx: async (markdown: string, title?: string): Promise<Blob> => {
     const res = await fetch(`${API_BASE}/api/features/export-docx`, {
       method: 'POST',

@@ -88,7 +88,6 @@ export const ArtifactsStudio = ({
 
   // View mode: 'list' (Artefactos list) or 'editor' (Visual document editor)
   const [viewMode, setViewMode] = useState<'list' | 'editor'>('list')
-  const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -185,8 +184,6 @@ export const ArtifactsStudio = ({
       } catch (err) {
         console.error(err)
         toast.error('Error al exportar el documento.')
-      } finally {
-        setDownloadDropdownOpen(false)
       }
     },
     [activeArtifact, toast],
@@ -468,55 +465,15 @@ export const ArtifactsStudio = ({
                     <RefreshCw className="h-3.5 w-3.5 text-[#002777]" />
                   </button>
                 )}
-                {/* Smart Download Dropdown Icon */}
-                <div className="relative inline-block">
-                  <button
-                    type="button"
-                    onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition cursor-pointer"
-                    title="Descargar documento"
-                  >
-                    <Download className="h-3.5 w-3.5 text-[#002777]" />
-                  </button>
-
-                  {downloadDropdownOpen && (
-                    <div className="absolute right-0 top-9 w-44 rounded-xl bg-white border border-slate-200 shadow-xl py-1.5 z-40 text-xs text-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => handleExport('docx')}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-2">
-                          <FileText className="h-3.5 w-3.5 text-[#002777]" />
-                          Documento Word (.docx)
-                        </span>
-                        {activeArtifact.extension === 'docx' && <CheckCircle2 className="h-3 w-3 text-[#002777]" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleExport('xlsx')}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-2">
-                          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                          Hoja Excel (.xlsx)
-                        </span>
-                        {activeArtifact.extension === 'xlsx' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleExport('txt')}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-2">
-                          <FileCode2 className="h-3.5 w-3.5 text-slate-500" />
-                          Texto Plano (.txt)
-                        </span>
-                        {activeArtifact.extension === 'txt' && <CheckCircle2 className="h-3 w-3 text-slate-500" />}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {/* Smart Download Icon Button (Downloads in current artifact extension format) */}
+                <button
+                  type="button"
+                  onClick={() => handleExport()}
+                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+                  title={`Descargar documento (${activeArtifact.extension.toUpperCase()})`}
+                >
+                  <Download className="h-3.5 w-3.5 text-[#002777]" />
+                </button>
               </div>
 
               <button

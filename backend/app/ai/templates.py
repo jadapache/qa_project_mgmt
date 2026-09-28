@@ -182,18 +182,19 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
       "\n5. Mantén la estructura exacta de encabezados Markdown del template (# para H1, ## para H2, **Texto** para sub-secciones) y conserva o genera tablas Markdown estructuradas donde corresponda."
       "\n6. Redacta de forma continua y exhaustiva desde la primera sección hasta la sección final de 'Firmas Participantes', asegurando un documento corporativo profesional y completo."
       "\n7. Cita las evidencias y fuentes utilizadas como [1], [2] al final."
+      "\n8. REGLA DE MÚLTIPLES ARTEFACTOS: Si la solicitud pide explícitamente generar un documento de mejora por CADA punto, módulo, ítem o requerimiento enlistado, NO consolides todo en un solo archivo. DEBES generar cada documento de mejora de manera independiente envolviendo CADA UNO en etiquetas XML estrictas: <artifact title=\"Documento de Mejora - [Nombre del Módulo o Punto]\" extension=\"docx\">\n[Contenido completo del documento de mejora con su plantilla]\n</artifact>."
     ),
     "user_template": (
       "Solicitud de mejora: {query}\n\n"
       "CONTEXTO ADICIONAL / CHAT / Q&A:\n{chat_context}\n\n"
       "DOCUMENTACIÓN Y EVIDENCIA:\n{context}\n\n"
       "RÚBRICA CORPORATIVA:\n{rubric}\n\n"
-      "PLANTILLA CORPORATIVA ACTIVA (respeta EXACTAMENTE esta estructura, completa CADA sección):\n"
+      "PLANTILLA CORPORATIVA ACTIVA (respeta EXACTAMENTE esta estructura en cada artefacto):\n"
       "```\n{template}\n```\n\n"
-      "INSTRUCCIÓN: Genera el documento de mejoras completando absolutamente TODAS las secciones de la plantilla anterior. "
-      "Llena con especial detalle la sección '## Necesidad identificada' y elimina todos los prefijos 'Ej: ...'. "
-      "Reemplaza los placeholders {{TAG_NAME}} por el texto correspondiente. "
-      "Responde SOLO con el documento completo en Markdown, sin cortar la respuesta ni explicaciones adicionales."
+      "INSTRUCCIÓN DE SALIDA:\n"
+      "- Si se pide generar un documento por cada punto o módulo, genera CADA documento separado en etiquetas <artifact title=\"[Nombre]\" extension=\"docx\">...</artifact>.\n"
+      "- Si es una sola solicitud general, genera el documento Markdown completo directametne.\n"
+      "- Llena con especial detalle la sección '## Necesidad identificada' y elimina prefijos 'Ej: ...'."
     ),
   },
 }

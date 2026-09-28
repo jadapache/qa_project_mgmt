@@ -6,6 +6,8 @@ import io
 import re
 from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import StreamingResponse
+import json
 from pydantic import BaseModel, Field
 
 from app.core.document_agent.schema import (
@@ -353,7 +355,58 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
         )
 
 
+@router.post("/agentic-prompt-stream")
+async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
+    """
+    Streaming SSE endpoint for Agentic RAG multi-artifact document generation.
+    Streams token events live as text is produced by the LLM.
+    """
+    prompt_str = req.prompt_text
+    prompt_lower = prompt_str.strip().lower()
+
+    # Check for fast non-LLM structured operations (image insertion, corrections, responsibles)
+    is_image_intent = any(w in prompt_lower for w in ["imágenes", "imagen", "imagenes", "image", "captura", "screenshot"]) and any(w in prompt_lower for w in ["observación", "observaciones", "observacion"])
+    is_correction_intent = any(w in prompt_lower for w in ["corregir", "corrección", "correccion", "corrijas", "corregí", "corregi", "cambia", "cambiar", "modifica", "modificar", "actualiza", "actualizar", "no es", "erróneo", "erroneo", "incorrecto", "reemplaza", "sustituye"])
+    is_responsables_intent = any(w in prompt_lower for w in ["responsable", "responsables", "participante", "participantes", "firmas", "pepito", "doctor", "dr"])
+
+    if is_image_intent or is_correction_intent or is_responsables_intent:
+        res = await handle_agentic_prompt(req)
+        async def fast_gen():
+            yield f"data: {json.dumps({'type': 'full', 'data': res.model_dump(by_alias=True)})}\n\n"
+        return StreamingResponse(fast_gen(), media_type="text/event-stream")
+
+    # Full LLM Grounded Generation with live token streaming
+    chat_ctx_str = None
+    if req.chat_context:
+        if isinstance(req.chat_context, list):
+            chat_ctx_str = "\n".join(req.chat_context)
+        else:
+            chat_ctx_str = str(req.chat_context)
+
+    sources_to_use = req.sources or ["knowledge"]
+
+    async def stream_generator():
+        try:
+            from app.ai.runner import run_grounded_feature_stream
+            async for chunk in run_grounded_feature_stream(
+                feature="mejoras_doc",
+                query=prompt_str,
+                sources=sources_to_use,
+                document_ids=req.document_ids or [],
+                chat_context=chat_ctx_str,
+                template_content=_load_active_template_content(req.template_id),
+            ):
+                yield f"data: {json.dumps({'type': 'token', 'text': chunk})}\n\n"
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as err:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(err)})}\n\n"
+
+    return StreamingResponse(stream_generator(), media_type="text/event-stream")
+
+
 @router.post("/export-docx")
+
 def export_native_docx(req: ExportDocxRequest):
     """Generates and downloads a native Microsoft Word .docx binary file."""
     try:
