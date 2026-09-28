@@ -233,7 +233,7 @@ export const ArtifactsStudio = ({
   }
 
   return (
-    <div className="flex-1 min-w-[360px] max-w-[55%] bg-white border-l border-slate-200 flex flex-col overflow-hidden text-slate-800 shadow-sm">
+    <div className="flex-1 min-w-[360px] bg-white border-l border-slate-200 flex flex-col overflow-hidden text-slate-800 shadow-sm">
       {/* View Mode: Artefactos List */}
       {viewMode === 'list' || !activeArtifact ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -437,7 +437,7 @@ export const ArtifactsStudio = ({
               </button>
             </div>
 
-            {/* Header Right Actions: Undo, Redo, Download, Collapse */}
+            {/* Header Right Actions: Undo, Redo, Regenerate, Download, Collapse */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-0.5 bg-slate-50 rounded-xl p-0.5 border border-slate-200">
                 <button
@@ -458,56 +458,65 @@ export const ArtifactsStudio = ({
                 >
                   <Redo2 className="h-3.5 w-3.5" />
                 </button>
-              </div>
-
-              {/* Smart Download Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#002777] hover:bg-[#003399] text-white text-xs font-semibold shadow-xs transition cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Descargar</span>
-                </button>
-
-                {downloadDropdownOpen && (
-                  <div className="absolute right-0 top-9 w-44 rounded-xl bg-white border border-slate-200 shadow-xl py-1.5 z-40 text-xs text-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => handleExport('docx')}
-                      className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <FileText className="h-3.5 w-3.5 text-[#002777]" />
-                        Documento Word (.docx)
-                      </span>
-                      {activeArtifact.extension === 'docx' && <CheckCircle2 className="h-3 w-3 text-[#002777]" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport('xlsx')}
-                      className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                        Hoja Excel (.xlsx)
-                      </span>
-                      {activeArtifact.extension === 'xlsx' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport('txt')}
-                      className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <FileCode2 className="h-3.5 w-3.5 text-slate-500" />
-                        Texto Plano (.txt)
-                      </span>
-                      {activeArtifact.extension === 'txt' && <CheckCircle2 className="h-3 w-3 text-slate-500" />}
-                    </button>
-                  </div>
+                {onRegenerate && (
+                  <button
+                    type="button"
+                    onClick={onRegenerate}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+                    title="Regenerar documento"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 text-[#002777]" />
+                  </button>
                 )}
+                {/* Smart Download Dropdown Icon */}
+                <div className="relative inline-block">
+                  <button
+                    type="button"
+                    onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+                    title="Descargar documento"
+                  >
+                    <Download className="h-3.5 w-3.5 text-[#002777]" />
+                  </button>
+
+                  {downloadDropdownOpen && (
+                    <div className="absolute right-0 top-9 w-44 rounded-xl bg-white border border-slate-200 shadow-xl py-1.5 z-40 text-xs text-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => handleExport('docx')}
+                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 text-[#002777]" />
+                          Documento Word (.docx)
+                        </span>
+                        {activeArtifact.extension === 'docx' && <CheckCircle2 className="h-3 w-3 text-[#002777]" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExport('xlsx')}
+                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                          Hoja Excel (.xlsx)
+                        </span>
+                        {activeArtifact.extension === 'xlsx' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExport('txt')}
+                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileCode2 className="h-3.5 w-3.5 text-slate-500" />
+                          Texto Plano (.txt)
+                        </span>
+                        {activeArtifact.extension === 'txt' && <CheckCircle2 className="h-3 w-3 text-slate-500" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <button
@@ -521,7 +530,7 @@ export const ArtifactsStudio = ({
             </div>
           </div>
 
-          {/* Header Row 2: Document Name Sub-bar + Guardar / Copiar buttons */}
+          {/* Header Row 2: Document Name Sub-bar + Copiar button */}
           <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-200 bg-slate-50/50 shrink-0">
             {/* Left: Document Name Input */}
             <div className="flex items-center gap-2 min-w-0 flex-1 pr-4">
@@ -534,27 +543,8 @@ export const ArtifactsStudio = ({
               />
             </div>
 
-            {/* Right: Guardar status badge & Copiar button */}
+            {/* Right: Copiar button */}
             <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-[#002777] border border-blue-200 text-xs font-semibold shadow-2xs">
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-                    <span>Guardando...</span>
-                  </>
-                ) : isDirty ? (
-                  <>
-                    <Circle className="h-2 w-2 fill-amber-500 text-amber-500" />
-                    <span>Guardar</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Guardado</span>
-                  </>
-                )}
-              </div>
-
               <button
                 type="button"
                 onClick={handleCopyContent}
@@ -563,50 +553,58 @@ export const ArtifactsStudio = ({
                 <Copy className="h-3.5 w-3.5" />
                 <span>Copiar</span>
               </button>
-
-              {onRegenerate && (
-                <button
-                  type="button"
-                  onClick={onRegenerate}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#002777] hover:bg-[#003399] text-white text-xs font-semibold shadow-sm transition cursor-pointer"
-                  title="Regenerar documento"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span>Regenerar</span>
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Main Visual Document Canvas Container */}
-          <div className="flex-1 overflow-hidden bg-slate-100/60 p-4 flex flex-col min-h-0">
-            <div className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden min-h-0">
-              <div className="flex-1 overflow-y-auto min-h-0">
-                <UniverContainer
-                  adapter={adapter}
-                  kind={activeArtifact.extension === 'xlsx' ? 'spreadsheet' : 'document'}
-                  title={activeArtifact.title}
-                  content={activeArtifact.content}
-                  images={[]}
-                  onInspect={() => {}}
-                  onExport={(fmt) => handleExport(fmt)}
-                  onReloadFixture={() => {}}
-                  onContentChange={(newContent) => {
-                    onUpdateArtifactContent(activeArtifact.id, newContent)
-                  }}
-                  hideHeader={true}
-                />
+          {/* Main Visual Document Canvas Container (Full edge-to-edge space) */}
+          <div className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <UniverContainer
+                adapter={adapter}
+                kind={activeArtifact.extension === 'xlsx' ? 'spreadsheet' : 'document'}
+                title={activeArtifact.title}
+                content={activeArtifact.content}
+                images={[]}
+                onInspect={() => {}}
+                onExport={(fmt) => handleExport(fmt)}
+                onReloadFixture={() => {}}
+                onContentChange={(newContent) => {
+                  onUpdateArtifactContent(activeArtifact.id, newContent)
+                }}
+                hideHeader={true}
+              />
+            </div>
+
+            {/* Bottom Fixed Toolbar: Runtime Info, Save Status Pill & Word Count */}
+            <div className="px-5 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-50 text-[#002777] border border-blue-200">
+                  Runtime: Univer v1.0.2
+                </span>
               </div>
 
-              <div className="px-5 py-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-50 text-[#002777] border border-blue-200">
-                    Runtime: Univer v1.0.2
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  {activeArtifact.content ? `${activeArtifact.content.split(/\s+/).filter(Boolean).length} palabras` : ''}
-                </div>
+              {/* Center: Save status pill */}
+              <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border border-slate-200 text-xs font-semibold shadow-2xs">
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                    <span className="text-slate-600 text-[11px]">Guardando...</span>
+                  </>
+                ) : isDirty ? (
+                  <>
+                    <Circle className="h-2 w-2 fill-amber-500 text-amber-500" />
+                    <span className="text-slate-700 text-[11px]">Cambios no guardados</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    <span className="text-slate-600 text-[11px]">Guardado</span>
+                  </>
+                )}
+              </div>
+
+              <div className="text-[11px] text-slate-500 font-medium">
+                {activeArtifact.content ? `${activeArtifact.content.split(/\s+/).filter(Boolean).length} palabras` : '0 palabras'}
               </div>
             </div>
           </div>

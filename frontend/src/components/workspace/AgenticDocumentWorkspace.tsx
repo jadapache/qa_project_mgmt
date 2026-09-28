@@ -21,6 +21,7 @@ import { api, type KnowledgeDocument } from '../../api/client'
 import type { FuncionalFeatureConfig } from '../../constants/funcionalFeatures'
 import { FUNCIONAL_SOURCE_OPTIONS } from '../../constants/funcionalFeatures'
 import { useDocumentHistory } from '../../hooks/useDocumentHistory'
+import { useCorporateTemplate } from '../../hooks/useCorporateTemplate'
 import {
   useChatPersistence,
   type ChatPersistMessage,
@@ -44,6 +45,9 @@ export const AgenticDocumentWorkspace = ({
   const { toast } = useToast()
   const chatBottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch dynamic corporate template or fallback
+  const { templateContent } = useCorporateTemplate(config.slug, config.defaultTemplate)
 
   // Engine & Agent instances
   const adapter = useMemo(() => new UniverAdapter('document'), [])
@@ -163,13 +167,6 @@ export const AgenticDocumentWorkspace = ({
 
   // Document undo/redo history for active artifact content
   const docHistory = useDocumentHistory(activeArtifact?.content || '')
-
-  // Ensure initial conversation exists without pre-created fake artifact
-  useEffect(() => {
-    if (conversations.length === 0) {
-      createConversation('Nueva conversación')
-    }
-  }, [conversations.length, createConversation])
 
   // Sync active artifact selection
   useEffect(() => {
@@ -321,7 +318,17 @@ export const AgenticDocumentWorkspace = ({
       timestamp: now,
     }
 
-    const currentMsgs = activeConversation?.messages ?? []
+    // Create or title conversation dynamically on first user prompt
+    let targetConv = activeConversation
+    if (!targetConv) {
+      const convTitle = queryText.length > 28 ? `${queryText.slice(0, 28)}...` : queryText
+      targetConv = createConversation(convTitle)
+    } else if (targetConv.messages.length === 0 && (targetConv.name === 'Nueva conversación' || targetConv.name.startsWith('Conversación '))) {
+      const convTitle = queryText.length > 28 ? `${queryText.slice(0, 28)}...` : queryText
+      renameConversation(targetConv.id, convTitle)
+    }
+
+    const currentMsgs = targetConv?.messages ?? []
     const updatedMsgs = [...currentMsgs, userMessage]
     updateConversation({ messages: updatedMsgs })
     scrollToBottom()
@@ -350,7 +357,7 @@ export const AgenticDocumentWorkspace = ({
       )
 
       // Run backend Agentic RAG prompt API
-      const currentDocContent = docHistory.content || activeArtifact?.content || config.defaultTemplate || ''
+      const currentDocContent = docHistory.content || activeArtifact?.content || templateContent || ''
       const res = await api.agenticPrompt({
         query: queryText,
         current_document: currentDocContent,
@@ -520,7 +527,13 @@ export const AgenticDocumentWorkspace = ({
         />
 
         {/* Center Chat Panel */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white border-r border-slate-200 shadow-xs">
+        <div
+          className={`flex flex-col overflow-hidden bg-white border-r border-slate-200 shadow-xs transition-all duration-200 ${
+            docPanelCollapsed
+              ? 'flex-1'
+              : 'w-full max-w-[480px] xl:max-w-[540px] shrink-0'
+          }`}
+        >
           {/* Chat Thread Messages */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
             {messages.length === 0 ? (

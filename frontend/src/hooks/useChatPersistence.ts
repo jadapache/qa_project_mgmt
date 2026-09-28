@@ -72,9 +72,12 @@ export function useChatPersistence(featureSlug: string) {
     return loaded.length > 0 ? loaded[0].id : null
   })
 
-  // Persist to localStorage whenever conversations change
+  // Persist to localStorage whenever conversations change (only non-empty conversations)
   useEffect(() => {
-    saveConversations(featureSlug, conversations)
+    const nonEmpties = conversations.filter(
+      (c) => c.messages.length > 0 || (c.artifacts && c.artifacts.length > 0),
+    )
+    saveConversations(featureSlug, nonEmpties)
   }, [conversations, featureSlug])
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null

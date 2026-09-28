@@ -106,7 +106,7 @@ export const ChatHistorySidebar = ({
   }
 
   return (
-    <div className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
+    <div className="w-52 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
       {/* Header */}
       <div className="p-3 border-b border-slate-200 space-y-2 shrink-0">
         <div className="flex items-center justify-between">
@@ -209,8 +209,9 @@ export const ChatHistorySidebar = ({
                           className={`text-[11px] font-semibold truncate ${
                             isActive ? 'text-[#002777]' : 'text-slate-800'
                           }`}
+                          title={conv.name}
                         >
-                          {conv.name}
+                          {conv.name.length > 15 ? `${conv.name.slice(0, 15)}...` : conv.name}
                         </p>
                         <p className="text-[10px] text-slate-400 mt-0.5">
                           {formatDate(conv.lastInteraction)}
