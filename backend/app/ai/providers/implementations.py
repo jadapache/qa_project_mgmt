@@ -120,6 +120,46 @@ class LiteLLMProvider(AIProvider):
     clean_model_name = chosen_raw.split("/")[-1] if "/" in chosen_raw else chosen_raw
     return AICompletion(text=text, provider=self.id, model=clean_model_name, raw=raw_dict)
 
+  async def complete_stream(
+    self,
+    messages: list[AIMessage],
+    *,
+    model: str | None = None,
+    max_tokens: int | None = None,
+  ):
+    chosen_raw = model or self.default_model
+    formatted_model = self._format_model_name(chosen_raw)
+
+    kwargs: dict[str, Any] = {
+      "model": formatted_model,
+      "messages": [message.model_dump() for message in messages],
+      "stream": True,
+      **self.spec.extra_kwargs,
+    }
+
+    if not (self.id == "gemini" or formatted_model.startswith("gemini/")):
+      if "temperature" not in kwargs:
+        kwargs["temperature"] = 0.2
+
+    effective_max_tokens = max_tokens if max_tokens is not None else (self.spec.default_max_tokens or 8192)
+    if effective_max_tokens is not None:
+      kwargs["max_tokens"] = effective_max_tokens
+
+    if self.api_key:
+      kwargs["api_key"] = self.api_key
+    if self.base_url:
+      kwargs["api_base"] = self.base_url
+
+    response = await litellm.acompletion(**kwargs)
+    async for chunk in response:
+      if hasattr(chunk, "choices") and chunk.choices:
+        choice = chunk.choices[0]
+        if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
+          delta_content = choice.delta.content
+          if delta_content:
+            yield delta_content
+
+
 
 # Backwards-compatible aliases mapping to the registry
 class OpenAIProvider(LiteLLMProvider):
