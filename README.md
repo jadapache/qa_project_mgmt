@@ -66,9 +66,6 @@ La documentación técnica completa está disponible en **[`docs/`](./docs/)**:
 - **[ARCHITECTURE](./docs/ARCHITECTURE.md)** — Diseño del sistema, flujos, principios
 - **[BACKEND](./docs/BACKEND.md)** — Módulos Python, endpoints FastAPI, AI engine
 - **[FRONTEND](./docs/FRONTEND.md)** — Componentes React, hooks, gestión de estado
-- **[API_REFERENCE](./docs/API_REFERENCE.md)** — Especificación REST completa
-- **[DATABASE](./docs/DATABASE.md)** — Esquema de datos, modelos
-- **[DEPLOYMENT](./docs/DEPLOYMENT.md)** — Docker, Render.com, producción
 
 ---
 
@@ -93,10 +90,7 @@ QA_MGMT/
 │   ├── QUICKSTART.md        # Guía de inicio rápido
 │   ├── ARCHITECTURE.md      # Diseño y flujos
 │   ├── BACKEND.md           # Especificación backend
-│   ├── FRONTEND.md          # Especificación frontend
-│   ├── API_REFERENCE.md     # Endpoints REST
-│   ├── DATABASE.md          # Schema de datos
-│   └── DEPLOYMENT.md   # Despliegue
+│   └── FRONTEND.md   # Especificación frontend
 │
 ├── backend/                 # FastAPI + AI Engine + RAG
 │   ├── app/
@@ -221,16 +215,4 @@ npm run dev
 docker build -t qa-mgmt:latest .
 docker run -p 8000:8000 -e VITE_API_BASE=http://localhost:8000 qa-mgmt:latest
 ```
-
-### Cloud (Render, Railway, Vercel)
-Ver **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** para instrucciones detalladas.
-
 ---
-
-##  Guías Rápidas
-
-- **¿Inicio rápido en 5 min?** → [`docs/QUICKSTART.md`](./docs/QUICKSTART.md)
-- **¿Entender la arquitectura?** → [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
-- **¿Agregar nueva feature?** → [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)
-- **¿Desplegar a producción?** → [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)
-- **¿Troubleshooting?** → [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md)
