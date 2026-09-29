@@ -39,7 +39,7 @@ export class UniverAdapter implements IDocumentAdapter {
   private internalSections: DocumentSection[] = [];
   private internalTables: TableSummary[] = [];
   private internalSheets: SheetSummary[] = [];
-  private internalTags: string[] = ['NECESIDAD', 'IMPACTO', 'SOLUCION', 'OBSERVACIONES', 'FIRMAS'];
+  private internalTags: string[] = [];
   private internalImages: Array<{ id: string; sectionId: string; url: string; caption?: string }> = [];
   private rawLines: string[] = [];
 
@@ -99,7 +99,7 @@ export class UniverAdapter implements IDocumentAdapter {
   private parseSectionsAndTags(lines: string[]) {
     this.internalSections = [];
     this.internalTables = [];
-    const discoveredTags = new Set<string>(['OBSERVACIONES']);
+    const discoveredTags = new Set<string>();
 
     let currentSection: DocumentSection | null = null;
     let sectionIdx = 0;

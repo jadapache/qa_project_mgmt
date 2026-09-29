@@ -23,16 +23,10 @@ import {
 import type { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
 import { UniverContainer } from '../document_workspace/UniverContainer'
 import { useToast } from '../../context/ToastContext'
+import type { Artifact } from '../../types/artifacts'
 
-export interface ArtifactItem {
-  id: string
-  title: string
-  subtitle?: string
-  extension: 'docx' | 'xlsx' | 'txt'
-  content: string
-  createdAt: string
-  updatedAt: string
-}
+export type ArtifactItem = Artifact
+
 
 interface ArtifactsStudioProps {
   adapter: UniverAdapter

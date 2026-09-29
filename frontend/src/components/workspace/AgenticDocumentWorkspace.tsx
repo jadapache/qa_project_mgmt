@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
 import { DocumentAgent } from '../../document_agent/core/DocumentAgent'
-import type { CanonicalDocumentOperation } from '../../document_agent/core/types'
 import { api, type KnowledgeDocument } from '../../api/client'
 import type { FuncionalFeatureConfig } from '../../constants/funcionalFeatures'
 import { FUNCIONAL_SOURCE_OPTIONS } from '../../constants/funcionalFeatures'
@@ -25,14 +24,15 @@ import { useCorporateTemplate } from '../../hooks/useCorporateTemplate'
 import {
   useChatPersistence,
   type ChatPersistMessage,
-  type ThinkingStep,
   type DocumentArtifact,
 } from '../../hooks/useChatPersistence'
 import { ChatHistorySidebar } from './ChatHistorySidebar'
 import { AgenticThinkingBubble } from './AgenticThinkingBubble'
-import { ArtifactsStudio, type ArtifactItem } from './ArtifactsStudio'
-import { parseMultipleArtifacts } from '../../utils/artifactSplitter'
+import { ArtifactsStudio } from './ArtifactsStudio'
+import { useArtifacts } from '../../hooks/useArtifacts'
+import { useAgenticGeneration } from '../../hooks/useAgenticGeneration'
 import { useToast } from '../../context/ToastContext'
+
 
 interface AgenticDocumentWorkspaceProps {
   config: FuncionalFeatureConfig
@@ -70,7 +70,6 @@ export const AgenticDocumentWorkspace = ({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [docPanelCollapsed, setDocPanelCollapsed] = useState(true)
   const [draft, setDraft] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   // Filter available integrations dynamically from FUNCIONAL_SOURCE_OPTIONS
@@ -89,9 +88,6 @@ export const AgenticDocumentWorkspace = ({
   // Context files
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
   const [uploading, setUploading] = useState(false)
-
-  // Thinking steps for live assistant message
-  const [liveThinkingSteps, setLiveThinkingSteps] = useState<ThinkingStep[]>([])
 
   // Dynamic prompt textarea height & expansion (capped at 40% max of chat container height)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -154,17 +150,20 @@ export const AgenticDocumentWorkspace = ({
   // Current conversation messages
   const messages: ChatPersistMessage[] = activeConversation?.messages ?? []
 
-  // Artifacts state for active conversation (empty by default until generated or created)
-  const rawArtifacts = activeConversation?.artifacts || []
-  const artifacts: ArtifactItem[] = useMemo(() => {
-    return rawArtifacts as ArtifactItem[]
-  }, [rawArtifacts])
-
-  const [activeArtifactId, setActiveArtifactId] = useState<string | null>(() => artifacts[0]?.id || null)
-
-  const activeArtifact = useMemo(() => {
-    return artifacts.find((a) => a.id === activeArtifactId) || artifacts[0] || null
-  }, [artifacts, activeArtifactId])
+  // Artifacts management hook
+  const {
+    artifacts,
+    activeArtifact,
+    activeArtifactId,
+    setActiveArtifactId,
+    createArtifact: handleCreateArtifact,
+    deleteArtifact: handleDeleteArtifact,
+    renameArtifact: handleRenameArtifact,
+    updateArtifactContent: handleUpdateArtifactContent,
+  } = useArtifacts({
+    conversationArtifacts: activeConversation?.artifacts ?? [],
+    onUpdateConversation: updateConversation,
+  })
 
   // Document undo/redo history for active artifact content
   const docHistory = useDocumentHistory(activeArtifact?.content || '')
@@ -179,7 +178,7 @@ export const AgenticDocumentWorkspace = ({
       setActiveArtifactId(null)
       setDocPanelCollapsed(true)
     }
-  }, [artifacts, activeArtifactId])
+  }, [artifacts, activeArtifactId, setActiveArtifactId])
 
   // Reset history when switching artifact or conversation
   useEffect(() => {
@@ -257,328 +256,34 @@ export const AgenticDocumentWorkspace = ({
     }
   }
 
-  // Artifact management
-  const handleCreateArtifact = (title?: string, extension?: 'docx' | 'xlsx' | 'txt') => {
-    const newId = crypto.randomUUID()
-    const newArt: ArtifactItem = {
-      id: newId,
-      title: title || `Documento ${artifacts.length + 1}`,
-      subtitle: 'Creado manualmente en Artefactos',
-      extension: extension || 'docx',
-      content: `# ${title || 'Nuevo Documento'}\n\nEscribe aquí el contenido...`,
-      createdAt: new Date().toLocaleDateString([], { hour: '2-digit', minute: '2-digit' }),
-      updatedAt: 'Hace un momento',
-    }
-    const updated = [newArt, ...artifacts]
-    updateConversation({ artifacts: updated as DocumentArtifact[] })
-    setActiveArtifactId(newId)
-    setDocPanelCollapsed(false)
-    toast.success('Nuevo documento creado en Artefactos')
-  }
-
-  const handleDeleteArtifact = (id: string) => {
-    if (artifacts.length <= 1) {
-      toast.error('No puedes eliminar el único artefacto activo')
-      return
-    }
-    const updated = artifacts.filter((a) => a.id !== id)
-    updateConversation({ artifacts: updated as DocumentArtifact[] })
-    if (activeArtifactId === id) {
-      setActiveArtifactId(updated[0].id)
-    }
-    toast.success('Artefacto eliminado')
-  }
-
-  const handleRenameArtifact = (id: string, newTitle: string) => {
-    const updated = artifacts.map((a) => (a.id === id ? { ...a, title: newTitle } : a))
-    updateConversation({ artifacts: updated as DocumentArtifact[] })
-  }
-
-  const handleUpdateArtifactContent = (newContent: string) => {
-    docHistory.pushContent(newContent)
-  }
-
-  // Orchestrate Agentic RAG + DocumentAgent execution
-  const handleSendMessage = async (customQuery?: string) => {
-    const queryText = customQuery || draft.trim()
-    if (!queryText || isGenerating) return
-
-    setIsGenerating(true)
-    setDraft('')
-    setUserResizedHeight(null)
-    setIsMaximized(false)
-    setTextareaHeight(BASE_TEXTAREA_HEIGHT)
-
-    const userMsgId = crypto.randomUUID()
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-    const userMessage: ChatPersistMessage = {
-      id: userMsgId,
-      role: 'user',
-      content: queryText,
-      timestamp: now,
-    }
-
-    // Create or title conversation dynamically on first user prompt
-    let targetConv = activeConversation
-    if (!targetConv) {
-      const convTitle = queryText.length > 28 ? `${queryText.slice(0, 28)}...` : queryText
-      targetConv = createConversation(convTitle)
-    } else if (targetConv.messages.length === 0 && (targetConv.name === 'Nueva conversación' || targetConv.name.startsWith('Conversación '))) {
-      const convTitle = queryText.length > 28 ? `${queryText.slice(0, 28)}...` : queryText
-      renameConversation(targetConv.id, convTitle)
-    }
-
-    const currentMsgs = targetConv?.messages ?? []
-    const updatedMsgs = [...currentMsgs, userMessage]
-    updateConversation({ messages: updatedMsgs })
-    scrollToBottom()
-
-    // Initialize thinking steps
-    const steps: ThinkingStep[] = [
-      { id: '1', label: '1. RAG Intent: Identificando objetivo y entidades de negocio', status: 'in_progress' },
-      { id: '2', label: '2. Retrieval: Consultando fuentes de conocimiento activas', status: 'pending' },
-      { id: '3', label: '3. Document Agent: Mutando árbol canónico del documento', status: 'pending' },
-      { id: '4', label: '4. Tag Validation: Verificando etiquetas y placeholders {{TAG}}', status: 'pending' },
-      { id: '5', label: '5. Synchronize: Renderizando canvas en vivo Univer', status: 'pending' },
-    ]
-    setLiveThinkingSteps(steps)
-
-    try {
-      // Step 1 -> Step 2
-      await new Promise((r) => setTimeout(r, 400))
-      setLiveThinkingSteps((prev) =>
-        prev.map((s) =>
-          s.id === '1'
-            ? { ...s, status: 'completed' }
-            : s.id === '2'
-              ? { ...s, status: 'in_progress' }
-              : s,
-        ),
-      )
-
-      // Run backend Agentic RAG prompt API
-      // Run backend Agentic RAG prompt API with live streaming
-      const currentDocContent = docHistory.content || activeArtifact?.content || templateContent || ''
-      const res = await api.agenticPrompt({
-        query: queryText,
-        current_document: currentDocContent,
-        chat_context: currentMsgs.slice(-4).map((m) => `${m.role}: ${m.content}`),
-        sources,
-        document_ids: uploaded.map((d) => d.id),
-      })
-      let latestAccumulatedText = ''
-
-      // Step 2 -> Step 3
-      setLiveThinkingSteps((prev) =>
-        prev.map((s) =>
-          s.id === '2'
-            ? { ...s, status: 'completed' }
-            : s.id === '3'
-              ? { ...s, status: 'in_progress' }
-              : s,
-        ),
-      const res = await api.agenticPromptStream(
-        {
-          query: queryText,
-          current_document: currentDocContent,
-          chat_context: currentMsgs.slice(-4).map((m) => `${m.role}: ${m.content}`),
-          sources,
-          document_ids: uploaded.map((d) => d.id),
-        },
-        (accumulatedText) => {
-          latestAccumulatedText = accumulatedText
-
-          // Update live thinking steps as chunks stream in
-          setLiveThinkingSteps((prev) =>
-            prev.map((s) =>
-              s.id === '1' || s.id === '2'
-                ? { ...s, status: 'completed' }
-                : s.id === '3' || s.id === '4' || s.id === '5'
-                  ? { ...s, status: 'in_progress' }
-                  : s,
-            ),
-          )
-
-          // Parse multi-artifacts dynamically during streaming
-          const streamExtracted = parseMultipleArtifacts(
-            accumulatedText,
-            config.docxTitle || config.title,
-            'docx',
-            templateContent,
-          )
-
-          if (streamExtracted.length > 0) {
-            setDocPanelCollapsed(false)
-
-            const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            const baseList = [...artifacts]
-            const mergedList: ArtifactItem[] = streamExtracted.map((item, idx) => {
-              const existing = baseList.find((a) => a.title.toLowerCase() === item.title.toLowerCase())
-              return {
-                id: existing ? existing.id : `art-stream-${idx}`,
-                title: item.title,
-                subtitle: `Artefacto #${idx + 1} - Generado por IA`,
-                extension: item.extension,
-                content: item.content,
-                createdAt: existing?.createdAt || nowFormatted,
-                updatedAt: 'Generando...',
-              }
-            })
-
-            updateConversation({
-              artifacts: mergedList as DocumentArtifact[],
-              documentContent: streamExtracted[0]?.content || accumulatedText,
-            })
-
-            if (streamExtracted[0]?.content) {
-              docHistory.pushContent(streamExtracted[0].content)
-            }
-          }
-        },
-      )
-
-      let finalContent = currentDocContent
-      let finalContent = res.document_updates || res.answer || latestAccumulatedText || currentDocContent
-      const operations: CanonicalDocumentOperation[] = res.operations || []
-
-      if (operations.length > 0) {
-        await adapter.loadTemplate(currentDocContent, 'document', config.docxTitle || config.title)
-        for (const op of operations) {
-          try {
-            await agent.dispatch(op)
-          } catch (e) {
-            console.warn('Operation dispatch warning:', e)
-          }
-        }
-        finalContent = adapter.getRawContent()
-      } else if (res.document_updates) {
-        finalContent = res.document_updates
-      } else if (res.answer && (res.answer.includes('# ') || res.answer.includes('## ') || res.answer.includes('|'))) {
-        finalContent = res.answer
-      }
-
-      // Step 3 -> Step 4 & 5
-      await new Promise((r) => setTimeout(r, 300))
-      setLiveThinkingSteps((prev) =>
-        prev.map((s) =>
-          s.id === '3'
-            ? { ...s, status: 'completed' }
-            : s.id === '4'
-              ? { ...s, status: 'completed' }
-              : s.id === '5'
-                ? { ...s, status: 'completed' }
-                : s,
-        ),
-      )
-      setLiveThinkingSteps((prev) => prev.map((s) => ({ ...s, status: 'completed' })))
-
-      // Parse AI response to check if multiple artifacts were generated (supports template signature repeats)
-      // Parse AI response to check if multiple artifacts were generated
-      const extractedArtifacts = parseMultipleArtifacts(
-        finalContent,
-        config.docxTitle || config.title,
-        'docx',
-        templateContent,
-      )
-
-      let updatedArtifacts: ArtifactItem[] = [...artifacts]
-      let targetArtifactId: string | null = activeArtifactId
-
-      if (extractedArtifacts.length > 1) {
-        // Multi-artifact response: create each distinct artifact
-        const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        const newCreatedItems: ArtifactItem[] = extractedArtifacts.map((extracted, idx) => ({
-          id: crypto.randomUUID(),
-          title: extracted.title,
-          subtitle: `Artefacto #${idx + 1} - Generado por IA`,
-          extension: extracted.extension,
-          content: extracted.content,
-          createdAt: nowFormatted,
-          updatedAt: 'Hace un momento',
-        }))
-
-        updatedArtifacts = [...updatedArtifacts, ...newCreatedItems]
-        targetArtifactId = newCreatedItems[0].id
-        setActiveArtifactId(newCreatedItems[0].id)
-        docHistory.resetHistory(newCreatedItems[0].content)
-      } else if (artifacts.length === 0) {
-        // Create first single artifact dynamically
-        const newArtId = crypto.randomUUID()
-        const newArtifact: ArtifactItem = {
-          id: newArtId,
-          title: extractedArtifacts[0]?.title || config.docxTitle || config.title,
-          subtitle: 'Generado por Asistente IA',
-          extension: extractedArtifacts[0]?.extension || 'docx',
-          content: finalContent,
-          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          updatedAt: 'Hace un momento',
-        }
-        updatedArtifacts = [newArtifact]
-        targetArtifactId = newArtId
-        setActiveArtifactId(newArtId)
-        docHistory.resetHistory(finalContent)
-      } else {
-        // Update currently active artifact
-        const targetId = activeArtifact?.id || artifacts[0].id
-        updatedArtifacts = artifacts.map((a) =>
-          a.id === targetId
-            ? { ...a, content: finalContent, updatedAt: 'Hace un momento' }
-            : a,
-        )
-        docHistory.pushContent(finalContent)
-      }
-
-      // Formulate a concise chat bubble message for the user
-      const isFullDocumentMarkdown =
-        (res.answer && (res.answer.startsWith('#') || res.answer.includes('## ') || res.answer.includes('| --- |'))) ||
-        (res.document_updates && res.document_updates.length > 150)
-
-      let bubbleContent = res.assistant_message
-      if (!bubbleContent || isFullDocumentMarkdown) {
-        bubbleContent =
-          extractedArtifacts.length > 1
-            ? `Se han generado ${extractedArtifacts.length} artefactos de forma independiente. Puedes navegar entre ellos, editarlos o descargarlos individualmente desde el panel de Artefactos a la derecha.`
-            ? `Se han generado ${extractedArtifacts.length} artefactos de forma independiente y progresiva en tiempo real. Puedes navegar entre ellos, editarlos o descargarlos desde el panel de Artefactos a la derecha.`
-            : 'Documento generado exitosamente. Puedes revisarlo, editarlo en directo o descargarlo desde el panel de Artefactos a la derecha.'
-      }
-
-      // Save assistant response message with attached thinking steps
-      const assistantMessage: ChatPersistMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: bubbleContent,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        thinkingSteps: steps.map((s) => ({ ...s, status: 'completed' })),
-      }
-
-      updateConversation({
-        messages: [...updatedMsgs, assistantMessage],
-        artifacts: updatedArtifacts as DocumentArtifact[],
-        documentContent: finalContent,
-        activeArtifactId: targetArtifactId || undefined,
-      })
-
-      // Expand right Artefactos panel now that LLM document response is ready
-      setDocPanelCollapsed(false)
-
-    } catch (err) {
-      console.error('Error in agentic pipeline:', err)
-      const errMsg = err instanceof Error ? err.message : 'Error desconocido'
-
-      const assistantMessage: ChatPersistMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Error al procesar la solicitud: ${errMsg}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-      updateConversation({ messages: [...updatedMsgs, assistantMessage] })
-    } finally {
-      setIsGenerating(false)
-      setLiveThinkingSteps([])
-      scrollToBottom()
-    }
-  }
+  // Agentic generation cycle hook
+  const { isGenerating, liveThinkingSteps, handleSendMessage } = useAgenticGeneration({
+    config,
+    templateContent,
+    sources,
+    uploaded,
+    activeConversation,
+    activeArtifact,
+    activeArtifactId,
+    artifacts,
+    docHistoryContent: docHistory.content,
+    adapter,
+    agent,
+    onUpdateConversation: updateConversation,
+    onSetActiveArtifactId: setActiveArtifactId,
+    onDocHistoryPush: docHistory.pushContent,
+    onDocHistoryReset: docHistory.resetHistory,
+    onSetDocPanelCollapsed: setDocPanelCollapsed,
+    onScrollToBottom: scrollToBottom,
+    createConversation,
+    renameConversation,
+    onResetPromptInputs: () => {
+      setDraft('')
+      setUserResizedHeight(null)
+      setIsMaximized(false)
+      setTextareaHeight(BASE_TEXTAREA_HEIGHT)
+    },
+  })
 
   const handleSubmitForm = (e: FormEvent) => {
     e.preventDefault()
@@ -856,7 +561,7 @@ export const AgenticDocumentWorkspace = ({
           onCreateArtifact={handleCreateArtifact}
           onDeleteArtifact={handleDeleteArtifact}
           onRenameArtifact={handleRenameArtifact}
-          onUpdateArtifactContent={(_id, newContent) => handleUpdateArtifactContent(newContent)}
+          onUpdateArtifactContent={handleUpdateArtifactContent}
           canUndo={docHistory.canUndo}
           canRedo={docHistory.canRedo}
           onUndo={docHistory.undo}

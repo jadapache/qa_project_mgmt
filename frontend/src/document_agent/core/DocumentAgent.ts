@@ -7,6 +7,10 @@
 import type {
   CanonicalDocumentOperation,
   CanonicalDocumentState,
+  CreateTableOperation,
+  DeleteContentOperation,
+  FindSectionOperation,
+  FindTextOperation,
   IDocumentAdapter,
   InsertImageOperation,
   InsertTextOperation,
@@ -123,7 +127,28 @@ export class DocumentAgent {
         return await this.adapter.replaceContent(op as ReplaceContentOperation);
       case 'update_table':
         return await this.adapter.updateTable(op as UpdateTableOperation);
-      case 'inspect_document':
+      case 'delete_content':
+        return await this.adapter.deleteContent(op as DeleteContentOperation);
+      case 'create_table':
+        return await this.adapter.createTable(op as CreateTableOperation);
+      case 'find_section': {
+        const section = await this.adapter.findSection((op as FindSectionOperation).sectionTitle);
+        return {
+          success: section !== null,
+          operation: 'find_section',
+          elementId: section?.id,
+          message: section ? `Found section: ${section.title}` : 'Section not found.',
+        };
+      }
+      case 'find_text': {
+        const results = await this.adapter.findText((op as FindTextOperation).query);
+        return {
+          success: results.length > 0,
+          operation: 'find_text',
+          message: `Found ${results.length} occurrence(s).`,
+        };
+      }
+      case 'inspect_document': {
         const state = await this.adapter.inspect();
         return {
           success: true,
@@ -131,8 +156,24 @@ export class DocumentAgent {
           message: `Inspected ${state.sections.length} sections, ${state.tagsPresent.length} tags.`,
           diffSummary: { sectionsCount: state.sections.length },
         };
-      default:
-        throw new Error(`Unsupported operation: ${(op as any).operation}`);
+      }
+      case 'move_content':
+        return {
+          success: false,
+          operation: 'move_content',
+          message: 'MoveContent operation is not yet implemented in the current adapter.',
+          error: 'NOT_IMPLEMENTED',
+        };
+      default: {
+        const _exhaustiveCheck: never = op;
+        void _exhaustiveCheck;
+        return {
+          success: false,
+          operation: (op as any).operation,
+          message: `Unsupported operation received.`,
+          error: 'UNKNOWN_OPERATION',
+        };
+      }
     }
   }
 

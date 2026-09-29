@@ -116,17 +116,16 @@ export function parseMultipleArtifacts(
 
   // =========================================================================
   // Strategy 1: Explicit <artifact title="..." extension="..."> tags
-  // Strategy 1: Explicit <artifact title="..." extension="..."> tags (Supports streaming in-progress tags)
+  // Supports streaming in-progress tags (closing tag optional at stream end)
   // =========================================================================
-  const xmlArtifactRegex = /<artifact\s+title=["']([^"']+)["'](?:\s+extension=["']([^"']+)["'])?\s*>([\s\S]*?)<\/artifact>/gi
-  const xmlArtifactRegex = /<artifact\s+title=["']([^"']+)["'](?:\s+extension=["']([^"']+)["'])?\s*>([\s\S]*?)(?:<\/artifact>|(?=<artifact)|$)/gi
+  const xmlArtifactRegex =
+    /<artifact\s+title=["']([^"']+)["'](?:\s+extension=["']([^"']+)["'])?\s*>([\s\S]*?)(?:<\/artifact>|(?=<artifact)|$)/gi
+
   let xmlMatch: RegExpExecArray | null
 
   while ((xmlMatch = xmlArtifactRegex.exec(rawText)) !== null) {
     const title = xmlMatch[1].trim()
     const extension = (xmlMatch[2]?.toLowerCase() as 'docx' | 'xlsx' | 'txt') || defaultExtension
-    const content = xmlMatch[3].trim()
-    if (content) {
     let content = xmlMatch[3].trim()
     content = content.replace(/<\/artifact>?$/i, '').trim()
     if (content || xmlMatch[0].length > 20) {
@@ -134,10 +133,11 @@ export function parseMultipleArtifacts(
     }
   }
 
-  if (artifacts.length > 1) {
+  // Return early only if we matched explicit tags
   if (artifacts.length > 0 && rawText.includes('<artifact')) {
     return artifacts
   }
+
 
 
   // =========================================================================
@@ -241,3 +241,26 @@ export function parseMultipleArtifacts(
     },
   ]
 }
+
+/**
+ * Genera un subtítulo descriptivo para un artefacto a partir de su contenido.
+ * Toma el primer párrafo de texto real (no heading, no tabla, no código).
+ */
+export function generateArtifactSubtitle(content: string, maxLength = 80): string {
+  if (!content) return ''
+  const lines = content.split(/\r?\n/)
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith('#')) continue       // skip headings
+    if (trimmed.startsWith('|')) continue       // skip table rows
+    if (trimmed.startsWith('```')) continue     // skip code fences
+    if (trimmed.startsWith('-') && trimmed.length < 4) continue  // skip lone dashes
+    const clean = trimmed.replace(/[*_`]/g, '').trim()
+    if (clean.length > 10) {
+      return clean.length > maxLength ? `${clean.slice(0, maxLength)}…` : clean
+    }
+  }
+  return ''
+}
+

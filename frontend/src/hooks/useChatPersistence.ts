@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { Artifact } from '../types/artifacts'
+import { loadChatConversations, saveChatConversations } from '../utils/chatStorage'
 
-export interface DocumentArtifact {
-  id: string
-  title: string
-  subtitle?: string
-  extension: 'docx' | 'xlsx' | 'txt'
-  content: string
-  createdAt: string
-  updatedAt: string
-}
+export type DocumentArtifact = Artifact
+
 
 export interface ChatConversation {
   id: string
@@ -36,39 +31,15 @@ export interface ThinkingStep {
   details?: string
 }
 
-const STORAGE_PREFIX = 'qa_mgmt_chats_'
-
-function getStorageKey(featureSlug: string): string {
-  return `${STORAGE_PREFIX}${featureSlug}`
-}
-
-function loadConversations(featureSlug: string): ChatConversation[] {
-  try {
-    const raw = localStorage.getItem(getStorageKey(featureSlug))
-    if (!raw) return []
-    return JSON.parse(raw) as ChatConversation[]
-  } catch {
-    return []
-  }
-}
-
-function saveConversations(featureSlug: string, conversations: ChatConversation[]): void {
-  try {
-    localStorage.setItem(getStorageKey(featureSlug), JSON.stringify(conversations))
-  } catch {
-    console.warn('Failed to persist chat history to localStorage')
-  }
-}
-
 /**
  * Hook for persisting and managing chat conversation history in localStorage.
  */
 export function useChatPersistence(featureSlug: string) {
   const [conversations, setConversations] = useState<ChatConversation[]>(() =>
-    loadConversations(featureSlug),
+    loadChatConversations(featureSlug),
   )
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
-    const loaded = loadConversations(featureSlug)
+    const loaded = loadChatConversations(featureSlug)
     return loaded.length > 0 ? loaded[0].id : null
   })
 
@@ -77,8 +48,9 @@ export function useChatPersistence(featureSlug: string) {
     const nonEmpties = conversations.filter(
       (c) => c.messages.length > 0 || (c.artifacts && c.artifacts.length > 0),
     )
-    saveConversations(featureSlug, nonEmpties)
+    saveChatConversations(featureSlug, nonEmpties)
   }, [conversations, featureSlug])
+
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null
 
