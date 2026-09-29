@@ -170,7 +170,7 @@ export class DocumentAgent {
         // Fallback para operaciones inesperadas (nunca debe ejecutarse en código tipado)
         return {
           success: false,
-          operation: 'unknown',
+          operation: 'inspect_document' as const,
           message: `Unsupported operation received.`,
           error: 'UNKNOWN_OPERATION',
         };

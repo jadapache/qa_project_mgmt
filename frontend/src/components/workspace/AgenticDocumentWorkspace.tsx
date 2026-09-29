@@ -287,7 +287,7 @@ export const AgenticDocumentWorkspace = ({
 
   const handleSubmitForm = (e: FormEvent) => {
     e.preventDefault()
-    void handleSendMessage()
+    void handleSendMessage(draft)
   }
 
   return (

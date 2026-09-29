@@ -388,9 +388,9 @@ async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
     sources_to_use = req.sources or ["knowledge"]
 
     async def stream_generator():
+        accumulated_chunks = []
         try:
             async for chunk in run_grounded_feature_stream(
-
                 feature="mejoras_doc",
                 query=prompt_str,
                 sources=sources_to_use,
@@ -398,8 +398,18 @@ async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
                 chat_context=chat_ctx_str,
                 template_content=_load_active_template_content(req.template_id),
             ):
+                accumulated_chunks.append(chunk)
                 yield f"data: {json.dumps({'type': 'token', 'text': chunk})}\n\n"
 
+            # Al finalizar el stream, enviar un evento 'full' con todos los datos
+            full_content = "".join(accumulated_chunks)
+            final_response = {
+                "answer": full_content,
+                "document_updates": full_content,
+                "answer_clean": full_content,
+                "artifacts": [],
+            }
+            yield f"data: {json.dumps({'type': 'full', 'data': final_response})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as err:
             yield f"data: {json.dumps({'type': 'error', 'message': str(err)})}\n\n"
