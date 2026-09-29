@@ -167,9 +167,10 @@ export class DocumentAgent {
       default: {
         const _exhaustiveCheck: never = op;
         void _exhaustiveCheck;
+        // Fallback para operaciones inesperadas (nunca debe ejecutarse en código tipado)
         return {
           success: false,
-          operation: (op as any).operation,
+          operation: 'unknown',
           message: `Unsupported operation received.`,
           error: 'UNKNOWN_OPERATION',
         };
