@@ -16,7 +16,8 @@ from app.core.template_storage import (
 
 from app.ai.catalog import get_model_catalog
 from app.ai.logging import list_logs
-from app.ai.providers.factory import get_ai_settings
+from app.ai.providers.base import AIMessage
+from app.ai.providers.factory import get_ai_settings, resolve_provider
 from app.ai.runner import run_grounded_feature
 from app.ai.templates import get_prompt, get_rubric, list_prompts, list_rubrics, save_prompt, save_rubric
 from app.api.deps import (
@@ -33,7 +34,7 @@ from app.db.interfaces import (
   ITestPlanRepository,
 )
 from app.features.standup.service import generate_standup
-from app.features.mejoras.docx_builder import create_mejoras_docx
+
 
 
 router = APIRouter(tags=["ai"])
@@ -135,10 +136,8 @@ async def test_ai_connection(body: AITestConnectionRequest) -> dict[str, Any]:
   if not model_name:
     raise HTTPException(status_code=400, detail="Debes especificar un modelo válido para la prueba.")
 
-  from app.ai.providers.base import AIMessage
-  from app.ai.providers.factory import resolve_provider
-
   test_messages = [AIMessage(role="user", content="Hola, responde únicamente con la palabra 'OK'.")]
+
 
   try:
     p = resolve_provider(
@@ -388,11 +387,6 @@ async def qa_feature(
     raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-class DocxExportRequest(BaseModel):
-  markdown: str = Field(min_length=1)
-  title: str = "Documento de Mejora y Requerimientos Funcionales"
-
-
 @router.post("/features/mejoras")
 async def mejoras_doc(body: FeatureWorkspaceRequest) -> dict[str, Any]:
   try:
@@ -409,23 +403,9 @@ async def mejoras_doc(body: FeatureWorkspaceRequest) -> dict[str, Any]:
     raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@router.post("/features/export-docx")
-async def export_docx(body: DocxExportRequest) -> Response:
-  try:
-    docx_bytes = create_mejoras_docx(body.markdown, title=body.title)
-    filename = "Documento_de_Mejora.docx"
-    return Response(
-      content=docx_bytes,
-      media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      headers={
-        "Content-Disposition": f'attachment; filename="{filename}"'
-      },
-    )
-  except Exception as exc:
-    raise HTTPException(status_code=500, detail=f"Error al generar archivo .docx: {str(exc)}") from exc
-
-
 class TemplateMetadataUpdate(BaseModel):
+
+
   title: str | None = None
   module: str | None = None
   tags: list[str] | None = None

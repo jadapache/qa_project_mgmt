@@ -6,13 +6,13 @@ import base64
 import hashlib
 import json
 import os
-import platform
 from pathlib import Path
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.secrets import decrypt_ai_settings, encrypt_ai_settings
+from app.core.security import machine_fingerprint as _machine_fingerprint
 from app.core.settings import CONNECTIONS_DIR, SETTINGS_DIR, ensure_local_dirs, get_settings
 
 try:
@@ -24,17 +24,8 @@ SERVICE_NAME = "qa-project-mgmt"
 KEYRING_USERNAME = "encryption-key"
 
 
-def _machine_fingerprint() -> str:
-  parts = [
-    platform.node(),
-    platform.system(),
-    platform.machine(),
-    str(Path.home()),
-  ]
-  return "|".join(parts)
-
-
 def _derive_fernet_key(secret: str) -> bytes:
+
   digest = hashlib.sha256(secret.encode("utf-8")).digest()
   return base64.urlsafe_b64encode(digest)
 

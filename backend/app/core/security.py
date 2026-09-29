@@ -77,3 +77,22 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
         return data
     except Exception:
         return None
+
+
+def machine_fingerprint() -> str:
+    """Genera una huella digital única para el equipo local.
+
+    Combinación de atributos del sistema operativo y del directorio home.
+    Usada como factor en la derivación de claves de cifrado locales.
+    """
+    import platform
+    from pathlib import Path
+
+    parts = [
+        platform.node(),
+        platform.system(),
+        platform.machine(),
+        str(Path.home()),
+    ]
+    return "|".join(parts)
+

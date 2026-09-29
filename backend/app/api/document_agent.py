@@ -23,11 +23,14 @@ from app.core.document_agent.schema import (
     AssetLocator,
     VerificationReport,
 )
+from app.ai.runner import run_grounded_feature, run_grounded_feature_stream
 from app.core.document_agent.validator import DocumentOperationValidator
-from app.core.template_storage import list_templates, get_template
+from app.core.template_storage import list_templates
 from app.features.mejoras.docx_builder import create_mejoras_docx
+from app.features.mejoras.xlsx_builder import create_qa_matrix_xlsx
 
 router = APIRouter(prefix="/doc-agent", tags=["document-agent"])
+
 
 
 def _load_active_template_content(template_id: str | None = None) -> str:
@@ -105,14 +108,13 @@ AgenticPromptResponse.model_rebuild()
 
 
 class ExportDocxRequest(CamelModel):
-    markdown_content: Optional[str] = Field(None, alias="markdown")
-    markdown: Optional[str] = Field(None, alias="content")
-    content: Optional[str] = None
+    content: str = Field(default="", alias="markdown")
     title: str = "Documento de Especificación Funcional"
 
     @property
     def text(self) -> str:
-        return self.markdown_content or self.markdown or self.content or ""
+        return self.content
+
 
 
 class ExportXlsxRequest(CamelModel):
@@ -305,8 +307,8 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
     sources_to_use = req.sources or ["knowledge"]
 
     try:
-        from app.ai.runner import run_grounded_feature
         rag_res = await run_grounded_feature(
+
             feature="mejoras_doc",
             query=prompt_str,
             sources=sources_to_use,
@@ -387,8 +389,8 @@ async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
 
     async def stream_generator():
         try:
-            from app.ai.runner import run_grounded_feature_stream
             async for chunk in run_grounded_feature_stream(
+
                 feature="mejoras_doc",
                 query=prompt_str,
                 sources=sources_to_use,
@@ -425,58 +427,15 @@ def export_native_docx(req: ExportDocxRequest):
 
 @router.post("/export-xlsx")
 def export_native_xlsx(req: ExportXlsxRequest):
-    """Generates and downloads a native Microsoft Excel .xlsx binary file."""
+    """Genera y descarga una matriz de pruebas QA en formato .xlsx nativo."""
     try:
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Casos de Prueba"
-
-        # Headers styling
-        headers = ["ID Caso", "Requerimiento", "Descripción de Prueba", "Estado", "Severidad"]
-        ws.append(headers)
-
-        header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
-        header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
-
-        for col_num in range(1, len(headers) + 1):
-            cell = ws.cell(row=1, column=col_num)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-
-        # Sample rows
-        sample_data = req.rows or [
-            {"id": "TC01", "req": "REQ-01", "desc": "Validar login con credenciales válidas", "estado": "Aprobado", "severity": "Alta"},
-            {"id": "TC02", "req": "REQ-01", "desc": "Validar bloqueo tras 3 intentos fallidos", "estado": "Pendiente", "severity": "Crítica"},
-            {"id": "TC03", "req": "REQ-02", "desc": "Validar carga de comprobante en PDF/PNG", "estado": "Aprobado", "severity": "Media"},
-            {"id": "TC04", "req": "REQ-03", "desc": "Validar cálculo automático de retención", "estado": "En Ejecución", "severity": "Alta"},
-            {"id": "TC05", "req": "REQ-04", "desc": "Verificar envío de notificación al usuario", "estado": "Pendiente", "severity": "Baja"},
-        ]
-
-        for item in sample_data:
-            ws.append([item.get("id"), item.get("req"), item.get("desc"), item.get("estado"), item.get("severity")])
-
-        # Column widths
-        ws.column_dimensions['A'].width = 14
-        ws.column_dimensions['B'].width = 18
-        ws.column_dimensions['C'].width = 45
-        ws.column_dimensions['D'].width = 16
-        ws.column_dimensions['E'].width = 14
-
-        output = io.BytesIO()
-        wb.save(output)
-        xlsx_bytes = output.getvalue()
-
+        xlsx_bytes = create_qa_matrix_xlsx(title=req.title, rows=req.rows)
         safe_title = re.sub(r'[^a-zA-Z0-9_\-]', '_', req.title)
-        filename = f"{safe_title}.xlsx"
-
         return Response(
             content=xlsx_bytes,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.xlsx"'},
         )
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=f"Error al generar archivo XLSX: {str(err)}")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error generando XLSX: {exc}") from exc
+

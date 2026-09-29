@@ -31,8 +31,21 @@ class IUserRepository(IGenericRepository[Dict[str, Any], str], ABC):
         pass
 
     @abstractmethod
+    async def create_user(
+        self,
+        username: str,
+        email: str = "",
+        full_name: str = "",
+        role: str = "user",
+        status: str = "approved",
+    ) -> Dict[str, Any]:
+        """Crea un usuario básico sin contraseña (para imports y flujos automáticos)."""
+        pass
+
+    @abstractmethod
     async def update_user_status(self, user_id: str, status: str) -> Optional[Dict[str, Any]]:
         """Actualiza el estado de una solicitud de acceso (approved, rejected, pending)."""
         pass
+
 
 

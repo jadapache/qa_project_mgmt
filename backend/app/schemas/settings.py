@@ -14,3 +14,4 @@ class SettingInDB(BaseModel):
     key: str
     value_json: str
     updated_at: Optional[datetime | str] = None
+

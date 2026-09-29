@@ -8,7 +8,7 @@ import json
 import re
 import uuid
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -274,7 +274,8 @@ def save_template_file(
         "file_size": len(file_bytes),
         "module": module or "general",
         "tags": merged_tags,
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+
     }
 
     items = _load_index()

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,54 +19,66 @@ logger = logging.getLogger(__name__)
 
 CATALOG_FILE = LOCAL_DIR / "ai" / "models_catalog.json"
 
+_catalog_cache: list[AIModelInfo] | None = None
+_catalog_cache_ts: float = 0.0
+_CACHE_TTL_SECONDS = 300  # 5 minutos
 
-def load_local_catalog() -> list[AIModelInfo]:
-  """Load verified model list from local/ai/models_catalog.json file."""
-  if not CATALOG_FILE.exists():
-    logger.error(f"Catalog file not found at {CATALOG_FILE}")
-    return []
 
-  try:
-    with open(CATALOG_FILE, "r", encoding="utf-8") as f:
-      data = json.load(f)
+def load_local_catalog(refresh: bool = False) -> list[AIModelInfo]:
+    """Load verified model list from local/ai/models_catalog.json file."""
+    global _catalog_cache, _catalog_cache_ts
 
-    return [AIModelInfo(**item) for item in data]
-  except Exception as e:
-    logger.error(f"Failed to load AI models catalog from {CATALOG_FILE}: {e}")
-    return []
+    now = time.monotonic()
+    if not refresh and _catalog_cache is not None and (now - _catalog_cache_ts) < _CACHE_TTL_SECONDS:
+        return _catalog_cache
+
+    if not CATALOG_FILE.exists():
+        logger.error(f"Catalog file not found at {CATALOG_FILE}")
+        return []
+
+    try:
+        with open(CATALOG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _catalog_cache = [AIModelInfo(**item) for item in data]
+        _catalog_cache_ts = now
+        return _catalog_cache
+    except Exception as e:
+        logger.error(f"Failed to load AI models catalog from {CATALOG_FILE}: {e}")
+        return []
 
 
 async def get_model_catalog(
-  refresh: bool = False,
-  provider: str = "all",
-  task_type: str = "all",
+    refresh: bool = False,
+    provider: str = "all",
+    task_type: str = "all",
 ) -> ModelCatalogResponse:
-  """Retrieve catalog of AI models from the declarative JSON registry."""
-  models = load_local_catalog()
+    """Retrieve catalog of AI models from the declarative JSON registry."""
+    models = load_local_catalog(refresh=refresh)
 
-  source = "local_json"
-  error_msg = None
+    source = "local_json"
+    error_msg = None
 
-  if not models:
-    error_msg = "Error de conexión, no se pudo obtener los modelos"
-    source = "error"
+    if not models:
+        error_msg = "Error de conexión, no se pudo obtener los modelos"
+        source = "error"
 
-  # Filter by provider
-  if provider and provider != "all":
-    prov_key = provider.lower()
-    models = [m for m in models if m.provider.lower() == prov_key]
+    # Filter by provider
+    if provider and provider != "all":
+        prov_key = provider.lower()
+        models = [m for m in models if m.provider.lower() == prov_key]
 
-  # Filter by task_type (chat_writing vs transcription)
-  if task_type and task_type != "all":
-    task_key = task_type.lower()
-    models = [m for m in models if m.task_type.lower() == task_key]
+    # Filter by task_type (chat_writing vs transcription)
+    if task_type and task_type != "all":
+        task_key = task_type.lower()
+        models = [m for m in models if m.task_type.lower() == task_key]
 
-  all_providers = sorted(list(set(m.provider for m in models))) if models else []
+    all_providers = sorted(list(set(m.provider for m in models))) if models else []
 
-  return ModelCatalogResponse(
-    updated_at=datetime.now(timezone.utc).isoformat(),
-    source=source,
-    providers=all_providers,
-    models=models,
-    error=error_msg,
-  )
+    return ModelCatalogResponse(
+        updated_at=datetime.now(timezone.utc).isoformat(),
+        source=source,
+        providers=all_providers,
+        models=models,
+        error=error_msg,
+    )
+

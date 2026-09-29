@@ -6,15 +6,6 @@ from app.db.repositories.standup_repository import StandupRepository
 from app.db.repositories.prd_repository import PRDRepository
 from app.db.repositories.test_plan_repository import TestPlanRepository
 
-# Backward compatibility aliases
-BaseSqliteRepository = BaseRepository
-SqliteUserRepository = UserRepository
-SqliteSettingsRepository = SettingsRepository
-SqliteChatRepository = ChatRepository
-SqliteStandupRepository = StandupRepository
-SqlitePRDRepository = PRDRepository
-SqliteTestPlanRepository = TestPlanRepository
-
 __all__ = [
     "BaseRepository",
     "UserRepository",
@@ -23,11 +14,5 @@ __all__ = [
     "StandupRepository",
     "PRDRepository",
     "TestPlanRepository",
-    "BaseSqliteRepository",
-    "SqliteUserRepository",
-    "SqliteSettingsRepository",
-    "SqliteChatRepository",
-    "SqliteStandupRepository",
-    "SqlitePRDRepository",
-    "SqliteTestPlanRepository",
 ]
+

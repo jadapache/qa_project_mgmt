@@ -16,8 +16,11 @@ from .schema import (
     UpdateTableOperation,
     CreateTableOperation,
     DeleteContentOperation,
+    MoveContentOperation,
     TargetLocator,
 )
+
+
 
 
 import unicodedata
@@ -137,5 +140,15 @@ class DocumentOperationValidator:
                 return False, f"Invalid target for deletion: {target_msg}"
             return True, f"DeleteContent validated successfully. {target_msg}"
 
+        elif isinstance(op, MoveContentOperation):
+            source_found, source_msg = cls.resolve_target(op.source_target, current_state)
+            if not source_found:
+                return False, f"MoveContent: source target not found — {source_msg}"
+            dest_found, dest_msg = cls.resolve_target(op.destination_target, current_state)
+            if not dest_found:
+                return False, f"MoveContent: destination target not found — {dest_msg}"
+            return True, f"MoveContent validated. Source: {source_msg}. Destination: {dest_msg}"
+
         # Default for read operations (inspect_document, find_section, find_text)
         return True, f"Operation '{op.operation}' validated."
+

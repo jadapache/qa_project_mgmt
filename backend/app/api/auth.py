@@ -2,19 +2,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_user_repository
+from app.api.deps import get_current_user, get_user_repository
 from app.core.security import (
     create_access_token,
-    decode_access_token,
     hash_password,
     verify_password,
 )
 from app.db.interfaces import IUserRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_SENSITIVE_FIELDS = frozenset({"password_hash", "password_salt"})
+
+
+def _sanitize_user(user: dict) -> dict:
+    """Retorna el dict del usuario sin campos sensibles de contraseña."""
+    return {k: v for k, v in user.items() if k not in _SENSITIVE_FIELDS}
 
 
 class RegisterRequest(BaseModel):
@@ -62,7 +68,7 @@ async def register(
         status="pending",
     )
 
-    clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
+    clean_user = _sanitize_user(user)
     user_status = user.get("status", "pending")
 
     if user_status == "approved":
@@ -121,7 +127,7 @@ async def login(
             detail="Tu solicitud de acceso ha sido rechazada por el administrador.",
         )
 
-    clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
+    clean_user = _sanitize_user(user)
     token = create_access_token({"sub": user["id"], "username": user["username"]})
 
     return {"token": token, "status": user_status, "message": "Inicio de sesión exitoso.", "user": clean_user}
@@ -129,29 +135,9 @@ async def login(
 
 @router.get("/me")
 async def get_me(
-    authorization: str | None = Header(default=None),
-    user_repo: IUserRepository = Depends(get_user_repository),
+    current_user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No se proporcionó token de autorización.",
-        )
-
-    token = authorization.split(" ")[1]
-    payload = decode_access_token(token)
-    if not payload or "username" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado.",
-        )
-
-    user = await user_repo.get_by_username(payload["username"])
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
-
-    clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
-    return {"user": clean_user}
+    return {"user": current_user}
 
 
 class UpdateProfileRequest(BaseModel):
@@ -163,27 +149,9 @@ class UpdateProfileRequest(BaseModel):
 @router.put("/me")
 async def update_me(
     body: UpdateProfileRequest,
-    authorization: str | None = Header(default=None),
+    current_user: dict = Depends(get_current_user),
     user_repo: IUserRepository = Depends(get_user_repository),
 ) -> dict[str, Any]:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No se proporcionó token de autorización.",
-        )
-
-    token = authorization.split(" ")[1]
-    payload = decode_access_token(token)
-    if not payload or "username" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado.",
-        )
-
-    user = await user_repo.get_by_username(payload["username"])
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
-
     updates: dict[str, Any] = {}
     if body.full_name is not None and body.full_name.strip():
         updates["full_name"] = body.full_name.strip()
@@ -195,12 +163,11 @@ async def update_me(
         updates["password_salt"] = pwd_salt
 
     if updates:
-        updated = await user_repo.update(user["id"], updates)
+        updated = await user_repo.update(current_user["id"], updates)
         if updated:
-            user = updated
+            current_user = _sanitize_user(updated)
 
-    clean_user = {k: v for k, v in user.items() if k not in ("password_hash", "password_salt")}
-    return {"message": "Perfil actualizado exitosamente.", "user": clean_user}
+    return {"message": "Perfil actualizado exitosamente.", "user": current_user}
 
 
 @router.get("/access-requests")
@@ -208,7 +175,7 @@ async def get_access_requests(
     user_repo: IUserRepository = Depends(get_user_repository),
 ) -> dict[str, Any]:
     pending = await user_repo.get_pending_users()
-    clean_pending = [{k: v for k, v in u.items() if k not in ("password_hash", "password_salt")} for u in pending]
+    clean_pending = [_sanitize_user(u) for u in pending]
     return {"requests": clean_pending}
 
 
@@ -221,7 +188,7 @@ async def approve_access_request(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitud no encontrada.")
     updated = await user_repo.update_user_status(user_id, "approved")
-    clean_user = {k: v for k, v in (updated or {}).items() if k not in ("password_hash", "password_salt")}
+    clean_user = _sanitize_user(updated or {})
     return {"status": "approved", "user": clean_user}
 
 
@@ -234,6 +201,6 @@ async def reject_access_request(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitud no encontrada.")
     updated = await user_repo.update_user_status(user_id, "rejected")
-    clean_user = {k: v for k, v in (updated or {}).items() if k not in ("password_hash", "password_salt")}
+    clean_user = _sanitize_user(updated or {})
     return {"status": "rejected", "user": clean_user}
 

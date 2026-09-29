@@ -8,24 +8,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
-import platform
-from pathlib import Path
 from typing import Any, Dict
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from app.core.security import machine_fingerprint as _machine_fingerprint
+
 SECRET_PREFIX = "enc::"
 
-
-def _machine_fingerprint() -> str:
-    """Genera una huella digital única para el equipo local."""
-    parts = [
-        platform.node(),
-        platform.system(),
-        platform.machine(),
-        str(Path.home()),
-    ]
-    return "|".join(parts)
 
 
 def _get_master_secret() -> str:
