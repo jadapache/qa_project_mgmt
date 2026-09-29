@@ -1,195 +1,236 @@
 # QA Project MGMT
 
-> Centro de comando local con IA para Product Managers e Ingenieros de QA con búsqueda RAG contextual, almacenamiento local cifrado e integraciones desacopladas para gestores de tareas y repositorios.
+> Centro de comando local con IA para Product Managers e Ingenieros de QA. Integra búsqueda RAG contextual, almacenamiento local cifrado, integraciones desacopladas (Jira, GitHub, GitLab), generación de documentos con editor en tiempo real y suite completa de herramientas QA/PM.
+
+**Estado**: 🚀 En desarrollo activo. V0.2.0+  
+**Documentación completa**: Consulta [`docs/`](./docs/) para guías detalladas de arquitectura, backend, frontend y despliegue.
 
 ---
 
-## Inicio Rápido (< 5 min)
+## 🚀 Inicio Rápido (< 5 minutos)
 
 ### Requisitos previos
 - **Node.js**: v18+ (v20+ recomendado)
-- **Python**: 3.10+ (probado en Python 3.11 – 3.14)
+- **Python**: 3.11+ (probado en Python 3.11 – 3.14)
+- **Git**: v2+
 
 ### 1. Clonar y Configurar el Entorno
 ```bash
+git clone https://github.com/tu-org/qa-mgmt.git
+cd qa-mgmt
 cp .env.example .env
 ```
-*(Opcional: Configura las claves del proveedor de IA o las credenciales de Jira en el archivo `.env`, o bien configúralas directamente desde la interfaz web en Configuración).*
 
-### 2. Ejecución como Aplicación de Escritorio Windows (Tauri)
-```bash
-# Modo Desarrollo Desktop (Inicia automáticamente el backend Python y la ventana nativa de Tauri)
-npm run dev:desktop
+*(Opcional: Configura las claves del proveedor de IA o credenciales de integración en `.env`, o bien configúralas desde la UI despues de iniciar)*
 
-# Compilar ejecutable / instalador para Windows (.msi / .exe)
-npm run build:desktop
-```
-> **Nota**: Para compilar localmente con Tauri se requiere el compilador de Rust ([rustup.rs](https://rustup.rs/)).
+### 2. Instalación de Dependencias
 
-### 3. Ejecución Web con Scripts Raíz
-```bash
-# Terminal 1 - Backend (FastAPI en http://127.0.0.1:8000)
-npm run dev:backend
-
-# Terminal 2 - Frontend (Vite en http://localhost:5173)
-npm run dev:frontend
-```
-
-### 3. Ejecución Manual (Alternativa)
 ```bash
 # Backend
 cd backend
-python -m venv .venv
-.\.venv\Scripts\activate      # Windows (o source .venv/bin/activate en Unix/macOS)
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
-# Frontend
+# Frontend (en otra terminal desde raíz)
 cd frontend
 npm install
+```
+
+### 3. Ejecución en Desarrollo
+
+```bash
+# Terminal 1 - Backend (FastAPI en http://127.0.0.1:8000)
+cd backend
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2 - Frontend (Vite en http://localhost:5173)
+cd frontend
 npm run dev
 ```
 
+### 4. Acceso
+
 - **Aplicación Web**: [http://localhost:5173](http://localhost:5173)
-- **Documentación Interactiva de la API (Swagger)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Swagger API Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **Health Check**: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
 
----
-
-## Tecnologías Utilizadas
-
-| Capa | Tecnologías |
-|---|---|
-| **Escritorio (Desktop)** | Tauri v2 (Rust desktop wrapper con gestión automática del backend Python) |
-| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS v4, Lucide React, React Router v7 |
-| **Backend** | Python, FastAPI, Uvicorn, Pydantic v2, HTTPX |
-| **IA y RAG** | Ejecutor de IA multiproveedor (Ollama, OpenAI, Anthropic), búsqueda RAG local con BM25, `pypdf`, `python-docx` |
-| **Almacenamiento y Seguridad** | Almacén de credenciales cifrado localmente (`local/connections/`) con Fernet y el `keyring` del sistema operativo (sin base de datos externa) |
-| **Integraciones** | Adaptadores desacoplados para Jira (OAuth 2.0 3LO y PAT), GitHub (PAT) y GitLab (PAT) |
+> **¿Primera vez?** Ver [Inicio Rápido Completo](./docs/QUICKSTART.md) para guía paso a paso con screenshots y troubleshooting.
 
 ---
 
-## Estructura del Proyecto
+## 📚 Documentación
+
+La documentación técnica completa está disponible en **[`docs/`](./docs/)**:
+
+- **[README (docs/)](./docs/README.md)** — Índice y descripción general
+- **[QUICKSTART](./docs/QUICKSTART.md)** — Guía paso a paso (5 min)
+- **[ARCHITECTURE](./docs/ARCHITECTURE.md)** — Diseño del sistema, flujos, principios
+- **[BACKEND](./docs/BACKEND.md)** — Módulos Python, endpoints FastAPI, AI engine
+- **[FRONTEND](./docs/FRONTEND.md)** — Componentes React, hooks, gestión de estado
+- **[API_REFERENCE](./docs/API_REFERENCE.md)** — Especificación REST completa
+- **[DATABASE](./docs/DATABASE.md)** — Esquema de datos, modelos
+- **[DEPLOYMENT](./docs/DEPLOYMENT.md)** — Docker, Render.com, producción
+
+---
+
+## 🛠 Stack Tecnológico
+
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| **Frontend** | React, TypeScript, Vite, Tailwind CSS v4, React Router | 19 / 6 / 8 / 4 / 7 |
+| **Backend** | Python, FastAPI, Pydantic | 3.11+ / 0.111+ / 2.8+ |
+| **IA & RAG** | LiteLLM, BM25, pypdf, python-docx | 1.35+ / 0.2.2 / 5.4 / 1.1 |
+| **Almacenamiento** | SQLite (aiosqlite), JSON, Fernet encryption | 3.8+ / 0.20 |
+| **Seguridad** | cryptography, keyring | 44+ / 25.6+ |
+
+---
+
+## 📂 Estructura del Proyecto
 
 ```
-qa_project_mgmt/
-├── backend/                  # Aplicación FastAPI y servicios de IA
+QA_MGMT/
+├── docs/                     # 📍 Documentación técnica completa (nuevo)
+│   ├── README.md            # Índice de documentación
+│   ├── QUICKSTART.md        # Guía de inicio rápido
+│   ├── ARCHITECTURE.md      # Diseño y flujos
+│   ├── BACKEND.md           # Especificación backend
+│   ├── FRONTEND.md          # Especificación frontend
+│   ├── API_REFERENCE.md     # Endpoints REST
+│   ├── DATABASE.md          # Schema de datos
+│   └── DEPLOYMENT.md   # Despliegue
+│
+├── backend/                 # FastAPI + AI Engine + RAG
 │   ├── app/
-│   │   ├── ai/              # Ejecutor de IA multiproveedor, registro de prompts y plantillas
-│   │   ├── api/             # Endpoints REST (/health, /settings, /integrations, /features, /knowledge)
-│   │   ├── context/         # Analizadores de documentos (PDF, Word, Markdown) y búsqueda BM25
-│   │   ├── core/            # Configuración, cifrado Fernet y almacenamiento de credenciales
-│   │   ├── features/        # Lógica de negocio para Standup, PRD, Impacto y QA
-│   │   └── integrations/    # Adaptadores de Jira (OAuth 3LO + PAT), GitHub (PAT) y GitLab
-│   └── requirements.txt     # Dependencias de Python
-├── frontend/                 # Aplicación React 19 SPA
+│   │   ├── ai/             # Motor LLM multiproveedor, prompts, templates, logging
+│   │   ├── api/            # Routers FastAPI (auth, features, knowledge, doc-agent, integrations)
+│   │   ├── context/        # RAG: ingesta, BM25, ensamblaje de contexto
+│   │   ├── core/           # Settings, security, secrets (Fernet), storage
+│   │   ├── db/             # Repository pattern, interfaces, SQLite
+│   │   ├── features/       # Servicios (standup, mejoras funcionales)
+│   │   ├── integrations/   # Adaptadores (Jira OAuth/PAT, GitHub PAT, GitLab PAT)
+│   │   ├── models/         # Pydantic models (AI catalog)
+│   │   ├── schemas/        # Schemas de validación (user, chat, prd, test_plan)
+│   │   └── main.py         # Entry point
+│   ├── requirements.txt    # Dependencias Python (openpyxl, litellm, etc)
+│   └── tests/              # Tests unitarios
+│
+├── frontend/               # React 19 SPA (Vite + Tailwind)
 │   ├── src/
-│   │   ├── api/             # Cliente HTTP tipado
-│   │   ├── components/      # Componentes UI, diseño base y modales de conexión
-│   │   ├── pages/           # Panel Principal, Standup, PRD, Impacto, QA, Conocimiento, Configuración
-│   │   └── App.tsx          # Enrutamiento de la aplicación
-│   └── package.json         # Dependencias y scripts del frontend
-├── local/                    # Almacenamiento local en tiempo de ejecución (secretos e índices)
-│   ├── connections/         # Tokens API y credenciales OAuth cifradas (.enc)
-│   ├── settings/            # Preferencias de usuario locales (app.json)
-│   ├── knowledge/           # Documentos cargados e índices RAG
-│   └── ai/                  # Registros de ejecución de IA y rúbricas
-├── _legacy_archive/          # Respaldo histórico del código y especificaciones anteriores
-├── package.json              # Scripts raíz de coordinación (dev:backend, dev:frontend)
-├── DEPLOY.md                 # Guía de despliegue en producción (Docker, Render, Railway)
-└── Dockerfile                # Contenedor de producción (multietapa)
+│   │   ├── pages/         # Dashboard, Standup, PRD, QA, Knowledge, Settings
+│   │   ├── components/    # AppLayout, Workspace, DocumentAgent, Integrations
+│   │   ├── hooks/         # useChatPersistence, useArtifacts, useDocumentHistory
+│   │   ├── api/           # Cliente HTTP tipado (client.ts)
+│   │   ├── context/       # AuthContext, ToastContext
+│   │   ├── document_agent/ # DocumentAgent orchestrator + Univer adapter
+│   │   ├── utils/         # artifactSplitter, helpers
+│   │   └── App.tsx        # Router principal
+│   ├── package.json       # Dependencies & scripts
+│   └── vite.config.ts
+│
+├── local/                 # Almacenamiento en tiempo de ejecución
+│   ├── connections/       # Credenciales encriptadas (.enc)
+│   ├── ai/               # Prompts, rúbricas, logs, catálogo de modelos
+│   ├── knowledge/        # Documentos, chunks indexados
+│   └── database.db       # SQLite
+│
+├── Dockerfile            # Contenedor multietapa para producción
+├── .env.example          # Template de variables de entorno
+├── .dockerignore
+├── .gitignore
+├── render.yaml           # Config de despliegue Render
+└── README.md             # Este archivo
 ```
 
 ---
 
-## Funcionalidades Clave
+## ✨ Funcionalidades Principales
 
-### 1. Panel Principal (Dashboard)
-- Estado visual inmediato de todas las conexiones a herramientas externas (Jira, GitHub, GitLab).
-- Accesos rápidos a los flujos de trabajo diarios y estado del sistema.
+### 🎯 Herramientas PM
 
-### 2. Herramientas PM
 - **Generador de Standup Diario**: Consolida tareas abiertas, trabajo reciente y bloqueos desde Jira y GitHub para generar reportes estructurados.
-- **Revisor de PRD**: Audita documentos de especificaciones analizando claridad, criterios de aceptación, vacíos y riesgos.
-- **Análisis de Impacto de Cambios**: Evalúa los efectos de un cambio propuesto en la arquitectura técnica, código y suites de prueba.
+- **Revisor de PRD**: Audita documentos de especificaciones analizando claridad, criterios de aceptación, vacíos y riesgos con rúbricas personalizables.
+- **Análisis de Impacto de Cambios**: Evalúa los efectos de cambios propuestos sobre arquitectura, código y suites de prueba.
 
-### 3. Herramientas QA
-- **Panel QaFeature**: Entorno de trabajo especializado que cubre planes de prueba de Regresión, listas de verificación de QA de API, QA Visual, datos de prueba inteligentes y evaluación de Estado de Lanzamiento.
+### 🧪 Herramientas QA
 
-### 4. Biblioteca de Conocimiento Contextual (RAG Local)
-- Sube documentos en formatos **PDF**, **DOCX**, **Markdown** o **TXT**.
-- Fragmentación de texto en memoria e índice de alta velocidad con **BM25** sin necesidad de bases de datos vectoriales complejas.
-- **Consultar Producto**: Chat conversacional fundamentado estrictamente en la documentación cargada, ofreciendo referencias reales sin inventar respuestas.
+- **Suite QA Completa**: Generadores para:
+  - Matrices de pruebas de Regresión
+  - Listas de verificación QA de APIs
+  - QA Visual
+  - Datos de prueba inteligentes
+  - Evaluación de Estado de Lanzamiento
 
-### 5. Integraciones Desacopladas
-- **Jira**: Autenticación con OAuth 2.0 (3LO) de Atlassian o mediante Personal Access Token (PAT).
-- **GitHub**: Autenticación segura por PAT con selección de repositorios y consulta de issues/PRs.
-- **GitLab**: Autenticación por PAT con inspección de proyectos.
+- **Panel QA Integrado**: Entorno especializado que cubre todos los tipos de pruebas en un flujo unificado.
 
-### 6. Motor de IA Multiproveedor
-- Funciona con modelos locales a través de **Ollama** (ej. `llama3`, `mistral`, `qwen`) para privacidad absoluta fuera de línea.
-- Compatible con proveedores en la nube (**OpenAI**, **Anthropic**) mediante claves API configurables en la UI o `.env`.
-- Prompts de sistema y rúbricas de evaluación editables desde la interfaz o en `local/ai/prompts/`.
+### 📚 Base de Conocimiento RAG Local
+
+- **Ingesta Multi-formato**: Soporta PDF, DOCX, Markdown, TXT
+- **Búsqueda BM25**: Ranking rápido e interpretable sin dependencias de LLMs
+- **Chat Grounded**: Consultas conversacionales fundamentadas en documentación cargada
+- **Zero-shot Offline**: Funciona completamente sin conexión a internet (con Ollama local)
+
+### 🔌 Integraciones Desacopladas
+
+- **Jira**: OAuth 2.0 (Atlassian 3LO) + Personal Access Token (PAT)
+- **GitHub**: PAT con selección de repositorios
+- **GitLab**: PAT con inspección de proyectos
+- Sincronización automática de caché sin bloqueos
+
+### 🤖 Motor de IA Multiproveedor
+
+- **Ollama** (local, privado) — Modelos: llama2, mistral, qwen, etc.
+- **OpenAI** (GPT-4, GPT-3.5)
+- **Anthropic** (Claude)
+- Prompts editables desde UI
+- Rúbricas de evaluación personalizables
+- Auditoría completa de llamadas AI
+
+### 📄 Generador de Documentos Funcionales (Agentic RAG)
+
+- **Edición en Tiempo Real**: Editor visual (Univer.js) con soporte para documentos y hojas de cálculo
+- **Múltiples Artefactos**: Genera documentos independientes en una sola solicitud
+- **Operaciones Canónicas**: Inserta/reemplaza/mueve contenido de forma estructurada
+- **Export Nativo**: Descarga como .docx o .xlsx sin dependencias web
+- **Undo/Redo**: Historial ilimitado de cambios
+- **Autosave**: Guardado automático cada 1.5 segundos
 
 ---
 
-## Configuración y Variables de Entorno
+## 🔐 Seguridad y Almacenamiento Local
 
-Copia el archivo `.env.example` a `.env`. Todas las credenciales también pueden establecerse desde la pantalla de **Configuración** e **Integraciones** en la aplicación web.
+- **Sin base de datos remota**: Almacenamiento 100% local (SQLite, JSON, Fernet)
+- **Secretos Cifrados**: Tokens y PATs encriptados con Fernet usando keyring del sistema
+- **Jerarquía de Claves**: `keyring` → hardware fingerprint → `PMQA_SECRET_KEY`
+- **Desconexión Limpia**: Eliminación permanente de archivos `.enc` al desconectar servicios
+- **Validación Pydantic**: Schemas estrictos en todos los endpoints
 
+---
+
+## 📦 Despliegue
+
+### Desarrollo Local
 ```bash
-# Servidor y CORS
-PORT=8000
-CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+# Backend
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
-# Seguridad y Cifrado (Opcional; por defecto se usa el keyring de la máquina)
-PMQA_SECRET_KEY=
-
-# Proveedor de IA por defecto (ollama, openai, anthropic)
-PMQA_AI_PROVIDER=ollama
-PMQA_AI_MODEL=llama3.2
-OLLAMA_BASE_URL=http://localhost:11434
-
-# Claves de IA en la nube (opcional si usas Ollama)
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-
-# Configuración OAuth 2.0 para Jira (Atlassian 3LO)
-JIRA_CLIENT_ID=
-JIRA_CLIENT_SECRET=
-JIRA_REDIRECT_URI=http://127.0.0.1:8000/api/integrations/jira/callback
+# Frontend
+npm run dev
 ```
 
----
+### Producción (Docker)
+```bash
+docker build -t qa-mgmt:latest .
+docker run -p 8000:8000 -e VITE_API_BASE=http://localhost:8000 qa-mgmt:latest
+```
 
-## Configuración de OAuth para Jira (Atlassian 3LO)
-
-1. Ingresa a la [Consola de Desarrolladores de Atlassian](https://developer.atlassian.com/console/myapps/) y crea una aplicación.
-2. Añade una concesión de autorización **OAuth 2.0 (3LO)**.
-3. Establece la URL de callback en:
-   ```
-   http://127.0.0.1:8000/api/integrations/jira/callback
-   ```
-4. En **Permisos (Permissions)**, añade los permisos de la API de Jira:
-   - `read:jira-work` (Ver datos de issues de Jira)
-   - `read:jira-user` (Ver perfiles de usuario)
-5. Copia tu **Client ID** y **Client Secret** en el `.env` (o directamente en la UI).
-6. En la aplicación: ve a **Integraciones → Jira → Conectar → OAuth**.
-7. *Alternativa rápida*: Utiliza un **Personal Access Token (PAT)** (Correo + URL del sitio + Token de API generado en id.atlassian.com).
+### Cloud (Render, Railway, Vercel)
+Ver **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** para instrucciones detalladas.
 
 ---
 
-## Modelo de Seguridad y Almacenamiento Local
+##  Guías Rápidas
 
-- **Sin base de datos remota**: No se requiere instalar PostgreSQL/MySQL ni lidiar con archivos de base de datos propensos a bloqueos.
-- **Secretos Cifrados**: Los tokens sensibles (tokens de refresco OAuth de Jira, PATs de GitHub, claves API) se almacenan en `local/connections/*.enc` cifrados con Fernet.
-- **Jerarquía de Claves**: La clave de cifrado se obtiene primero del llavero nativo del sistema operativo (`keyring`), utilizando como respaldo la derivación de hardware o la variable `PMQA_SECRET_KEY`.
-- **Desconexión Limpia**: Al desconectar cualquier servicio desde la UI, el archivo `.enc` correspondiente se elimina permanentemente del disco.
-
----
-
-## Despliegue en Producción
-
-El proyecto incluye un [`Dockerfile`](./Dockerfile) multietapa que compila el frontend de React y lo sirve directamente como archivos estáticos desde FastAPI.
-
-Consulta **[DEPLOY.md](./DEPLOY.md)** para obtener instrucciones de despliegue en un clic para **Render**, **Railway** o cualquier plataforma de contenedores.
+- **¿Inicio rápido en 5 min?** → [`docs/QUICKSTART.md`](./docs/QUICKSTART.md)
+- **¿Entender la arquitectura?** → [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- **¿Agregar nueva feature?** → [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)
+- **¿Desplegar a producción?** → [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)
+- **¿Troubleshooting?** → [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md)
