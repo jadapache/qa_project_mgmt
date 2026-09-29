@@ -3,8 +3,16 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
+
+from app.core.template_storage import (
+  delete_template,
+  get_template_detail,
+  list_templates,
+  save_template_file,
+  update_template_metadata,
+)
 
 from app.ai.catalog import get_model_catalog
 from app.ai.logging import list_logs
@@ -127,54 +135,19 @@ async def test_ai_connection(body: AITestConnectionRequest) -> dict[str, Any]:
   if not model_name:
     raise HTTPException(status_code=400, detail="Debes especificar un modelo válido para la prueba.")
 
-  from app.ai.providers.implementations import (
-    ClaudeProvider,
-    GeminiProvider,
-    GroqProvider,
-    OllamaProvider,
-    OpenAIProvider,
-  )
   from app.ai.providers.base import AIMessage
+  from app.ai.providers.factory import resolve_provider
 
-  config = get_ai_settings()
   test_messages = [AIMessage(role="user", content="Hola, responde únicamente con la palabra 'OK'.")]
 
   try:
-    if provider_name == "openai":
-      key = body.api_key or config.get("openai_api_key") or ""
-      if not key:
-        raise ValueError("No se ha especificado la clave API de OpenAI.")
-      p = OpenAIProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
-
-    elif provider_name in {"claude", "anthropic"}:
-      key = body.api_key or config.get("claude_api_key") or ""
-      if not key:
-        raise ValueError("No se ha especificado la clave API de Anthropic Claude.")
-      p = ClaudeProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
-
-    elif provider_name == "groq":
-      key = body.api_key or config.get("groq_api_key") or ""
-      if not key:
-        raise ValueError("No se ha especificado la clave API de Groq.")
-      p = GroqProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
-
-    elif provider_name in {"gemini", "google"}:
-      key = body.api_key or config.get("gemini_api_key") or ""
-      if not key:
-        raise ValueError("No se ha especificado la clave API de Google Gemini.")
-      p = GeminiProvider(key, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
-
-    elif provider_name in {"ollama", "builtin", "local"}:
-      target_url = body.ollama_base_url or config.get("ollama_base_url") or "http://127.0.0.1:11434"
-      p = OllamaProvider(base_url=target_url, default_model=model_name)
-      res = await p.complete(test_messages, model=model_name)
-
-    else:
-      raise ValueError(f"Proveedor '{body.provider}' no soportado.")
+    p = resolve_provider(
+      provider_name=provider_name,
+      model_name=model_name,
+      api_key=body.api_key,
+      base_url=body.ollama_base_url,
+    )
+    res = await p.complete(test_messages, model=model_name, max_tokens=100)
 
     return {
       "ok": True,
@@ -450,4 +423,63 @@ async def export_docx(body: DocxExportRequest) -> Response:
     )
   except Exception as exc:
     raise HTTPException(status_code=500, detail=f"Error al generar archivo .docx: {str(exc)}") from exc
+
+
+class TemplateMetadataUpdate(BaseModel):
+  title: str | None = None
+  module: str | None = None
+  tags: list[str] | None = None
+  content: str | None = None
+
+
+@router.get("/templates")
+async def get_templates() -> dict[str, Any]:
+  return {"templates": list_templates()}
+
+
+@router.get("/templates/{template_id}/content")
+async def get_template_content_route(template_id: str) -> dict[str, Any]:
+  detail = get_template_detail(template_id)
+  if not detail:
+    raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+  return detail
+
+
+@router.post("/templates/upload")
+async def upload_template(
+  file: UploadFile = File(...),
+  title: str = Form(default=""),
+  module: str = Form(default="general"),
+) -> dict[str, Any]:
+  content = await file.read()
+  item = save_template_file(
+    filename=file.filename or "template",
+    file_bytes=content,
+    title=title,
+    module=module,
+  )
+  return {"template": item}
+
+
+@router.put("/templates/{template_id}")
+async def edit_template(template_id: str, body: TemplateMetadataUpdate) -> dict[str, Any]:
+  updated = update_template_metadata(
+    template_id,
+    title=body.title,
+    module=body.module,
+    tags=body.tags,
+    content=body.content,
+  )
+  if not updated:
+    raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+  return {"template": updated}
+
+
+@router.delete("/templates/{template_id}")
+async def remove_template(template_id: str) -> dict[str, Any]:
+  success = delete_template(template_id)
+  if not success:
+    raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+  return {"ok": True, "template_id": template_id}
+
 

@@ -40,6 +40,8 @@ async def test_groq_provider_with_litellm():
 async def test_all_litellm_model_formatting():
     groq_p = GroqProvider("key")
     assert groq_p._format_model_name("llama3") == "groq/llama3"
+    assert groq_p._format_model_name("qwen-2.5-32b") == "groq/qwen-2.5-32b"
+    assert groq_p._format_model_name("groq/qwen-2.5-32b") == "groq/qwen-2.5-32b"
 
     claude_p = ClaudeProvider("key")
     assert claude_p._format_model_name("claude-3-5-haiku-latest") == "anthropic/claude-3-5-haiku-latest"
@@ -53,3 +55,25 @@ async def test_all_litellm_model_formatting():
 
     openai_p = OpenAIProvider("key")
     assert openai_p._format_model_name("openai/gpt-4o") == "gpt-4o"
+
+
+def test_provider_registry():
+    from app.ai.providers.registry import find_provider_spec, PROVIDER_REGISTRY
+    assert find_provider_spec("groq") is not None
+    assert find_provider_spec("groq").litellm_prefix == "groq"
+    assert find_provider_spec("anthropic").id == "claude"
+    assert find_provider_spec("google").id == "gemini"
+    assert find_provider_spec("builtin").id == "ollama"
+    assert find_provider_spec("unknown_xyz") is None
+
+
+def test_resolve_provider_with_registry():
+    from app.ai.providers.factory import resolve_provider
+    p_groq = resolve_provider("groq", "llama-3.3-70b-versatile", api_key="gsk_test")
+    assert p_groq.id == "groq"
+    assert p_groq._format_model_name("llama-3.3-70b-versatile") == "groq/llama-3.3-70b-versatile"
+
+    p_ollama = resolve_provider("ollama", "llama3.2", base_url="http://localhost:11434")
+    assert p_ollama.id == "ollama"
+    assert p_ollama._format_model_name("llama3.2") == "ollama_chat/llama3.2"
+

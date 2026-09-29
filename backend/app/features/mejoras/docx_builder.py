@@ -126,10 +126,31 @@ def create_mejoras_docx(markdown_content: str, title: str = "Documento de Mejora
       p.paragraph_format.space_after = Pt(3)
       _add_formatted_runs(p, stripped[2:])
     elif re.match(r"^\d+\.\s", stripped):
-      p = doc.add_paragraph(style="List Number")
-      p.paragraph_format.space_after = Pt(3)
-      text = re.sub(r"^\d+\.\s", "", stripped)
-      _add_formatted_runs(p, text)
+      # Detect numbered section titles vs regular numbered list items
+      remaining = re.sub(r"^\d+\.\s*", "", stripped)
+      is_section_title = (
+        len(remaining) >= 3
+        and len(remaining) <= 80
+        and not remaining.endswith((".", ",", ";", ":"))
+        and not any(remaining.lower().startswith(w) for w in ["validar", "verificar", "confirmar", "comprobar"])
+        and (remaining == remaining.upper() or remaining[0].isupper())
+        and " " in remaining
+        and not remaining.startswith("{{")
+      )
+      if is_section_title:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(14)
+        p.paragraph_format.space_after = Pt(4)
+        run = p.add_run(stripped)
+        run.font.name = "Segoe UI"
+        run.font.size = Pt(13)
+        run.font.bold = True
+        run.font.color.rgb = PRIMARY_COLOR
+      else:
+        p = doc.add_paragraph(style="List Number")
+        p.paragraph_format.space_after = Pt(3)
+        text = re.sub(r"^\d+\.\s", "", stripped)
+        _add_formatted_runs(p, text)
     # Blockquotes / Notes
     elif stripped.startswith("> "):
       p = doc.add_paragraph()

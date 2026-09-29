@@ -114,6 +114,33 @@ export type ModelCatalogResponse = {
   error?: string
 }
 
+export type CorporateTemplate = {
+  id: string
+  title: string
+  filename: string
+  file_type: string
+  file_size: number
+  module: string
+  tags?: string[]
+  created_at: string
+}
+
+export type SystemTag = {
+  tag: string
+  label: string
+  description: string
+  type?: 'ai' | 'function'
+}
+
+export type TemplateDetail = {
+  template: CorporateTemplate
+  content: string
+  header_content?: string
+  footer_content?: string
+  detected_tags: string[]
+  system_tags: SystemTag[]
+}
+
 export type FeaturePayload = {
   query: string
   document_ids: string[]
@@ -350,7 +377,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    }).then((r) => handleResponse<{ status: string; message: string; response?: string }>(r)),
+    }).then((r) => handleResponse<{ ok: boolean; status?: string; message: string; response?: string }>(r)),
 
   listOllamaModels: (baseUrl?: string) =>
     fetch(`${API_BASE}/api/ai/ollama/models${baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : ''}`).then(
@@ -436,6 +463,140 @@ export const api = {
       body: JSON.stringify(payload),
     }).then((r) => handleResponse<GroundedResult>(r)),
 
+  agenticPrompt: (payload: {
+    query: string
+    current_document?: string
+    chat_context?: string[]
+    sources?: string[]
+    document_ids?: string[]
+    template_id?: string
+  }) =>
+    fetch(`${API_BASE}/api/doc-agent/agentic-prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({
+        prompt: payload.query,
+        query: payload.query,
+        current_document: payload.current_document,
+        chat_context: payload.chat_context,
+        sources: payload.sources,
+        document_ids: payload.document_ids,
+        templateId: payload.template_id,
+      }),
+    }).then((r) =>
+      handleResponse<{
+        answer?: string
+        assistant_message?: string
+        operations?: any[]
+        planned_operations?: any[]
+        document_updates?: string
+      }>(r).then((res) => ({
+        answer: res.answer || res.assistant_message || 'Procesado correctamente.',
+        assistant_message: res.assistant_message,
+        operations: res.operations || res.planned_operations || [],
+        document_updates: res.document_updates,
+      })),
+    ),
+
+  agenticPromptStream: async (
+    payload: {
+      query: string
+      current_document?: string
+      chat_context?: string[]
+      sources?: string[]
+      document_ids?: string[]
+      template_id?: string
+    },
+    onChunk: (accumulatedText: string, chunk: string) => void,
+  ): Promise<{
+    answer?: string
+    assistant_message?: string
+    operations?: any[]
+    document_updates?: string
+  }> => {
+    const res = await fetch(`${API_BASE}/api/doc-agent/agentic-prompt-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({
+        prompt: payload.query,
+        query: payload.query,
+        current_document: payload.current_document,
+        chat_context: payload.chat_context,
+        sources: payload.sources,
+        document_ids: payload.document_ids,
+        templateId: payload.template_id,
+      }),
+    })
+
+    if (!res.ok) {
+      let detail = `Request failed (${res.status})`
+      try {
+        const body = await res.json()
+        detail = body.detail ?? detail
+      } catch {}
+      throw new Error(detail)
+    }
+
+    if (!res.body) {
+      throw new Error('ReadableStream not supported in this environment.')
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let accumulatedText = ''
+    let buffer = ''
+    let fullResponseData: any = null
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const jsonStr = trimmed.slice(6)
+            const parsed = JSON.parse(jsonStr)
+            if (parsed.type === 'token') {
+              const chunk = parsed.text || ''
+              accumulatedText += chunk
+              onChunk(accumulatedText, chunk)
+            } else if (parsed.type === 'full') {
+              fullResponseData = parsed.data
+              if (parsed.data?.document_updates || parsed.data?.answer) {
+                accumulatedText = parsed.data.document_updates || parsed.data.answer
+                onChunk(accumulatedText, '')
+              }
+            } else if (parsed.type === 'error') {
+              throw new Error(parsed.message || 'Streaming error')
+            }
+          } catch (e) {
+            // ignore JSON parse errors for incomplete data lines
+          }
+        }
+      }
+    }
+
+    if (fullResponseData) {
+      return {
+        answer: fullResponseData.answer || fullResponseData.assistant_message || 'Procesado correctamente.',
+        assistant_message: fullResponseData.assistant_message,
+        operations: fullResponseData.operations || fullResponseData.planned_operations || [],
+        document_updates: fullResponseData.document_updates,
+      }
+    }
+
+    return {
+      answer: accumulatedText,
+      document_updates: accumulatedText,
+    }
+  },
+
+
   exportMejorasDocx: async (markdown: string, title?: string): Promise<Blob> => {
     const res = await fetch(`${API_BASE}/api/features/export-docx`, {
       method: 'POST',
@@ -497,6 +658,41 @@ export const api = {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     }).then((r) => handleResponse<{ status: string; user: AuthUser }>(r)),
+
+  getTemplates: () =>
+    fetch(`${API_BASE}/api/templates`).then((r) =>
+      handleResponse<{ templates: CorporateTemplate[] }>(r),
+    ),
+
+  getTemplateContent: (id: string) =>
+    fetch(`${API_BASE}/api/templates/${id}/content`).then((r) =>
+      handleResponse<TemplateDetail>(r),
+    ),
+
+  uploadTemplate: async (file: File, title?: string, module?: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (title) form.append('title', title)
+    if (module) form.append('module', module)
+    return fetch(`${API_BASE}/api/templates/upload`, { method: 'POST', body: form }).then((r) =>
+      handleResponse<{ template: CorporateTemplate }>(r),
+    )
+  },
+
+  updateTemplate: (
+    id: string,
+    payload: { title?: string; module?: string; tags?: string[]; content?: string },
+  ) =>
+    fetch(`${API_BASE}/api/templates/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then((r) => handleResponse<{ template: CorporateTemplate }>(r)),
+
+  deleteTemplate: (id: string) =>
+    fetch(`${API_BASE}/api/templates/${id}`, { method: 'DELETE' }).then((r) =>
+      handleResponse<{ ok: boolean; template_id: string }>(r),
+    ),
 }
 
 export const apiClient = api

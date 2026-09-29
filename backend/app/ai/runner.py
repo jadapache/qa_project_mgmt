@@ -20,6 +20,7 @@ async def run_grounded_feature(
   sources: list[str] | None = None,
   document_ids: list[str] | None = None,
   chat_context: str | None = None,
+  template_content: str | None = None,
 ) -> dict[str, Any]:
   prompt = get_prompt(feature)
   rubric = get_rubric(feature)
@@ -96,15 +97,18 @@ async def run_grounded_feature(
     "rubric": rubric_to_text(rubric),
     "query": query,
     "chat_context": chat_block or "(none)",
+    "template": template_content or "",
   }
   if "{chat_context}" not in user_template:
     format_kwargs.pop("chat_context", None)
+  if "{template}" not in user_template:
+    format_kwargs.pop("template", None)
   user_prompt = user_template.format(**format_kwargs)
   messages = [
     AIMessage(role="system", content=str(prompt.get("system") or "")),
     AIMessage(role="user", content=user_prompt),
   ]
-  completion = await provider.complete(messages)
+  completion = await provider.complete(messages, max_tokens=4096)
 
   citations = [
     {
@@ -147,3 +151,73 @@ async def run_grounded_feature(
       "log_id": log["id"],
     },
   }
+
+
+async def run_grounded_feature_stream(
+  *,
+  feature: str,
+  query: str,
+  sources: list[str] | None = None,
+  document_ids: list[str] | None = None,
+  chat_context: str | None = None,
+  template_content: str | None = None,
+):
+  """Streamed version of run_grounded_feature yielding text chunks as they arrive from LLM."""
+  prompt = get_prompt(feature)
+  rubric = get_rubric(feature)
+  allowed = list(sources or prompt.get("allowed_sources") or [])
+
+  if not allowed:
+    yield "Error: Esta funcionalidad no tiene fuentes de conocimiento configuradas."
+    return
+
+  bundle = await assemble_context(query=query, sources=allowed)
+
+  upload_chunks: list[ContextChunk] = []
+  if document_ids:
+    upload_chunks = chunks_from_documents(document_ids)
+    if upload_chunks:
+      if "uploads" not in bundle.used_sources:
+        bundle.used_sources.append("uploads")
+      existing_ids = {chunk.id for chunk in bundle.chunks}
+      for chunk in upload_chunks:
+        if chunk.id not in existing_ids:
+          bundle.chunks.insert(0, chunk)
+
+  chat_block = (chat_context or "").strip()
+
+  if bundle.is_empty:
+    reason = (
+      "No se encontró información suficiente en las fuentes de conocimiento conectadas. "
+      f"Faltante: {', '.join(bundle.missing_sources) or 'sin contexto relevante'}."
+    )
+    yield f"Error: {reason}"
+    return
+
+  hard_missing = [item for item in bundle.missing_sources if "(" not in item]
+  if set(allowed).issubset(set(hard_missing)):
+    yield f"Error: Las fuentes requeridas no están conectadas ({', '.join(hard_missing)})."
+    return
+
+  provider = resolve_provider()
+  user_template = str(prompt.get("user_template") or "{context}")
+  format_kwargs = {
+    "context": bundle.to_prompt_block(),
+    "rubric": rubric_to_text(rubric),
+    "query": query,
+    "chat_context": chat_block or "(none)",
+    "template": template_content or "",
+  }
+  if "{chat_context}" not in user_template:
+    format_kwargs.pop("chat_context", None)
+  if "{template}" not in user_template:
+    format_kwargs.pop("template", None)
+  user_prompt = user_template.format(**format_kwargs)
+  messages = [
+    AIMessage(role="system", content=str(prompt.get("system") or "")),
+    AIMessage(role="user", content=user_prompt),
+  ]
+
+  async for chunk in provider.complete_stream(messages, max_tokens=8192):
+    yield chunk
+

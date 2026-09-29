@@ -167,48 +167,38 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
     ),
   },
   "mejoras_doc": {
-    "version": 1,
+    "version": 2,
     "feature": "mejoras_doc",
     "allowed_sources": ["jira", "github", "gitlab", "knowledge"],
     "system": (
       "Eres un analista funcional senior especializado en elaborar 'Documentación de Mejoras' corporativas. "
-      "Utiliza ÚNICAMENTE la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
-      "Estructura el documento formalmente en Markdown siguiendo el formato corporativo exacto especificado a continuación:\n\n"
-      "## **FORMATO DOCUMENTACIÓN DE MEJORAS**\n\n"
-      "**_Objetivo del Formato:_** _Registrar de manera estructurada las necesidades funcionales, oportunidades de mejora y nuevos requerimientos identificados por los usuarios funcionales del proyecto, con el fin de facilitar su análisis, evaluación, priorización y definición por parte del equipo del proyecto para su posible incorporación en el nuevo Sistema de Información_\n\n"
-      "**_Código Requerimiento:_** [Indicar código ej. M1, M2, M6 según inventario]\n\n"
-      "| Fecha: [Fecha] | Módulo/Funcionalidad: [Nombre] |\n"
-      "| --- | --- |\n"
-      "| Sede(s): [HIC / ICV / IMAP] | Área(s): [Nombre de área(s)] |\n\n"
-      "# Necesidad identificada\n\n"
-      "**Describe ¿Cómo funciona actualmente?** (incluye pantallas)\n"
-      "[Detallar flujo actual, pantallas involucradas e ineficiencias identificadas]\n\n"
-      "**Impacto para el negocio (en tiempo, costos, reprocesos, etc)**\n"
-      "[Detallar cuantificación o calificación del impacto operacional/negocio]\n\n"
-      "**¿Cómo le gustaría que funcionara en el nuevo sistema?**\n"
-      "[Detallar requerimiento funcional deseado, comportamiento y criterios de aceptación]\n\n"
-      "**Prioridad**\n"
-      "[Alta / Media / Baja - Justificada]\n\n"
-      "**Observaciones complementarias o recomendaciones a tener en cuenta**\n"
-      "[Reglas de negocio adicionales, restricciones o consideraciones especiales]\n\n"
-      "**Observaciones del Equipo del Proyecto**\n"
-      "[Evaluación del equipo técnico/QA y recomendaciones]\n\n"
-      "# Firma Participantes o Aprobadores\n\n"
-      "| **Nombre** | **Cargo** | **Sede** | **Rol** | **Aprobación** |\n"
-      "| ---------- | --------- | -------- | ------- | -------------- |\n"
-      "|            |           |          |         |                |\n\n"
-      "_Formato Elaborado por: Ing María Eugenia Gutiérrez - Jefe Corporativo de Proyectos de Software_\n\n"
-      "Cita las evidencias y fuentes utilizadas como [1], [2]."
+      "Tu tarea es completar CADA sección del documento de mejoras con contenido específico, detallado y bien redactado, "
+      "basándote ÚNICAMENTE en la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
+      "\n\nREGLAS CRÍTICAS DE GENERACIÓN:"
+      "\n1. DEBES completar TODAS las secciones del template proporcionado sin excepción. No omitas ni dejes vacía ninguna sección."
+      "\n2. Para la sección '## Necesidad identificada', redacta OBLIGATORIAMENTE una explicación amplia, clara y estructurada del problema u oportunidad planteada. NUNCA la dejes vacía ni en blanco."
+      "\n3. ELIMINA por completo todos los textos y prefijos de ejemplo tipo 'Ej: “Que el sistema contemple…”' o 'Ej: “Actualmente, cuando…”'."
+      "\n4. Reemplaza todos los placeholders {{TAG_NAME}} (como {{NECESIDAD}}, {{DESCRIPCION}}, {{IMPACTO}}, {{REQ_FUNCIONAL}}, {{REQ_TECNICO}}, {{BENEFICIO}}, {{PRIORIDAD}}, {{OBSERVACIONES}}, {{FIRMAS}}) con la redacción completa de cada punto."
+      "\n5. Mantén la estructura exacta de encabezados Markdown del template (# para H1, ## para H2, **Texto** para sub-secciones) y conserva o genera tablas Markdown estructuradas donde corresponda."
+      "\n6. Redacta de forma continua y exhaustiva desde la primera sección hasta la sección final de 'Firmas Participantes', asegurando un documento corporativo profesional y completo."
+      "\n7. Cita las evidencias y fuentes utilizadas como [1], [2] al final."
+      "\n8. REGLA DE MÚLTIPLES ARTEFACTOS: Si la solicitud pide explícitamente generar un documento de mejora por CADA punto, módulo, ítem o requerimiento enlistado, NO consolides todo en un solo archivo. DEBES generar cada documento de mejora de manera independiente envolviendo CADA UNO en etiquetas XML estrictas: <artifact title=\"Documento de Mejora - [Nombre del Módulo o Punto]\" extension=\"docx\">\n[Contenido completo del documento de mejora con su plantilla]\n</artifact>."
     ),
     "user_template": (
       "Solicitud de mejora: {query}\n\n"
       "CONTEXTO ADICIONAL / CHAT / Q&A:\n{chat_context}\n\n"
       "DOCUMENTACIÓN Y EVIDENCIA:\n{context}\n\n"
       "RÚBRICA CORPORATIVA:\n{rubric}\n\n"
-      "Genera el Formato de Documentación de Mejoras siguiendo estrictamente la plantilla corporativa."
+      "PLANTILLA CORPORATIVA ACTIVA (respeta EXACTAMENTE esta estructura en cada artefacto):\n"
+      "```\n{template}\n```\n\n"
+      "INSTRUCCIÓN DE SALIDA:\n"
+      "- Si se pide generar un documento por cada punto o módulo, genera CADA documento separado en etiquetas <artifact title=\"[Nombre]\" extension=\"docx\">...</artifact>.\n"
+      "- Si es una sola solicitud general, genera el documento Markdown completo directametne.\n"
+      "- Llena con especial detalle la sección '## Necesidad identificada' y elimina prefijos 'Ej: ...'."
     ),
   },
 }
+
 
 DEFAULT_RUBRICS: dict[str, dict[str, Any]] = {
   "standup": {
