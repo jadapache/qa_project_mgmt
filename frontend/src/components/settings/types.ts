@@ -19,7 +19,7 @@ export type RecommendedModel = {
 export type CloudProvider = {
   id: string
   name: string
-  recommendedModels: RecommendedModel[]
+  recommendedModels?: RecommendedModel[]
 }
 
 export type SettingsTabItem = {

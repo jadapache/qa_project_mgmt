@@ -95,10 +95,10 @@ export function useAiSettingsManager() {
     const load = async () => {
       setLoadingAi(true)
       try {
+        await loadDynamicCatalog(false)
         const settings = await api.getAiSettings()
         if (!isMounted) return
         setAi(settings)
-        void loadDynamicCatalog(false)
         if (settings.provider) {
           setProvider(settings.provider)
         }

@@ -54,38 +54,8 @@ export const OLLAMA_RECOMMENDED: RecommendedModel[] = [
 ]
 
 export const CLOUD_PROVIDERS: CloudProvider[] = [
-  {
-    id: 'groq',
-    name: 'Groq (API en la Nube)',
-    recommendedModels: [
-      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Recomendado)' },
-      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Ultra Rápido)' },
-      { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B (Contexto 32k)' },
-    ],
-  },
-  {
-    id: 'gemini',
-    name: 'Google Gemini (API en la Nube)',
-    recommendedModels: [
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Recomendado / 1M Contexto)' },
-      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Nueva Generación)' },
-      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Razonamiento Complejo)' },
-    ],
-  },
-  {
-    id: 'openai',
-    name: 'OpenAI (API en la Nube)',
-    recommendedModels: [
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Recomendado)' },
-      { id: 'gpt-4o', name: 'GPT-4o (Completo)' },
-    ],
-  },
-  {
-    id: 'claude',
-    name: 'Claude (Anthropic API en la Nube)',
-    recommendedModels: [
-      { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku (Recomendado)' },
-      { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet (Razonamiento Avanzado)' },
-    ],
-  },
+  { id: 'groq', name: 'Groq (API en la Nube)' },
+  { id: 'gemini', name: 'Google Gemini (API en la Nube)' },
+  { id: 'openai', name: 'OpenAI (API en la Nube)' },
+  { id: 'claude', name: 'Claude (Anthropic API en la Nube)' },
 ]

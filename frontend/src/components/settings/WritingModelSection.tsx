@@ -16,7 +16,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type { AISettings, ModelCatalogItem } from '../../api/client'
-import { BUILT_IN_MODELS, CLOUD_PROVIDERS, OLLAMA_RECOMMENDED } from './constants'
+import { BUILT_IN_MODELS, OLLAMA_RECOMMENDED } from './constants'
 
 export type WritingModelSectionProps = {
   ai: AISettings | null
@@ -447,22 +447,9 @@ export const WritingModelSection = ({
 
           {/* CASO 3: PROVEEDORES CLOUD (GROQ, GEMINI, OPENAI, CLAUDE) */}
           {['groq', 'gemini', 'openai', 'claude'].includes(provider) && (() => {
-            const matchingCatalog = catalogModels.filter(
-              (m) => m.provider === provider && m.task_type === 'chat_writing',
-            )
-            const fallbackModels =
-              CLOUD_PROVIDERS.find((p) => p.id === provider)?.recommendedModels || []
-
-            const dropdownModels =
-              matchingCatalog.length > 0
-                ? matchingCatalog.map((m) => ({
-                  id: m.id,
-                  name: m.name,
-                }))
-                : fallbackModels.map((m) => ({
-                  id: m.id,
-                  name: m.name,
-                }))
+            const dropdownModels = catalogModels
+              .filter((m) => m.provider === provider && m.task_type === 'chat_writing')
+              .map((m) => ({ id: m.id, name: m.name }))
 
             const currentModelDetails = catalogModels.find(
               (m) => m.provider === provider && m.id === model,
