@@ -340,21 +340,11 @@ async def handle_agentic_prompt(req: AgenticPromptRequest):
             document_updates=answer_text,
         )
     except Exception as err:
-        fallback_msg = f"He procesado tu solicitud sobre: '{prompt_str}'. "
-        if req.current_document:
-            fallback_msg += "\n\nSe mantuvo el documento actual con los requerimientos integrados."
-
-        return AgenticPromptResponse(
-            intent_detected="general_rag_fallback",
-            requires_document_mutation=False,
-            rag_knowledge_used=["Base de Conocimiento QA MGMT"],
-            planned_operations=[],
-            operations=[],
-            validation_status={"valid": True, "details": [str(err)]},
-            assistant_message=fallback_msg,
-            answer=fallback_msg,
-            document_updates=req.current_document or None,
-        )
+        err_msg = str(err)
+        lower_err = err_msg.lower()
+        if any(term in lower_err for term in ["api key", "unauthorized", "authentication", "auth", "401", "forbidden", "403", "invalid_api_key"]):
+            err_msg = f"Error de autenticación con el modelo LLM: La API key no es válida o expiró ({err_msg}). Por favor configúrala en Ajustes."
+        raise HTTPException(status_code=502, detail=err_msg)
 
 
 @router.post("/agentic-prompt-stream")
@@ -401,8 +391,12 @@ async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
                 accumulated_chunks.append(chunk)
                 yield f"data: {json.dumps({'type': 'token', 'text': chunk})}\n\n"
 
-            # Al finalizar el stream, enviar un evento 'full' con todos los datos
+            # Al finalizar el stream, verificar que se haya recibido contenido válido
             full_content = "".join(accumulated_chunks)
+            if not full_content.strip():
+                yield f"data: {json.dumps({'type': 'error', 'message': 'El modelo LLM no generó contenido. Verifica tu conexión o clave de API en Configuración.'})}\n\n"
+                return
+
             final_response = {
                 "answer": full_content,
                 "document_updates": full_content,
@@ -412,7 +406,11 @@ async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
             yield f"data: {json.dumps({'type': 'full', 'data': final_response})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as err:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(err)})}\n\n"
+            err_msg = str(err)
+            lower_err = err_msg.lower()
+            if any(term in lower_err for term in ["api key", "unauthorized", "authentication", "auth", "401", "forbidden", "403", "invalid_api_key"]):
+                err_msg = f"Error de autenticación con el modelo LLM: La API key guardada no es válida o expiró ({err_msg}). Por favor actualízala en Configuración."
+            yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
 
     return StreamingResponse(stream_generator(), media_type="text/event-stream")
 

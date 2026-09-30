@@ -95,7 +95,21 @@ async def ai_models_catalog(
 
 @router.get("/ai/settings")
 async def ai_settings() -> dict[str, Any]:
+  import os
+  from app.ai.providers.registry import find_provider_spec
+
   config = get_ai_settings()
+  provider = (config.get("provider") or "").lower()
+  spec = find_provider_spec(provider)
+  active_key_set = False
+  if spec:
+    if spec.is_local:
+      active_key_set = bool(config.get("ollama_base_url"))
+    elif spec.config_key:
+      active_key_set = bool(config.get(spec.config_key) or (spec.env_key and os.getenv(spec.env_key)))
+    elif spec.env_key:
+      active_key_set = bool(os.getenv(spec.env_key))
+
   return {
     "provider": config.get("provider") or "",
     "model": config.get("model") or "",
@@ -103,11 +117,12 @@ async def ai_settings() -> dict[str, Any]:
     "transcription_model": config.get("transcription_model") or "whisper-large-v3",
     "voice_command_provider": config.get("voice_command_provider") or "groq",
     "voice_command_model": config.get("voice_command_model") or "whisper-large-v3",
-    "openai_api_key_set": bool(config.get("openai_api_key")),
-    "claude_api_key_set": bool(config.get("claude_api_key")),
-    "groq_api_key_set": bool(config.get("groq_api_key")),
-    "gemini_api_key_set": bool(config.get("gemini_api_key")),
+    "openai_api_key_set": bool(config.get("openai_api_key") or os.getenv("OPENAI_API_KEY")),
+    "claude_api_key_set": bool(config.get("claude_api_key") or os.getenv("ANTHROPIC_API_KEY")),
+    "groq_api_key_set": bool(config.get("groq_api_key") or os.getenv("GROQ_API_KEY")),
+    "gemini_api_key_set": bool(config.get("gemini_api_key") or os.getenv("GEMINI_API_KEY")),
     "ollama_base_url": config.get("ollama_base_url"),
+    "active_api_key_set": active_key_set,
   }
 
 
@@ -123,21 +138,29 @@ async def update_ai_settings(body: AISettingsUpdate) -> dict[str, Any]:
 
 
 class AITestConnectionRequest(BaseModel):
-  provider: str
-  model: str
+  provider: str | None = None
+  model: str | None = None
   api_key: str | None = None
   ollama_base_url: str | None = None
 
 
 @router.post("/ai/test-connection")
 async def test_ai_connection(body: AITestConnectionRequest) -> dict[str, Any]:
-  provider_name = body.provider.lower()
-  model_name = body.model.strip()
+  config = get_ai_settings()
+  provider_name = (body.provider or config.get("provider") or "").lower()
+  model_name = (body.model or config.get("model") or "").strip()
+  if not provider_name:
+    return {
+      "ok": False,
+      "message": "No hay ningún proveedor de IA configurado en el sistema.",
+    }
   if not model_name:
-    raise HTTPException(status_code=400, detail="Debes especificar un modelo válido para la prueba.")
+    return {
+      "ok": False,
+      "message": f"No hay un modelo especificado para el proveedor '{provider_name}'.",
+    }
 
   test_messages = [AIMessage(role="user", content="Hola, responde únicamente con la palabra 'OK'.")]
-
 
   try:
     p = resolve_provider(
@@ -150,13 +173,17 @@ async def test_ai_connection(body: AITestConnectionRequest) -> dict[str, Any]:
 
     return {
       "ok": True,
-      "message": f"Conexión exitosa con {body.provider} ({model_name}).",
+      "message": f"Conexión exitosa con {provider_name} ({model_name}).",
       "response": res.text,
+      "provider": provider_name,
+      "model": model_name,
     }
   except Exception as e:
     return {
       "ok": False,
-      "message": f"Error al probar conexión con {body.provider} ({model_name}): {e}",
+      "message": f"Error al probar conexión con {provider_name} ({model_name}): {e}",
+      "provider": provider_name,
+      "model": model_name,
     }
 
 

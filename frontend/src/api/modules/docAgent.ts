@@ -72,7 +72,7 @@ export const docAgentApi = {
       try {
         const body = await res.json()
         detail = body.detail ?? detail
-      } catch {}
+      } catch { }
       throw new Error(detail)
     }
 
@@ -97,24 +97,26 @@ export const docAgentApi = {
       for (const line of lines) {
         const trimmed = line.trim()
         if (trimmed.startsWith('data: ')) {
+          let parsed: any = null
           try {
-            const jsonStr = trimmed.slice(6)
-            const parsed = JSON.parse(jsonStr)
-            if (parsed.type === 'token') {
-              const chunk = parsed.text || ''
-              accumulatedText += chunk
-              onChunk(accumulatedText, chunk)
-            } else if (parsed.type === 'full') {
-              fullResponseData = parsed.data
-              if (parsed.data?.document_updates || parsed.data?.answer) {
-                accumulatedText = parsed.data.document_updates || parsed.data.answer
-                onChunk(accumulatedText, '')
-              }
-            } else if (parsed.type === 'error') {
-              throw new Error(parsed.message || 'Streaming error')
-            }
-          } catch (e) {
+            parsed = JSON.parse(trimmed.slice(6))
+          } catch {
             // ignore JSON parse errors for incomplete data lines
+            continue
+          }
+
+          if (parsed.type === 'token') {
+            const chunk = parsed.text || ''
+            accumulatedText += chunk
+            onChunk(accumulatedText, chunk)
+          } else if (parsed.type === 'full') {
+            fullResponseData = parsed.data
+            if (parsed.data?.document_updates || parsed.data?.answer) {
+              accumulatedText = parsed.data.document_updates || parsed.data.answer
+              onChunk(accumulatedText, '')
+            }
+          } else if (parsed.type === 'error') {
+            throw new Error(parsed.message || 'Error durante la generación.')
           }
         }
       }
@@ -136,6 +138,12 @@ export const docAgentApi = {
       }
     }
 
+    if (!accumulatedText.trim()) {
+      throw new Error(
+        'El modelo no devolvió ninguna respuesta o la conexión falló. Verifica tu API Key y la configuración del modelo.',
+      )
+    }
+
     return {
       answer: accumulatedText,
       document_updates: accumulatedText,
@@ -153,7 +161,7 @@ export const docAgentApi = {
       try {
         const body = await res.json()
         detail = body.detail ?? detail
-      } catch {}
+      } catch { }
       throw new Error(detail)
     }
     return res.blob()

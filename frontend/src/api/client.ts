@@ -124,6 +124,7 @@ export type AISettings = {
   groq_api_key_set: boolean
   gemini_api_key_set?: boolean
   ollama_base_url: string
+  active_api_key_set?: boolean
 }
 
 export type ModelCatalogItem = {

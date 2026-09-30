@@ -219,9 +219,8 @@ async def run_grounded_feature_stream(
         template_content=template_content,
     )
     if isinstance(prep, dict):  # refused
-        reason = prep.get("reason", "Error desconocido.")
-        yield f"Error: {reason}"
-        return
+        reason = prep.get("reason", "Error desconocido al preparar contexto.")
+        raise RuntimeError(reason)
 
     provider = resolve_provider()
     accumulated_text: list[str] = []

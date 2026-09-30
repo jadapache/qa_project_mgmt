@@ -3,7 +3,7 @@
  * prompt del usuario → llamada al backend → parsing de artefactos → actualización de estado.
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { api, type KnowledgeDocument } from '../api/client'
 import { generateArtifactSubtitle, parseMultipleArtifacts } from '../utils/artifactSplitter'
 import type { ThinkingStep, ChatPersistMessage, DocumentArtifact, ChatConversation } from './useChatPersistence'
@@ -34,6 +34,7 @@ interface UseAgenticGenerationOptions {
   createConversation: (name?: string) => ChatConversation
   renameConversation: (id: string, name: string) => void
   onResetPromptInputs?: () => void
+  onError?: (errorMessage: string, isAuthError: boolean) => void
 }
 
 export interface GenerationResult {
@@ -45,6 +46,18 @@ export interface GenerationResult {
 export function useAgenticGeneration(opts: UseAgenticGenerationOptions): GenerationResult {
   const [isGenerating, setIsGenerating] = useState(false)
   const [liveThinkingSteps, setLiveThinkingSteps] = useState<ThinkingStep[]>([])
+  const liveThinkingStepsRef = useRef<ThinkingStep[]>([])
+
+  const updateLiveThinkingSteps = useCallback(
+    (updater: ThinkingStep[] | ((prev: ThinkingStep[]) => ThinkingStep[])) => {
+      setLiveThinkingSteps((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater
+        liveThinkingStepsRef.current = next
+        return next
+      })
+    },
+    [],
+  )
 
   const {
     config,
@@ -67,6 +80,7 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
     createConversation,
     renameConversation,
     onResetPromptInputs,
+    onError,
   } = opts
 
   const handleSendMessage = useCallback(
@@ -107,18 +121,18 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
 
       // Initialize thinking steps
       const steps: ThinkingStep[] = [
-        { id: '1', label: '1. RAG Intent: Identificando objetivo y entidades de negocio', status: 'in_progress' },
-        { id: '2', label: '2. Retrieval: Consultando fuentes de conocimiento activas', status: 'pending' },
-        { id: '3', label: '3. Document Agent: Mutando árbol canónico del documento', status: 'pending' },
-        { id: '4', label: '4. Tag Validation: Verificando etiquetas y placeholders {{TAG}}', status: 'pending' },
-        { id: '5', label: '5. Synchronize: Renderizando canvas en vivo Univer', status: 'pending' },
+        { id: '1', label: '1. Identificando objetivo y entidades de negocio', status: 'in_progress' },
+        { id: '2', label: '2. Consultando fuentes de conocimiento activas', status: 'pending' },
+        { id: '3', label: '3. Mutando árbol canónico del documento', status: 'pending' },
+        { id: '4', label: '4. Verificando plantilla', status: 'pending' },
+        { id: '5', label: '5. Renderizando contenido', status: 'pending' },
       ]
-      setLiveThinkingSteps(steps)
+      updateLiveThinkingSteps(steps)
 
       try {
         // Step 1 -> Step 2
         await new Promise((r) => setTimeout(r, 400))
-        setLiveThinkingSteps((prev) =>
+        updateLiveThinkingSteps((prev) =>
           prev.map((s) =>
             s.id === '1'
               ? { ...s, status: 'completed' }
@@ -144,7 +158,7 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
             latestAccumulatedText = accumulatedText
 
             // Update live thinking steps as chunks stream in
-            setLiveThinkingSteps((prev) =>
+            updateLiveThinkingSteps((prev) =>
               prev.map((s) =>
                 s.id === '1' || s.id === '2'
                   ? { ...s, status: 'completed' }
@@ -192,7 +206,14 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
           },
         )
 
-        let finalContent = res.document_updates || res.answer || latestAccumulatedText || currentDocContent
+        const candidateContent = res.document_updates || res.answer || latestAccumulatedText
+        if (!candidateContent || !candidateContent.trim()) {
+          throw new Error(
+            'El modelo no generó contenido para el documento. Verifica la conexión y tu clave de API en Configuración.',
+          )
+        }
+
+        let finalContent = candidateContent
         const rawOps = (res.operations ?? res.planned_operations ?? []) as unknown[]
         const operations = rawOps.filter(
           (op): op is CanonicalDocumentOperation =>
@@ -211,22 +232,22 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
           finalContent = adapter.getRawContent()
         }
 
-        setLiveThinkingSteps((prev) => prev.map((s) => ({ ...s, status: 'completed' })))
+        updateLiveThinkingSteps((prev) => prev.map((s) => ({ ...s, status: 'completed' })))
 
         const backendArtifacts = res.artifacts
         const extractedArtifacts =
           backendArtifacts && backendArtifacts.length > 0
             ? backendArtifacts.map((a) => ({
-                title: a.title,
-                extension: (a.extension as 'docx' | 'xlsx' | 'txt') || 'docx',
-                content: a.content,
-              }))
+              title: a.title,
+              extension: (a.extension as 'docx' | 'xlsx' | 'txt') || 'docx',
+              content: a.content,
+            }))
             : parseMultipleArtifacts(
-                finalContent,
-                config.docxTitle || config.title,
-                'docx',
-                templateContent,
-              )
+              finalContent,
+              config.docxTitle || config.title,
+              'docx',
+              templateContent,
+            )
 
         let updatedArtifacts: Artifact[] = [...artifacts]
         let targetArtifactId: string | null = activeArtifactId
@@ -309,16 +330,38 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
         console.error('Error in agentic pipeline:', err)
         const errMsg = err instanceof Error ? err.message : 'Error desconocido'
 
+        const isAuthError =
+          /api\s*key|autenticaci[oó]n|authentication|unauthorized|401|forbidden|403|invalid_api_key/i.test(errMsg)
+
+        // Mark current liveThinkingSteps with failed status
+        const currentSteps = liveThinkingStepsRef.current.length > 0 ? liveThinkingStepsRef.current : steps
+        const failedSteps: ThinkingStep[] = currentSteps.map((s) => {
+          if (s.status === 'in_progress') {
+            return { ...s, status: 'failed', details: errMsg }
+          }
+          if (s.status === 'completed') {
+            return s
+          }
+          return { ...s, status: 'failed' }
+        })
+
+        const displayMsg = isAuthError
+          ? `Error de autenticación: La API key guardada no es válida (${errMsg}). Por favor actualízala en Configuración.`
+          : `Error al conectar o recibir respuesta del modelo: ${errMsg}`
+
         const assistantMessage: ChatPersistMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: `Error al procesar la solicitud: ${errMsg}`,
+          content: displayMsg,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          thinkingSteps: failedSteps,
         }
+
         onUpdateConversation({ messages: [...updatedMsgs, assistantMessage] })
+        onError?.(displayMsg, isAuthError)
       } finally {
         setIsGenerating(false)
-        setLiveThinkingSteps([])
+        updateLiveThinkingSteps([])
       }
     },
     [
@@ -343,6 +386,8 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
       onDocHistoryPush,
       onSetDocPanelCollapsed,
       onResetPromptInputs,
+      onError,
+      updateLiveThinkingSteps,
     ],
   )
 
