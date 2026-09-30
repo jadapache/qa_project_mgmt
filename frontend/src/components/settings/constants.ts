@@ -1,0 +1,91 @@
+import type { BuiltInModel, CloudProvider, RecommendedModel } from './types'
+
+export const BUILT_IN_MODELS: BuiltInModel[] = [
+  {
+    id: 'gemma3:1b',
+    name: 'Gemma 3 1B (Rápido)',
+    tag: 'gemma:2b',
+    description: 'Modelo ultra rápido. Funciona en cualquier equipo con ~1GB de RAM. Ideal para resúmenes ágiles.',
+    size: '~1019 MiB',
+    tokens: '32.768 tokens',
+  },
+  {
+    id: 'qwen3.5:4b',
+    name: 'Qwen 3.5 4B (Alta Calidad)',
+    tag: 'qwen2.5:7b',
+    description: 'Modelo Qwen de alta calidad para resúmenes y análisis complejos. Mejor opción Qwen local.',
+    size: '~2.6 GiB',
+    tokens: '32.768 tokens',
+  },
+  {
+    id: 'qwen3.5:2b',
+    name: 'Qwen 3.5 2B (Equilibrado)',
+    tag: 'qwen2.5:3b',
+    description: 'Modelo Qwen equilibrado para análisis y resúmenes. Alta precisión con requerimientos moderados.',
+    size: '~1.2 GiB',
+    tokens: '32.768 tokens',
+  },
+  {
+    id: 'deepseek-r1:8b',
+    name: 'DeepSeek R1 8B (Razonamiento)',
+    tag: 'deepseek-r1:8b',
+    description: 'Modelo de razonamiento estructurado (Chain of Thought) para análisis profundo de QA y arquitectura.',
+    size: '~4.9 GiB',
+    tokens: '65.536 tokens',
+  },
+  {
+    id: 'llama3.2:3b',
+    name: 'Llama 3.2 3B (Rápido & Equilibrado)',
+    tag: 'llama3.2:3b',
+    description: 'Modelo ligero de Meta optimizado para baja latencia y alta precisión en equipos locales.',
+    size: '~2.0 GiB',
+    tokens: '131.072 tokens',
+  },
+]
+
+export const OLLAMA_RECOMMENDED: RecommendedModel[] = [
+  { id: 'gemma3:1b', name: 'Gemma 3 1B (Recomendado, ~800MB)' },
+  { id: 'llama3.2', name: 'Llama 3.2 3B (Ultra Rápido)' },
+  { id: 'qwen2.5:3b', name: 'Qwen 2.5 3B (Equilibrado)' },
+  { id: 'qwen2.5:7b', name: 'Qwen 2.5 7B (Alta Calidad)' },
+  { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B (Razonamiento)' },
+  { id: 'mistral', name: 'Mistral 7B (Propósito General)' },
+  { id: 'phi4', name: 'Phi-4 14B (Lógica y Código)' },
+]
+
+export const CLOUD_PROVIDERS: CloudProvider[] = [
+  {
+    id: 'groq',
+    name: 'Groq (API en la Nube)',
+    recommendedModels: [
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Recomendado)' },
+      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Ultra Rápido)' },
+      { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B (Contexto 32k)' },
+    ],
+  },
+  {
+    id: 'gemini',
+    name: 'Google Gemini (API en la Nube)',
+    recommendedModels: [
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Recomendado / 1M Contexto)' },
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Nueva Generación)' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Razonamiento Complejo)' },
+    ],
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI (API en la Nube)',
+    recommendedModels: [
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Recomendado)' },
+      { id: 'gpt-4o', name: 'GPT-4o (Completo)' },
+    ],
+  },
+  {
+    id: 'claude',
+    name: 'Claude (Anthropic API en la Nube)',
+    recommendedModels: [
+      { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku (Recomendado)' },
+      { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet (Razonamiento Avanzado)' },
+    ],
+  },
+]

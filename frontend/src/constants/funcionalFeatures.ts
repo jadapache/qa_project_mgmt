@@ -28,7 +28,7 @@ export const FUNCIONAL_FEATURES: FuncionalFeatureConfig[] = [
     title: 'Generador de Documento de Mejoras',
     subtitle: 'Sube especificaciones o minutas y genera/mantiene el documento funcional corporativo en tiempo real.',
     uploadTags: 'mejoras_doc',
-    placeholder: 'Escribe tu indicación o consulta...',
+    placeholder: 'Escribe tu petición o consulta...',
     defaultQuery: 'Genera el Documento de Mejora detallado basado en la información recopilada.',
     defaultTemplate: `# Documento de Mejora y Requerimientos Funcionales
 

@@ -442,7 +442,7 @@ export const AgenticDocumentWorkspace = ({
     if (!llmStatus.isValid && llmStatus.checked) {
       toast.error(
         llmStatus.errorMessage ||
-          'No se tiene un acceso válido al modelo LLM. Configura tu API Key antes de enviar.',
+        'No se tiene un acceso válido al modelo LLM. Configura tu API Key antes de enviar.',
         llmStatus.errorTitle || 'Petición Restringida',
         8000,
       )
@@ -487,11 +487,10 @@ export const AgenticDocumentWorkspace = ({
 
         {/* Center Chat Panel */}
         <div
-          className={`flex flex-col overflow-hidden bg-white border-r border-slate-200 shadow-xs transition-all duration-200 ${
-            docPanelCollapsed
+          className={`flex flex-col overflow-hidden bg-white border-r border-slate-200 shadow-xs transition-all duration-200 ${docPanelCollapsed
               ? 'flex-1'
               : 'w-full max-w-[480px] xl:max-w-[540px] shrink-0'
-          }`}
+            }`}
         >
           {/* Chat Thread Messages */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
@@ -636,13 +635,12 @@ export const AgenticDocumentWorkspace = ({
                   placeholder={
                     !llmStatus.isValid && llmStatus.checked
                       ? '⚠️ Petición restringida: Configura una API key válida en Configuración para habilitar el modelo...'
-                      : config.placeholder || 'Escribe tu indicación o consulta...'
+                      : config.placeholder || 'Escribe tu petición o consulta...'
                   }
                   disabled={isGenerating}
                   style={{ height: `${textareaHeight}px` }}
-                  className={`w-full bg-transparent px-1 pr-16 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans overflow-y-auto scrollbar-thin transition-[height] duration-150 ease-out leading-normal ${
-                    !llmStatus.isValid && llmStatus.checked ? 'placeholder:text-rose-400 font-medium' : ''
-                  }`}
+                  className={`w-full bg-transparent px-1 pr-16 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans overflow-y-auto scrollbar-thin transition-[height] duration-150 ease-out leading-normal ${!llmStatus.isValid && llmStatus.checked ? 'placeholder:text-rose-400 font-medium' : ''
+                    }`}
                 />
 
                 {/* Attached Files Inline Badge Row (Inside prompt card) */}
@@ -749,17 +747,16 @@ export const AgenticDocumentWorkspace = ({
                     <button
                       type="submit"
                       disabled={isGenerating || !draft.trim() || (!llmStatus.isValid && llmStatus.checked)}
-                      className={`h-8 w-8 rounded-full flex items-center justify-center transition shrink-0 shadow-xs ml-1 ${
-                        !llmStatus.isValid && llmStatus.checked
+                      className={`h-8 w-8 rounded-full flex items-center justify-center transition shrink-0 shadow-xs ml-1 ${!llmStatus.isValid && llmStatus.checked
                           ? 'bg-rose-100 text-rose-500 border border-rose-300/80 cursor-not-allowed'
                           : 'bg-[#002777] text-white hover:bg-[#003399] disabled:opacity-30 disabled:hover:bg-[#002777] cursor-pointer'
-                      }`}
+                        }`}
                       title={
                         !llmStatus.isValid && llmStatus.checked
                           ? 'Petición restringida: Sin acceso válido al modelo LLM'
                           : isGenerating
-                          ? 'Generando respuesta...'
-                          : 'Enviar consulta'
+                            ? 'Generando respuesta...'
+                            : 'Enviar consulta'
                       }
                     >
                       {isGenerating ? (
