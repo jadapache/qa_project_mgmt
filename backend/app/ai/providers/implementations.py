@@ -2,15 +2,38 @@
 
 from __future__ import annotations
 
-import litellm
+import logging
+import re
 from typing import Any
 
+import litellm
+
 from app.ai.providers.base import AICompletion, AIMessage, AIProvider
-from app.ai.providers.registry import ProviderSpec, find_provider_spec
+from app.ai.providers.registry import (
+  ProviderSpec,
+  find_provider_spec,
+  resolve_model_max_tokens,
+)
+
+logger = logging.getLogger(__name__)
 
 # Disable litellm telemetry and set quiet mode
 litellm.telemetry = False
 litellm.suppress_debug_info = True
+
+
+def _handle_completion_error(err: Exception) -> Exception:
+  err_str = str(err)
+  if "reduce max_tokens" in err_str or "OTPM" in err_str or "output tokens per minute" in err_str:
+    limit_match = re.search(r"Limit\s+(\d+)", err_str, re.IGNORECASE)
+    req_match = re.search(r"Requested\s+(\d+)", err_str, re.IGNORECASE)
+    req_tokens = req_match.group(1) if req_match else "solicitada"
+    limit_tokens = limit_match.group(1) if limit_match else "establecido"
+    return RuntimeError(
+      f"La solicitud con {req_tokens} tokens supera el límite de {limit_tokens} tokens de salida para este modelo. "
+      f"Te sugerimos seleccionar un modelo diferente en Configuración (Settings)."
+    )
+  return err
 
 
 class LiteLLMProvider(AIProvider):
@@ -99,16 +122,24 @@ class LiteLLMProvider(AIProvider):
       if "temperature" not in kwargs:
         kwargs["temperature"] = 0.2
 
-    effective_max_tokens = max_tokens if max_tokens is not None else (self.spec.default_max_tokens or 4096)
-    if effective_max_tokens is not None:
-      kwargs["max_tokens"] = effective_max_tokens
+    effective_max_tokens = resolve_model_max_tokens(
+      self.id,
+      chosen_raw,
+      requested_max=max_tokens,
+      is_stream=False,
+    )
+    kwargs["max_tokens"] = effective_max_tokens
 
     if self.api_key:
       kwargs["api_key"] = self.api_key
     if self.base_url:
       kwargs["api_base"] = self.base_url
 
-    response = await litellm.acompletion(**kwargs)
+    try:
+      response = await litellm.acompletion(**kwargs)
+    except Exception as err:
+      raise _handle_completion_error(err) from err
+
     raw_dict = response.model_dump() if hasattr(response, "model_dump") else dict(response)
 
     text = ""
@@ -141,16 +172,24 @@ class LiteLLMProvider(AIProvider):
       if "temperature" not in kwargs:
         kwargs["temperature"] = 0.2
 
-    effective_max_tokens = max_tokens if max_tokens is not None else (self.spec.default_max_tokens or 8192)
-    if effective_max_tokens is not None:
-      kwargs["max_tokens"] = effective_max_tokens
+    effective_max_tokens = resolve_model_max_tokens(
+      self.id,
+      chosen_raw,
+      requested_max=max_tokens,
+      is_stream=True,
+    )
+    kwargs["max_tokens"] = effective_max_tokens
 
     if self.api_key:
       kwargs["api_key"] = self.api_key
     if self.base_url:
       kwargs["api_base"] = self.base_url
 
-    response = await litellm.acompletion(**kwargs)
+    try:
+      response = await litellm.acompletion(**kwargs)
+    except Exception as err:
+      raise _handle_completion_error(err) from err
+
     async for chunk in response:
       if hasattr(chunk, "choices") and chunk.choices:
         choice = chunk.choices[0]

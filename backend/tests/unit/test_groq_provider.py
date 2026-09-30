@@ -77,3 +77,60 @@ def test_resolve_provider_with_registry():
     assert p_ollama.id == "ollama"
     assert p_ollama._format_model_name("llama3.2") == "ollama_chat/llama3.2"
 
+
+def test_resolve_model_max_tokens():
+    from app.ai.providers.registry import resolve_model_max_tokens
+    # Qwen on Groq has 950 limit defined in catalog
+    assert resolve_model_max_tokens("groq", "qwen/qwen3.8-27b", 4096) == 950
+    # Small requested max_tokens is preserved
+    assert resolve_model_max_tokens("groq", "qwen/qwen3.8-27b", 100) == 100
+    # Llama 3.3 70B uses requested or default
+    assert resolve_model_max_tokens("groq", "llama-3.3-70b-versatile", 4096) == 4096
+    # Gemini uses requested or default
+    assert resolve_model_max_tokens("gemini", "gemini-1.5-flash", 8192) == 8192
+
+
+@pytest.mark.asyncio
+async def test_qwen_groq_caps_max_tokens():
+    provider = GroqProvider(api_key="gsk_testkey")
+    messages = [AIMessage(role="user", content="Test Qwen")]
+
+    mock_choice = MagicMock()
+    mock_choice.message.content = "Respuesta de Qwen"
+
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    mock_response.model_dump.return_value = {"choices": [{"message": {"content": "Respuesta de Qwen"}}]}
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_acompletion:
+        mock_acompletion.return_value = mock_response
+        result = await provider.complete(messages, model="qwen/qwen3.8-27b", max_tokens=4096)
+
+        assert result.text == "Respuesta de Qwen"
+        assert mock_acompletion.call_count == 1
+        kwargs = mock_acompletion.call_args[1]
+        assert kwargs["max_tokens"] == 950
+
+
+@pytest.mark.asyncio
+async def test_ratelimit_friendly_exception():
+    provider = GroqProvider(api_key="gsk_testkey")
+    messages = [AIMessage(role="user", content="Test RateLimit")]
+
+    err_msg = (
+        "RateLimitError: GroqException - {\"error\":{\"message\":\"Request too large for model "
+        "`qwen/qwen3.8-27b` on output tokens per minute (OTPM): Limit 1000, Requested 1313. "
+        "The request's expected output tokens exceed the enforced limit; reduce max_tokens\"}}"
+    )
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_acompletion:
+        mock_acompletion.side_effect = Exception(err_msg)
+        with pytest.raises(RuntimeError) as exc_info:
+            await provider.complete(messages, model="qwen/qwen3.8-27b", max_tokens=1500)
+
+        err_text = str(exc_info.value)
+        assert "1313 tokens supera el límite de 1000 tokens de salida" in err_text
+        assert "Configuración (Settings)" in err_text
+        # Verifica que NO hubo reintento automático (llamado exactamente 1 vez)
+        assert mock_acompletion.call_count == 1
+

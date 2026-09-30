@@ -107,3 +107,45 @@ def find_provider_spec(identifier: str) -> ProviderSpec | None:
 def register_provider_spec(spec: ProviderSpec) -> None:
   """Register or override a provider spec dynamically."""
   PROVIDER_REGISTRY[spec.id] = spec
+
+
+def resolve_model_max_tokens(
+  provider_id: str,
+  model_name: str,
+  requested_max: int | None = None,
+  is_stream: bool = False,
+) -> int:
+  """Resolve effective max_tokens respecting provider and catalog-defined model ceilings."""
+  prov_clean = (provider_id or "").strip().lower()
+  spec = find_provider_spec(prov_clean)
+  model_clean = (model_name or (spec.default_model if spec else "")).strip()
+
+  # Check catalog metadata for model limit
+  model_limit = None
+  try:
+    from app.ai.catalog import load_local_catalog
+
+    catalog = load_local_catalog()
+    for m in catalog:
+      if m.provider == prov_clean and (
+        m.id == model_clean
+        or m.raw_id == model_clean
+        or ("/" in model_clean and (m.id == model_clean.split("/")[-1] or m.raw_id == model_clean.split("/")[-1]))
+      ):
+        if m.max_output_tokens:
+          model_limit = m.max_output_tokens
+          break
+  except Exception:
+    pass
+
+  default_limit = (spec.default_max_tokens if spec else None) or (8192 if is_stream else 4096)
+
+  if model_limit is not None:
+    if requested_max is not None:
+      return max(1, min(requested_max, model_limit))
+    return max(1, model_limit)
+
+  if requested_max is not None:
+    return max(1, requested_max)
+
+  return max(1, default_limit)

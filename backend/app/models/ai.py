@@ -21,6 +21,7 @@ class AIModelInfo(BaseModel):
   pricing_completion: float = 0.0
   pricing_label: str
   rate_limits: str
+  max_output_tokens: int | None = None
   badge: str | None = None
   is_free: bool = False
 

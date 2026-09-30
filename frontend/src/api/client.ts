@@ -143,6 +143,7 @@ export type ModelCatalogItem = {
   pricing_completion: number
   pricing_label: string
   rate_limits: string
+  max_output_tokens?: number
   badge?: string
   is_free: boolean
 }

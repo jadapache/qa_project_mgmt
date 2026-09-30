@@ -409,7 +409,20 @@ async def handle_agentic_prompt_stream(req: AgenticPromptRequest):
             err_msg = str(err)
             lower_err = err_msg.lower()
             if any(term in lower_err for term in ["api key", "unauthorized", "authentication", "auth", "401", "forbidden", "403", "invalid_api_key"]):
-                err_msg = f"Error de autenticación con el modelo LLM: La API key guardada no es válida o expiró ({err_msg}). Por favor actualízala en Configuración."
+                err_msg = f"Hubo un error de autenticación con el modelo, revisa la API key."
+            elif "reduce max_tokens" in lower_err or "otpm" in lower_err or "output tokens per minute" in lower_err:
+                limit_match = re.search(r"Limit\s+(\d+)", err_msg, re.IGNORECASE)
+                req_match = re.search(r"Requested\s+(\d+)", err_msg, re.IGNORECASE)
+                req_tokens = req_match.group(1) if req_match else "solicitada"
+                limit_tokens = limit_match.group(1) if limit_match else "establecido"
+                err_msg = f"La solicitud con {req_tokens} tokens supera el límite de {limit_tokens} tokens de salida para este modelo."
+            elif "not found in connected sources" in lower_err or "no matching chunks" in lower_err:
+                if "no matching chunks" in lower_err:
+                    err_msg = "No se tiene información suficiente para responder a esta solicitud."
+                elif "no documents uploaded" in lower_err:
+                    err_msg = "La base de conocimiento no tiene documentos para consultar."
+                else:
+                    err_msg = "No se encontró contexto suficiente para procesar la consulta."
             yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
 
     return StreamingResponse(stream_generator(), media_type="text/event-stream")

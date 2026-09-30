@@ -34,7 +34,11 @@ interface UseAgenticGenerationOptions {
   createConversation: (name?: string) => ChatConversation
   renameConversation: (id: string, name: string) => void
   onResetPromptInputs?: () => void
-  onError?: (errorMessage: string, isAuthError: boolean) => void
+  onError?: (
+    errorMessage: string,
+    isAuthError: boolean,
+    errorCategory?: 'auth' | 'rate_limit' | 'context' | 'general',
+  ) => void
 }
 
 export interface GenerationResult {
@@ -333,11 +337,25 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
         const isAuthError =
           /api\s*key|autenticaci[oó]n|authentication|unauthorized|401|forbidden|403|invalid_api_key/i.test(errMsg)
 
+        const isRateLimitError =
+          /reduce max_tokens|OTPM|output tokens per minute|RateLimitError/i.test(errMsg)
+
+        const isContextMissingError =
+          /not found in connected sources|no matching chunks|no documents uploaded|sin coincidencias en el contexto|no se encontr[oó] informaci[oó]n/i.test(errMsg)
+
+        let errorCategory: 'auth' | 'rate_limit' | 'context' | 'general' = 'general'
+        if (isAuthError) errorCategory = 'auth'
+        else if (isRateLimitError) errorCategory = 'rate_limit'
+        else if (isContextMissingError) errorCategory = 'context'
+
         // Mark current liveThinkingSteps with failed status
         const currentSteps = liveThinkingStepsRef.current.length > 0 ? liveThinkingStepsRef.current : steps
         const failedSteps: ThinkingStep[] = currentSteps.map((s) => {
           if (s.status === 'in_progress') {
-            return { ...s, status: 'failed', details: errMsg }
+            const stepDetail = isContextMissingError
+              ? 'No se encontraron fragmentos relevantes en las fuentes de contexto'
+              : errMsg
+            return { ...s, status: 'failed', details: stepDetail }
           }
           if (s.status === 'completed') {
             return s
@@ -345,9 +363,30 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
           return { ...s, status: 'failed' }
         })
 
-        const displayMsg = isAuthError
-          ? `Error de autenticación: La API key guardada no es válida (${errMsg}). Por favor actualízala en Configuración.`
-          : `Error al conectar o recibir respuesta del modelo: ${errMsg}`
+        let displayMsg = errMsg
+        if (isAuthError) {
+          displayMsg = `Error: La API key guardada no es válida. Por favor actualízala en Configuración.`
+        } else if (isRateLimitError) {
+          const limitMatch = errMsg.match(/Limit\s*(\d+)/i)
+          const reqMatch = errMsg.match(/Requested\s*(\d+)/i)
+          const reqTokens = reqMatch ? reqMatch[1] : 'la cantidad enviada de'
+          const limitTokens = limitMatch ? limitMatch[1] : 'el'
+          displayMsg = `La solicitud con ${reqTokens} tokens supera el límite de ${limitTokens} tokens de salida para este modelo. Por favor, selecciona un modelo diferente en Configuración.`
+        } else if (isContextMissingError) {
+          if (/no matching chunks/i.test(errMsg)) {
+            displayMsg = `No se tiene información suficiente para responder a esta solicitud.`
+          } else if (/no documents uploaded/i.test(errMsg)) {
+            displayMsg = `La base de conocimiento no tiene documentos para consultar.`
+          } else if (errMsg.startsWith('No se encontró') || errMsg.startsWith('No hay')) {
+            displayMsg = errMsg
+          } else {
+            displayMsg = `No se encontró contexto suficiente para procesar la consulta.`
+          }
+        } else if (errMsg.startsWith('La solicitud con') || errMsg.startsWith('Hubo un error')) {
+          displayMsg = errMsg
+        } else {
+          displayMsg = `Error al conectar o recibir respuesta del modelo: ${errMsg}`
+        }
 
         const assistantMessage: ChatPersistMessage = {
           id: crypto.randomUUID(),
@@ -358,7 +397,7 @@ export function useAgenticGeneration(opts: UseAgenticGenerationOptions): Generat
         }
 
         onUpdateConversation({ messages: [...updatedMsgs, assistantMessage] })
-        onError?.(displayMsg, isAuthError)
+        onError?.(displayMsg, isAuthError, errorCategory)
       } finally {
         setIsGenerating(false)
         updateLiveThinkingSteps([])

@@ -284,12 +284,16 @@ export const AgenticDocumentWorkspace = ({
       setIsMaximized(false)
       setTextareaHeight(BASE_TEXTAREA_HEIGHT)
     },
-    onError: (errMsg, isAuthError) => {
-      toast.error(
-        errMsg,
-        isAuthError ? 'Error de Autenticación' : 'Error del Modelo LLM',
-        10000,
-      )
+    onError: (errMsg, isAuthError, errorCategory) => {
+      let title = 'Error del Modelo LLM'
+      if (isAuthError || errorCategory === 'auth') {
+        title = 'Error de Autenticación'
+      } else if (errorCategory === 'context') {
+        title = 'Contexto Insuficiente'
+      } else if (errorCategory === 'rate_limit') {
+        title = 'Límite de Tokens'
+      }
+      toast.error(errMsg, title, 10000)
     },
   })
 

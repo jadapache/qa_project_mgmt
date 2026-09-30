@@ -456,13 +456,13 @@ export const WritingModelSection = ({
             const dropdownModels =
               matchingCatalog.length > 0
                 ? matchingCatalog.map((m) => ({
-                    id: m.id,
-                    name: m.name,
-                  }))
+                  id: m.id,
+                  name: m.name,
+                }))
                 : fallbackModels.map((m) => ({
-                    id: m.id,
-                    name: m.name,
-                  }))
+                  id: m.id,
+                  name: m.name,
+                }))
 
             const currentModelDetails = catalogModels.find(
               (m) => m.provider === provider && m.id === model,
@@ -560,6 +560,15 @@ export const WritingModelSection = ({
                         <strong className="text-slate-800">{currentModelDetails.context_window}</strong>
                       </div>
                     </div>
+
+                    {currentModelDetails.max_output_tokens && (
+                      <div className="pt-2 border-t border-blue-100 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Tope de salida por respuesta:</span>
+                        <span className="font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          {currentModelDetails.max_output_tokens.toLocaleString()} tokens
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
