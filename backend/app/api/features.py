@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.template_storage import (
   delete_template,
@@ -19,7 +19,16 @@ from app.ai.logging import list_logs
 from app.ai.providers.base import AIMessage
 from app.ai.providers.factory import get_ai_settings, resolve_provider
 from app.ai.runner import run_grounded_feature
-from app.ai.templates import get_prompt, get_rubric, list_prompts, list_rubrics, save_prompt, save_rubric
+from app.ai.templates import (
+  get_prompt,
+  get_rubric,
+  list_prompts,
+  list_rubrics,
+  reset_prompt,
+  reset_rubric,
+  save_prompt,
+  save_rubric,
+)
 from app.api.deps import (
   get_chat_repository,
   get_prd_repository,
@@ -74,12 +83,14 @@ class FeatureWorkspaceRequest(BaseModel):
 
 
 class TemplateUpdate(BaseModel):
+  model_config = ConfigDict(extra="allow")
   system: str | None = None
   user_template: str | None = None
   allowed_sources: list[str] | None = None
 
 
 class RubricUpdate(BaseModel):
+  model_config = ConfigDict(extra="allow")
   criteria: list[str]
 
 
@@ -236,6 +247,14 @@ async def update_prompt(feature: str, body: TemplateUpdate) -> dict[str, Any]:
     raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.post("/ai/prompts/{feature}/reset")
+async def reset_prompt_endpoint(feature: str) -> dict[str, Any]:
+  try:
+    return reset_prompt(feature)
+  except KeyError as exc:
+    raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.get("/ai/rubrics")
 async def rubrics() -> dict[str, Any]:
   return {"rubrics": list_rubrics()}
@@ -253,6 +272,14 @@ async def rubric_detail(feature: str) -> dict[str, Any]:
 async def update_rubric(feature: str, body: RubricUpdate) -> dict[str, Any]:
   try:
     return save_rubric(feature, body.model_dump())
+  except KeyError as exc:
+    raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/ai/rubrics/{feature}/reset")
+async def reset_rubric_endpoint(feature: str) -> dict[str, Any]:
+  try:
+    return reset_rubric(feature)
   except KeyError as exc:
     raise HTTPException(status_code=404, detail=str(exc)) from exc
 

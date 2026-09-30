@@ -190,6 +190,22 @@ export type FeaturePayload = {
   sources?: string[]
 }
 
+export type AIPromptTemplate = {
+  version: number
+  feature: string
+  allowed_sources?: string[]
+  system?: string
+  user_template?: string
+  [key: string]: unknown
+}
+
+export type AIRubric = {
+  version: number
+  feature: string
+  criteria: string[]
+  [key: string]: unknown
+}
+
 export const api = {
   ...authApi,
   ...knowledgeApi,

@@ -24,6 +24,7 @@ import { api, type CorporateTemplate, type TemplateDetail } from '../../api/clie
 import { useToast } from '../../context/ToastContext'
 import { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
 import { UniverContainer } from '../document_workspace/UniverContainer'
+import { AiPromptsRubricsEditor } from './AiPromptsRubricsEditor'
 
 type TabSidebar = 'fields' | 'details'
 
@@ -32,6 +33,7 @@ export const TemplatesPanel = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
 
+  const [panelSection, setPanelSection] = useState<'corporate' | 'ai_rules'>('corporate')
   const [templates, setTemplates] = useState<CorporateTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -314,10 +316,47 @@ export const TemplatesPanel = () => {
 
   return (
     <div className="space-y-6">
-      {/* Main List Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Plantillas Corporativas</h2>
+      {/* Top Segmented Navigation Tabs */}
+      {!previewTemplate && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+          <button
+            type="button"
+            onClick={() => setPanelSection('corporate')}
+            className={[
+              'flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer',
+              panelSection === 'corporate'
+                ? 'bg-[#002777] text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+            ].join(' ')}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Plantillas de Documentos (.doc, .docx, .xlsx)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPanelSection('ai_rules')}
+            className={[
+              'flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer',
+              panelSection === 'ai_rules'
+                ? 'bg-[#002777] text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+            ].join(' ')}
+          >
+            <FileCode className="h-4 w-4" />
+            <span>Reglas & Prompts de IA (/local/ai/*.json)</span>
+          </button>
+        </div>
+      )}
+
+      {panelSection === 'ai_rules' && !previewTemplate ? (
+        <AiPromptsRubricsEditor />
+      ) : (
+        <>
+          {/* Main List Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Plantillas Corporativas</h2>
           <p className="text-sm text-slate-500 mt-0.5">
             Administra las plantillas oficiales (.doc, .docx, .xlsx) y diseña sus placeholders en el constructor visual.
           </p>
@@ -1025,6 +1064,8 @@ export const TemplatesPanel = () => {
             </main>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )

@@ -167,34 +167,21 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
     ),
   },
   "mejoras_doc": {
-    "version": 2,
+    "version": 1,
     "feature": "mejoras_doc",
     "allowed_sources": ["jira", "github", "gitlab", "knowledge"],
     "system": (
-      "Eres un analista funcional senior especializado en elaborar 'Documentación de Mejoras' corporativas. "
-      "Tu tarea es completar CADA sección del documento de mejoras con contenido específico, detallado y bien redactado, "
-      "basándote ÚNICAMENTE en la evidencia proporcionada (minutas, Q&A de usuarios finales, especificaciones, notas y contexto). "
-      "\n\nREGLAS CRÍTICAS DE GENERACIÓN:"
-      "\n1. DEBES completar TODAS las secciones del template proporcionado sin excepción. No omitas ni dejes vacía ninguna sección."
-      "\n2. Para la sección '## Necesidad identificada', redacta OBLIGATORIAMENTE una explicación amplia, clara y estructurada del problema u oportunidad planteada. NUNCA la dejes vacía ni en blanco."
-      "\n3. ELIMINA por completo todos los textos y prefijos de ejemplo tipo 'Ej: “Que el sistema contemple…”' o 'Ej: “Actualmente, cuando…”'."
-      "\n4. Reemplaza todos los placeholders {{TAG_NAME}} (como {{NECESIDAD}}, {{DESCRIPCION}}, {{IMPACTO}}, {{REQ_FUNCIONAL}}, {{REQ_TECNICO}}, {{BENEFICIO}}, {{PRIORIDAD}}, {{OBSERVACIONES}}, {{FIRMAS}}) con la redacción completa de cada punto."
-      "\n5. Mantén la estructura exacta de encabezados Markdown del template (# para H1, ## para H2, **Texto** para sub-secciones) y conserva o genera tablas Markdown estructuradas donde corresponda."
-      "\n6. Redacta de forma continua y exhaustiva desde la primera sección hasta la sección final de 'Firmas Participantes', asegurando un documento corporativo profesional y completo."
-      "\n7. Cita las evidencias y fuentes utilizadas como [1], [2] al final."
-      "\n8. REGLA DE MÚLTIPLES ARTEFACTOS: Si la solicitud pide explícitamente generar un documento de mejora por CADA punto, módulo, ítem o requerimiento enlistado, NO consolides todo en un solo archivo. DEBES generar cada documento de mejora de manera independiente envolviendo CADA UNO en etiquetas XML estrictas: <artifact title=\"Documento de Mejora - [Nombre del Módulo o Punto]\" extension=\"docx\">\n[Contenido completo del documento de mejora con su plantilla]\n</artifact>."
+      "You are a functional analyst drafting corporate improvement documentation. Use ONLY "
+      "provided context. Structure findings with clear business impact and required system behavior. "
+      "Never invent requirements not present in context."
     ),
     "user_template": (
-      "Solicitud de mejora: {query}\n\n"
-      "CONTEXTO ADICIONAL / CHAT / Q&A:\n{chat_context}\n\n"
-      "DOCUMENTACIÓN Y EVIDENCIA:\n{context}\n\n"
-      "RÚBRICA CORPORATIVA:\n{rubric}\n\n"
-      "PLANTILLA CORPORATIVA ACTIVA (respeta EXACTAMENTE esta estructura en cada artefacto):\n"
-      "```\n{template}\n```\n\n"
-      "INSTRUCCIÓN DE SALIDA:\n"
-      "- Si se pide generar un documento por cada punto o módulo, genera CADA documento separado en etiquetas <artifact title=\"[Nombre]\" extension=\"docx\">...</artifact>.\n"
-      "- Si es una sola solicitud general, genera el documento Markdown completo directametne.\n"
-      "- Llena con especial detalle la sección '## Necesidad identificada' y elimina prefijos 'Ej: ...'."
+      "Improvement request: {query}\n\n"
+      "ADDITIONAL CONTEXT FROM CHAT:\n{chat_context}\n\n"
+      "EVIDENCE:\n{context}\n\n"
+      "RUBRIC:\n{rubric}\n\n"
+      "Return markdown: Identified need, Current flow, Business impact, Desired behavior, "
+      "Priority, Observations. Cite as [1], [2]."
     ),
   },
 }
@@ -295,10 +282,10 @@ DEFAULT_RUBRICS: dict[str, dict[str, Any]] = {
     "version": 1,
     "feature": "mejoras_doc",
     "criteria": [
-      "Adherencia estricta a la plantilla corporativa 'FORMATO DOCUMENTACIÓN DE MEJORAS'",
-      "Basado exclusivamente en la información recolectada de usuarios funcionales y evidencias conectadas",
-      "Cuantificación y descripción clara del impacto para el negocio (tiempo, costos, reprocesos)",
-      "Detalle explícito del comportamiento deseado en el nuevo sistema y observaciones del equipo del proyecto",
+      "Strictly adhere to corporate improvement documentation format",
+      "Ground findings only in functional requirements and connected evidence",
+      "Quantify business impact on time, costs, and rework",
+      "Detail desired target behavior and project team observations",
     ],
   },
 }
@@ -367,6 +354,26 @@ def save_rubric(feature: str, payload: dict[str, Any]) -> dict[str, Any]:
 def rubric_to_text(rubric: dict[str, Any]) -> str:
   criteria = rubric.get("criteria") or []
   return "\n".join(f"- {item}" for item in criteria)
+
+
+def reset_prompt(feature: str) -> dict[str, Any]:
+  ensure_ai_files()
+  if feature not in DEFAULT_PROMPTS:
+    raise KeyError(f"No default prompt found for feature: {feature}")
+  payload = dict(DEFAULT_PROMPTS[feature])
+  path = PROMPTS_DIR / f"{feature}.json"
+  path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+  return payload
+
+
+def reset_rubric(feature: str) -> dict[str, Any]:
+  ensure_ai_files()
+  if feature not in DEFAULT_RUBRICS:
+    raise KeyError(f"No default rubric found for feature: {feature}")
+  payload = dict(DEFAULT_RUBRICS[feature])
+  path = RUBRICS_DIR / f"{feature}.json"
+  path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+  return payload
 
 
 def _read(path: Path) -> dict[str, Any]:
