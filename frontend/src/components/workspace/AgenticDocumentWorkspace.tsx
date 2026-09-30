@@ -1,6 +1,5 @@
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   ArrowUp,
   BookOpen,
@@ -14,11 +13,6 @@ import {
   ChevronUp,
   Maximize2,
   Minimize2,
-  ShieldAlert,
-  KeyRound,
-  Settings,
-  ExternalLink,
-  Lock,
 } from 'lucide-react'
 import { UniverAdapter } from '../../document_agent/adapters/UniverAdapter'
 import { DocumentAgent } from '../../document_agent/core/DocumentAgent'
@@ -50,7 +44,6 @@ export const AgenticDocumentWorkspace = ({
   eyebrow = 'FUNCIONAL TOOLS',
 }: AgenticDocumentWorkspaceProps) => {
   const { toast } = useToast()
-  const navigate = useNavigate()
   const chatBottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -92,132 +85,6 @@ export const AgenticDocumentWorkspace = ({
   // Integrations flyout menu state
   const [integrationsFlyoutOpen, setIntegrationsFlyoutOpen] = useState(false)
 
-  // LLM model access & API key validation state
-  interface LlmAccessState {
-    checked: boolean
-    isValid: boolean
-    isChecking: boolean
-    provider?: string
-    model?: string
-    errorTitle?: string
-    errorMessage?: string
-    isAuthError?: boolean
-  }
-
-  const [llmStatus, setLlmStatus] = useState<LlmAccessState>({
-    checked: false,
-    isValid: true,
-    isChecking: true,
-  })
-
-  // Validate LLM connection and stored API key
-  const checkLlmAccess = useCallback(async (showSuccessToast = false) => {
-    setLlmStatus((prev) => ({ ...prev, isChecking: true }))
-    try {
-      const settings = await api.getAiSettings()
-      const provider = (settings.provider || '').trim()
-      const model = (settings.model || '').trim()
-
-      if (!provider) {
-        setLlmStatus({
-          checked: true,
-          isValid: false,
-          isChecking: false,
-          provider: 'No configurado',
-          errorTitle: 'Proveedor de IA no seleccionado',
-          errorMessage:
-            'No se ha configurado ningún proveedor de LLM en el sistema. Debes seleccionar y configurar un proveedor en Configuración.',
-          isAuthError: true,
-        })
-        return
-      }
-
-      // Check if API key is configured for the active provider
-      const p = provider.toLowerCase()
-      let isKeyConfigured = false
-      if (p === 'ollama' || p === 'builtin' || p === 'local') {
-        isKeyConfigured = Boolean(settings.ollama_base_url)
-      } else if (typeof settings.active_api_key_set === 'boolean') {
-        isKeyConfigured = settings.active_api_key_set
-      } else if (p.includes('groq')) {
-        isKeyConfigured = Boolean(settings.groq_api_key_set)
-      } else if (p.includes('gemini') || p.includes('google')) {
-        isKeyConfigured = Boolean(settings.gemini_api_key_set)
-      } else if (p.includes('openai')) {
-        isKeyConfigured = Boolean(settings.openai_api_key_set)
-      } else if (p.includes('claude') || p.includes('anthropic')) {
-        isKeyConfigured = Boolean(settings.claude_api_key_set)
-      } else {
-        isKeyConfigured = true
-      }
-
-      if (!isKeyConfigured) {
-        setLlmStatus({
-          checked: true,
-          isValid: false,
-          isChecking: false,
-          provider,
-          model,
-          errorTitle: 'API Key no configurada',
-          errorMessage: `No se ha configurado la API Key para el proveedor activo "${provider}". Debes ingresar tu clave en Configuración para poder enviar peticiones.`,
-          isAuthError: true,
-        })
-        return
-      }
-
-      // Test connection and authentication directly with the LLM
-      const testRes = await api.testAiConnection({ provider, model })
-      if (testRes.ok || testRes.status === 'ok') {
-        setLlmStatus({
-          checked: true,
-          isValid: true,
-          isChecking: false,
-          provider,
-          model,
-        })
-        if (showSuccessToast) {
-          toast.success(
-            `Conexión exitosa con el modelo ${provider} (${model}).`,
-            'LLM Autenticado',
-          )
-        }
-      } else {
-        const isAuth =
-          /api\s*key|autenticaci[oó]n|authentication|unauthorized|401|forbidden|403|invalid_api_key/i.test(
-            testRes.message || '',
-          )
-        setLlmStatus({
-          checked: true,
-          isValid: false,
-          isChecking: false,
-          provider,
-          model,
-          errorTitle: isAuth
-            ? 'Fallo de autenticación con el modelo LLM'
-            : 'Error de conexión con el modelo LLM',
-          errorMessage:
-            testRes.message ||
-            'La API key guardada no logró autenticarse correctamente con el proveedor.',
-          isAuthError: isAuth,
-        })
-      }
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'Error al verificar acceso al modelo LLM.'
-      setLlmStatus({
-        checked: true,
-        isValid: false,
-        isChecking: false,
-        errorTitle: 'Error de verificación de IA',
-        errorMessage: msg,
-        isAuthError: false,
-      })
-    }
-  }, [toast])
-
-  useEffect(() => {
-    void checkLlmAccess()
-  }, [checkLlmAccess])
 
   // Context files
   const [uploaded, setUploaded] = useState<KnowledgeDocument[]>([])
@@ -418,17 +285,6 @@ export const AgenticDocumentWorkspace = ({
       setTextareaHeight(BASE_TEXTAREA_HEIGHT)
     },
     onError: (errMsg, isAuthError) => {
-      setLlmStatus((prev) => ({
-        ...prev,
-        checked: true,
-        isValid: false,
-        isChecking: false,
-        errorTitle: isAuthError
-          ? 'Fallo de autenticación con el modelo LLM'
-          : 'Error en la respuesta del modelo LLM',
-        errorMessage: errMsg,
-        isAuthError,
-      }))
       toast.error(
         errMsg,
         isAuthError ? 'Error de Autenticación' : 'Error del Modelo LLM',
@@ -439,15 +295,7 @@ export const AgenticDocumentWorkspace = ({
 
   const handleSubmitForm = (e: FormEvent) => {
     e.preventDefault()
-    if (!llmStatus.isValid && llmStatus.checked) {
-      toast.error(
-        llmStatus.errorMessage ||
-        'No se tiene un acceso válido al modelo LLM. Configura tu API Key antes de enviar.',
-        llmStatus.errorTitle || 'Petición Restringida',
-        8000,
-      )
-      return
-    }
+    if (!draft.trim() || isGenerating) return
     void handleSendMessage(draft)
   }
 
@@ -555,54 +403,6 @@ export const AgenticDocumentWorkspace = ({
 
           {/* Chat Input Bar */}
           <div className="p-4 border-t border-slate-200/80 bg-white shrink-0 space-y-3">
-            {/* LLM Connection/Authentication Warning Banner if restricted */}
-            {llmStatus.checked && !llmStatus.isValid && (
-              <div className="rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50/95 via-amber-50/50 to-rose-50/90 p-3.5 shadow-xs transition animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs">
-                    <ShieldAlert className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <h4 className="text-xs font-bold text-rose-950 flex items-center gap-1.5">
-                        <span>{llmStatus.errorTitle || 'Acceso al modelo LLM restringido'}</span>
-                      </h4>
-                      {llmStatus.provider && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/95 text-rose-800 border border-rose-200 shadow-2xs">
-                          <KeyRound className="h-3 w-3 text-rose-600" />
-                          <span>{llmStatus.provider} {llmStatus.model ? `(${llmStatus.model})` : ''}</span>
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-rose-900/90 font-medium">
-                      {llmStatus.errorMessage ||
-                        'No se cuenta con una API key válida para procesar la petición con el modelo. Por favor configura tus credenciales en Configuración para habilitar el asistente.'}
-                    </p>
-                    <div className="flex items-center gap-2 pt-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => navigate('/settings?tab=ai_models')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#002777] text-white hover:bg-[#003399] text-xs font-semibold shadow-xs transition cursor-pointer"
-                      >
-                        <Settings className="h-3.5 w-3.5" />
-                        <span>Configurar API Key</span>
-                        <ExternalLink className="h-3 w-3 opacity-70" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void checkLlmAccess(true)}
-                        disabled={llmStatus.isChecking}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50"
-                      >
-                        <RefreshCw className={`h-3 w-3 ${llmStatus.isChecking ? 'animate-spin' : ''}`} />
-                        <span>{llmStatus.isChecking ? 'Verificando...' : 'Reintentar comprobación'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <form onSubmit={handleSubmitForm} className="relative">
               {/* Input Box Card */}
               <div className="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-3 shadow-2xs focus-within:bg-white focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-blue-100/80 transition space-y-2.5">
@@ -632,15 +432,10 @@ export const AgenticDocumentWorkspace = ({
                       handleSubmitForm(e)
                     }
                   }}
-                  placeholder={
-                    !llmStatus.isValid && llmStatus.checked
-                      ? '⚠️ Petición restringida: Configura una API key válida en Configuración para habilitar el modelo...'
-                      : config.placeholder || 'Escribe tu petición o consulta...'
-                  }
+                  placeholder={config.placeholder || 'Escribe tu petición o consulta...'}
                   disabled={isGenerating}
                   style={{ height: `${textareaHeight}px` }}
-                  className={`w-full bg-transparent px-1 pr-16 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans overflow-y-auto scrollbar-thin transition-[height] duration-150 ease-out leading-normal ${!llmStatus.isValid && llmStatus.checked ? 'placeholder:text-rose-400 font-medium' : ''
-                    }`}
+                  className="w-full bg-transparent px-1 pr-16 text-xs text-slate-800 outline-none resize-none placeholder:text-slate-400 disabled:opacity-60 font-sans overflow-y-auto scrollbar-thin transition-[height] duration-150 ease-out leading-normal"
                 />
 
                 {/* Attached Files Inline Badge Row (Inside prompt card) */}
@@ -746,23 +541,12 @@ export const AgenticDocumentWorkspace = ({
                     {/* Send Button (↑) */}
                     <button
                       type="submit"
-                      disabled={isGenerating || !draft.trim() || (!llmStatus.isValid && llmStatus.checked)}
-                      className={`h-8 w-8 rounded-full flex items-center justify-center transition shrink-0 shadow-xs ml-1 ${!llmStatus.isValid && llmStatus.checked
-                          ? 'bg-rose-100 text-rose-500 border border-rose-300/80 cursor-not-allowed'
-                          : 'bg-[#002777] text-white hover:bg-[#003399] disabled:opacity-30 disabled:hover:bg-[#002777] cursor-pointer'
-                        }`}
-                      title={
-                        !llmStatus.isValid && llmStatus.checked
-                          ? 'Petición restringida: Sin acceso válido al modelo LLM'
-                          : isGenerating
-                            ? 'Generando respuesta...'
-                            : 'Enviar consulta'
-                      }
+                      disabled={isGenerating || !draft.trim()}
+                      className="h-8 w-8 rounded-full flex items-center justify-center transition shrink-0 shadow-xs ml-1 bg-[#002777] text-white hover:bg-[#003399] disabled:opacity-30 disabled:hover:bg-[#002777] cursor-pointer"
+                      title={isGenerating ? 'Generando respuesta...' : 'Enviar consulta'}
                     >
                       {isGenerating ? (
                         <RefreshCw className="h-4 w-4 animate-spin text-white" />
-                      ) : !llmStatus.isValid && llmStatus.checked ? (
-                        <Lock className="h-3.5 w-3.5" />
                       ) : (
                         <ArrowUp className="h-4 w-4 stroke-[2.5]" />
                       )}
