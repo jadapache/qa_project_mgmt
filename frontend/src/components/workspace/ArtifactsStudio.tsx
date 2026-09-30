@@ -509,7 +509,7 @@ export const ArtifactsStudio = ({
 
           {/* Main Visual Document Canvas Container (Full edge-to-edge space) */}
           <div className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
-            <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               <UniverContainer
                 adapter={adapter}
                 kind={activeArtifact.extension === 'xlsx' ? 'spreadsheet' : 'document'}
@@ -523,6 +523,7 @@ export const ArtifactsStudio = ({
                   onUpdateArtifactContent(activeArtifact.id, newContent)
                 }}
                 hideHeader={true}
+                mode="artifact"
               />
             </div>
 
