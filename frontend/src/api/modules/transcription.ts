@@ -15,11 +15,13 @@ export type TranscriptionSegment = {
 }
 
 export type TranscriptionSummary = {
-  participants: string[]
-  topics: string[]
-  decisions: string[]
-  requirements: string[]
-  action_items: string[]
+  summary_text?: string
+  key_insights?: string[]
+  participants?: string[]
+  topics?: string[]
+  decisions?: string[]
+  requirements?: string[]
+  action_items?: string[]
 }
 
 export type TranscriptionProgress = {

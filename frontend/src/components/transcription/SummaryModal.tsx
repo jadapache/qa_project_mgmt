@@ -107,20 +107,20 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
     }
   }
 
-  const handleAddItem = (field: keyof TranscriptionSummary) => {
+  const handleAddItem = (field: 'participants' | 'topics' | 'decisions' | 'requirements' | 'action_items') => {
     const text = prompt(`Agregar nuevo elemento a ${field}:`)
     if (text && text.trim()) {
-      setSummary((prev) => ({
+      setSummary((prev: any) => ({
         ...prev,
-        [field]: [...prev[field], text.trim()],
+        [field]: [...(prev[field] || []), text.trim()],
       }))
     }
   }
 
-  const handleRemoveItem = (field: keyof TranscriptionSummary, index: number) => {
-    setSummary((prev) => ({
+  const handleRemoveItem = (field: 'participants' | 'topics' | 'decisions' | 'requirements' | 'action_items', index: number) => {
+    setSummary((prev: any) => ({
       ...prev,
-      [field]: prev[field].filter((_, i) => i !== index),
+      [field]: (prev[field] || []).filter((_: any, i: number) => i !== index),
     }))
   }
 
@@ -204,7 +204,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wide">
                     <Users className="h-4 w-4 text-[#002777]" />
-                    <span>Participantes e Interlocutores ({summary.participants.length})</span>
+                    <span>Participantes e Interlocutores ({(summary.participants || []).length})</span>
                   </div>
                   <button
                     type="button"
@@ -216,7 +216,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {summary.participants.map((p, idx) => (
+                  {(summary.participants || []).map((p, idx) => (
                     <div
                       key={idx}
                       className="group flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 shadow-xs"
@@ -280,7 +280,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wide">
                     <FileText className="h-4 w-4 text-blue-600" />
-                    <span>Temas Clave Tratados ({summary.topics.length})</span>
+                    <span>Temas Clave Tratados ({(summary.topics || []).length})</span>
                   </div>
                   <button
                     type="button"
@@ -291,7 +291,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                   </button>
                 </div>
                 <div className="space-y-1.5 pt-1">
-                  {summary.topics.map((t, idx) => (
+                  {(summary.topics || []).map((t, idx) => (
                     <div key={idx} className="group flex items-center justify-between gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-100">
                       <span>• {t}</span>
                       <button
@@ -324,7 +324,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                     </button>
                   </div>
                   <div className="space-y-1.5 pt-1">
-                    {summary.decisions.map((d, idx) => (
+                    {(summary.decisions || []).map((d, idx) => (
                       <div key={idx} className="group flex items-center justify-between gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-100">
                         <span>✓ {d}</span>
                         <button
@@ -355,7 +355,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                     </button>
                   </div>
                   <div className="space-y-1.5 pt-1">
-                    {summary.requirements.map((r, idx) => (
+                    {(summary.requirements || []).map((r, idx) => (
                       <div key={idx} className="group flex items-center justify-between gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-100">
                         <span>→ {r}</span>
                         <button
@@ -372,7 +372,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
               </div>
 
               {/* Action items */}
-              {summary.action_items.length > 0 && (
+              {(summary.action_items || []).length > 0 && (
                 <div className="card p-5 bg-slate-50/50 border border-slate-200/80 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wide">
@@ -388,7 +388,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
                     </button>
                   </div>
                   <div className="space-y-1.5 pt-1">
-                    {summary.action_items.map((act, idx) => (
+                    {(summary.action_items || []).map((act, idx) => (
                       <div key={idx} className="group flex items-center justify-between gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-100">
                         <span>• {act}</span>
                         <button

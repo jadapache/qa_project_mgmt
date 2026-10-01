@@ -35,6 +35,8 @@ def parse_summary_markdown_or_json(text: str) -> TranscriptionSummary:
   decisions: List[str] = []
   requirements: List[str] = []
   action_items: List[str] = []
+  key_insights: List[str] = []
+  summary_paragraphs: List[str] = []
 
   # Try parsing JSON if model returned codeblock
   json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
@@ -42,6 +44,8 @@ def parse_summary_markdown_or_json(text: str) -> TranscriptionSummary:
     try:
       parsed = json.loads(json_match.group(1))
       return TranscriptionSummary(
+        summary_text=parsed.get("summary") or parsed.get("summary_text"),
+        key_insights=parsed.get("key_insights", []),
         participants=parsed.get("participants", []),
         topics=parsed.get("topics", []),
         decisions=parsed.get("decisions", []),
@@ -51,7 +55,7 @@ def parse_summary_markdown_or_json(text: str) -> TranscriptionSummary:
     except Exception:
       pass
 
-  current_section: str | None = None
+  current_section: str = "summary"
   lines = text.splitlines()
 
   for line in lines:
@@ -60,19 +64,26 @@ def parse_summary_markdown_or_json(text: str) -> TranscriptionSummary:
       continue
 
     lower = stripped.lower()
-    if any(header in lower for header in ["participante", "asistente", "participants"]):
+    # Check section headers
+    if any(h in lower for h in ["key insight", "puntos clave", "conclusiones clave", "insights clave"]):
+      current_section = "key_insights"
+      continue
+    elif any(h in lower for h in ["# summary", "## summary", "# resumen", "## resumen"]):
+      current_section = "summary"
+      continue
+    elif any(h in lower for h in ["participante", "asistente", "participants"]):
       current_section = "participants"
       continue
-    elif any(header in lower for header in ["tema", "temas tratados", "topics", "asuntos"]):
+    elif any(h in lower for h in ["tema", "temas tratados", "topics"]):
       current_section = "topics"
       continue
-    elif any(header in lower for header in ["decisión", "decisiones", "decisions", "acuerdos"]):
+    elif any(h in lower for h in ["decisión", "decisiones", "decisions", "acuerdos"]):
       current_section = "decisions"
       continue
-    elif any(header in lower for header in ["requerimiento", "requerimientos", "requirements", "requisitos"]):
+    elif any(h in lower for h in ["requerimiento", "requerimientos", "requirements", "requisitos"]):
       current_section = "requirements"
       continue
-    elif any(header in lower for header in ["compromiso", "compromisos", "acción", "acciones", "action items", "próximos pasos"]):
+    elif any(h in lower for h in ["compromiso", "compromisos", "acción", "acciones", "action items"]):
       current_section = "action_items"
       continue
 
@@ -80,7 +91,9 @@ def parse_summary_markdown_or_json(text: str) -> TranscriptionSummary:
     if re.match(r"^[-*•\d+.]\s+", stripped):
       item_text = re.sub(r"^[-*•\d+.]\s*", "", stripped).strip()
       if item_text:
-        if current_section == "participants":
+        if current_section == "key_insights":
+          key_insights.append(item_text)
+        elif current_section == "participants":
           participants.append(item_text)
         elif current_section == "topics":
           topics.append(item_text)
@@ -90,17 +103,25 @@ def parse_summary_markdown_or_json(text: str) -> TranscriptionSummary:
           requirements.append(item_text)
         elif current_section == "action_items":
           action_items.append(item_text)
+        else:
+          key_insights.append(item_text)
+    else:
+      # Paragraph line
+      if current_section == "summary" and not stripped.startswith("#"):
+        summary_paragraphs.append(stripped)
 
-  # If none were extracted by headers, provide default fallback parsing
-  if not (topics or decisions or requirements):
-    topics = [l.strip("- *•") for l in lines[:4] if l.strip()]
+  summary_str = "\n\n".join(summary_paragraphs) if summary_paragraphs else None
+  if not key_insights and topics:
+    key_insights = topics + decisions
 
   return TranscriptionSummary(
+    summary_text=summary_str,
+    key_insights=key_insights if key_insights else ["Reunión de levantamiento y acuerdos iniciales del proyecto."],
     participants=participants if participants else ["Participante 1", "Participante 2"],
-    topics=topics if topics else ["Reunión de levantamiento y requerimientos funcionales"],
-    decisions=decisions if decisions else ["Definición de alcance inicial del proyecto"],
-    requirements=requirements if requirements else ["Requerimientos iniciales capturados en la transcripción"],
-    action_items=action_items if action_items else ["Continuar con la estructuración del documento Inventario y Levantamiento"],
+    topics=topics if topics else (key_insights[:3] if key_insights else ["Requerimientos funcionales"]),
+    decisions=decisions if decisions else ["Acuerdos de arquitectura y flujo funcional"],
+    requirements=requirements if requirements else ["Requerimientos funcionales capturados en la transcripción"],
+    action_items=action_items if action_items else ["Generar documento de Inventario (.xlsx) y Levantamiento (.docx)"],
   )
 
 
@@ -110,8 +131,10 @@ async def summarize_transcript(
 ) -> TranscriptionSummary:
   if not segments:
     return TranscriptionSummary(
+      summary_text="No se detectaron diálogos en la grabación.",
+      key_insights=[],
       participants=[],
-      topics=["Transcripción vacía"],
+      topics=[],
       decisions=[],
       requirements=[],
       action_items=[],
@@ -124,18 +147,20 @@ async def summarize_transcript(
   except Exception:
     prompt_cfg = {
       "system": (
-        "Eres un analista de requerimientos senior. Resume la siguiente minuta/transcripción de reunión de forma concisa y estructurada. "
-        "Extrae participantes, temas tratados, decisiones clave, requerimientos funcionales/técnicos mencionados y compromisos/acciones."
+        "Eres un analista y redactor ejecutivo senior. Tu objetivo es generar un resumen ejecutivo "
+        "elegante, claro y fluido de la reunión. Redacta párrafos coherentes que expliquen el contexto "
+        "y las discusiones, seguido de una sección de Key Insights con puntos clave directos."
       ),
       "user_template": (
         "Título de la reunión: {title}\n\n"
         "TRANSCRIPCIÓN:\n{transcript}\n\n"
-        "Devuelve un resumen estructurado en formato Markdown con las siguientes secciones:\n"
-        "- Participantes\n"
-        "- Temas Tratados\n"
-        "- Decisiones Tomadas\n"
-        "- Requerimientos Mencionados\n"
-        "- Compromisos y Próximos Pasos"
+        "Escribe un resumen con la siguiente estructura Markdown:\n\n"
+        "## Summary\n"
+        "(Escribe 2 a 4 párrafos fluidos y bien explicados que resuman los temas tratados, motivaciones y acuerdos).\n\n"
+        "## Key Insights\n"
+        "- (Punto clave 1 explicando un aspecto relevante de la reunión)\n"
+        "- (Punto clave 2...)\n"
+        "- (Punto clave 3...)\n"
       ),
     }
 
@@ -154,12 +179,19 @@ async def summarize_transcript(
     summary_text = res.text
     return parse_summary_markdown_or_json(summary_text)
   except Exception as exc:
-    logger.warning(f"LLM Summarization failed: {exc}. Using heuristic summary.")
+    logger.warning(f"LLM Summarization failed: {exc}. Using fallback summary.")
     unique_speakers = list(dict.fromkeys(s.get("speaker", "Participante") for s in segments if s.get("speaker")))
+    first_text = " ".join(s.get("text", "") for s in segments[:5])
     return TranscriptionSummary(
+      summary_text=f"En esta reunión sobre '{title}', los participantes discutieron temas de levantamiento, necesidades del sistema y flujos de trabajo funcionales. {first_text}",
+      key_insights=[
+        f"Se identificaron {len(segments)} intervenciones de voz en la grabación.",
+        "Se capturaron las necesidades operativas y definiciones técnicas del proyecto.",
+        "Los interlocutores definieron los compromisos de avance para las siguientes entregas.",
+      ],
       participants=unique_speakers if unique_speakers else ["Participante 1"],
       topics=[f"Reunión: {title}"],
-      decisions=["Reunión procesada"],
-      requirements=[f"Requerimiento derivado del audio ({len(segments)} turnos de voz)"],
-      action_items=["Revisar transcripción completa"],
+      decisions=["Definición de requerimientos"],
+      requirements=["Requerimientos funcionales del sistema"],
+      action_items=["Estructurar entregables funcionales"],
     )

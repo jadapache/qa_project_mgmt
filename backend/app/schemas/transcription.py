@@ -20,11 +20,14 @@ class TranscriptionSegment(BaseModel):
 
 
 class TranscriptionSummary(BaseModel):
+  summary_text: Optional[str] = None
+  key_insights: List[str] = Field(default_factory=list)
   participants: List[str] = Field(default_factory=list)
   topics: List[str] = Field(default_factory=list)
   decisions: List[str] = Field(default_factory=list)
   requirements: List[str] = Field(default_factory=list)
   action_items: List[str] = Field(default_factory=list)
+
 
 
 class TranscriptionProgress(BaseModel):
