@@ -135,12 +135,10 @@ export function useTranscription() {
               })
 
               if (data.stage === 'complete' || data.progress === 100) {
-                toast.success('¡Transcripción completada con éxito!')
                 await refreshTranscriptions()
                 es.close()
                 delete eventSourcesRef.current[id]
               } else if (data.stage === 'failed') {
-                toast.error(data.error || data.message || 'Error en el proceso de transcripción.')
                 es.close()
                 delete eventSourcesRef.current[id]
               }
@@ -193,7 +191,7 @@ export function useTranscription() {
     return () => {
       // Retain connections during rerenders
     }
-  }, [activeJobs, refreshTranscriptions, toast])
+  }, [activeJobs, refreshTranscriptions])
 
   // Clean up all EventSources on unmount
   useEffect(() => {
@@ -275,14 +273,12 @@ export function useTranscription() {
 
       // Transition immediately to the Live Transcription Studio
       setViewMode('studio')
-      toast.success('Grabación cargada. Transcribiendo en tiempo real...')
     } catch (err: any) {
       setActiveJobs((prev) => {
         const next = { ...prev }
         delete next[tempId]
         return next
       })
-      toast.error(`Error al iniciar transcripción: ${err.message}`)
       throw err
     } finally {
       setIsUploading(false)
@@ -302,19 +298,14 @@ export function useTranscription() {
         setViewMode('dashboard')
       }
       setShowProgressModal(false)
-      toast.info('Transcripción cancelada y archivos limpiados.')
       await refreshTranscriptions()
     } catch (err: any) {
-      toast.error(`Error al cancelar: ${err.message}`)
+      console.warn('Error cancelling transcription:', err)
     }
   }
 
   // Delete saved transcription
   const handleDeleteTranscription = async (transcriptionId: string) => {
-    if (!window.confirm('¿Seguro que deseas eliminar esta transcripción y sus archivos asociados?')) {
-      return
-    }
-
     try {
       await transcriptionApi.deleteTranscription(transcriptionId)
       setRecentTranscriptions((prev) => prev.filter((t) => t.id !== transcriptionId))

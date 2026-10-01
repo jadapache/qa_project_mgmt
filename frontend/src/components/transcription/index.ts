@@ -4,7 +4,7 @@ export { RecentTranscriptionItem } from './RecentTranscriptionItem'
 export { TranscriptionProgressModal } from './TranscriptionProgressModal'
 export { SummaryModal } from './SummaryModal'
 export { GenerateModal } from './GenerateModal'
-export { TranscriptionHistoryModal } from './TranscriptionHistoryModal'
 export { FloatingTranscriptionToast } from './FloatingTranscriptionToast'
 export { TranscriptionStudio } from './TranscriptionStudio'
 export { ProgressModal } from './ProgressModal'
+

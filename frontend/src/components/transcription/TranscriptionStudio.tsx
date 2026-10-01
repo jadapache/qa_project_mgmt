@@ -363,36 +363,31 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
             </div>
           </div>
 
-          {/* Live Progress Banner if currently transcribing */}
-          {activeProgress && isJobActive && (
-            <div className="p-4 bg-blue-50/80 border-b border-blue-200 animate-fade-in shrink-0">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <div className="flex items-center gap-2 font-bold text-[#002777]">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#002777]" />
-                  <span>{activeProgress.message || 'Transcribiendo audio en tiempo real...'}</span>
-                </div>
-                <span className="font-mono font-bold text-[#002777] bg-blue-100 px-2 py-0.5 rounded-md text-[11px]">
+          {/* Univer Container for Transcription with Floating Progress Pill */}
+          <div className="relative flex-1 min-h-0 bg-white overflow-hidden flex flex-col">
+            {/* Complementary Pipeline Floating Pill (Separación de audio, diarización, etc.) */}
+            {activeProgress && isJobActive && (
+              <div className="absolute top-3 right-4 z-20 flex items-center gap-2 px-3.5 py-1.5 bg-slate-900/90 backdrop-blur-md text-white rounded-full shadow-lg border border-slate-700/60 text-xs animate-fade-in pointer-events-none">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+                <span className="font-semibold text-slate-200">
+                  {activeProgress.stage === 'preprocessing'
+                    ? 'Extracción & separación de audio'
+                    : activeProgress.stage === 'diarizing'
+                    ? 'Diarización & separación de interlocutores'
+                    : activeProgress.stage === 'summarizing'
+                    ? 'Extracción de acuerdos & minutas'
+                    : 'Inferencia acústica Whisper'}
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="font-mono font-bold text-blue-400">
                   {activeProgress.progress}%
                 </span>
               </div>
+            )}
 
-              {/* Solid Progress Bar */}
-              <div className="w-full bg-blue-200/60 rounded-full h-2.5 overflow-hidden">
-                <div
-                  className="bg-[#002777] h-full transition-all duration-500"
-                  style={{ width: `${Math.max(8, activeProgress.progress)}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-600 mt-2">
-                <span>Etapa: <strong>{activeProgress.stage || 'Decodificando'}</strong></span>
-                {activeProgress.eta && <span>Tiempo estimado restante: <strong>{activeProgress.eta}</strong></span>}
-              </div>
-            </div>
-          )}
-
-          {/* Univer Container for Transcription */}
-          <div className="flex-1 min-h-0 bg-white overflow-hidden flex flex-col">
             <UniverContainer
               adapter={transcriptAdapter}
               kind="document"

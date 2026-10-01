@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
   Sparkles,
-  History,
   FileText,
   Search,
   RefreshCw,
@@ -20,7 +19,6 @@ import {
   UploadArea,
   RecentTranscriptionItem,
   GenerateModal,
-  TranscriptionHistoryModal,
   FloatingTranscriptionToast,
   TranscriptionStudio,
 } from '../../components/transcription'
@@ -50,7 +48,6 @@ export const TranscripcionesPage = () => {
   } = useTranscription()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid')
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -122,43 +119,20 @@ export const TranscripcionesPage = () => {
   return (
     <div className="space-y-8 max-w-5xl mx-auto font-sans pb-12 animate-fade-in">
       {/* Page Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#002777]">
-              MÓDULO FUNCIONAL
-            </p>
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-[#002777]">
-              <Sparkles className="h-3 w-3" />
-              IA + Whisper
-            </span>
-          </div>
-          <h1 className="page-title mt-1">Transcripción y Análisis de Reuniones</h1>
-          <p className="page-subtitle">
-            Carga grabaciones de reuniones para transcribir con Whisper, identificar interlocutores, extraer minutas y generar entregables funcionales.
-          </p>
-        </div>
-
+      <header>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setHistoryModalOpen(true)}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-[#002777] border border-blue-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
-            <History className="h-4 w-4" />
-            <span>Ver Historial Completo</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={refreshTranscriptions}
-            disabled={isLoadingList}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-            title="Actualizar lista"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoadingList ? 'animate-spin' : ''}`} />
-          </button>
+          <p className="text-xs font-bold uppercase tracking-widest text-[#002777]">
+            MÓDULO FUNCIONAL
+          </p>
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-[#002777]">
+            <Sparkles className="h-3 w-3" />
+            IA + Whisper
+          </span>
         </div>
+        <h1 className="page-title mt-1">Transcripción y Análisis de Reuniones</h1>
+        <p className="page-subtitle">
+          Carga grabaciones de reuniones para transcribir con Whisper, identificar interlocutores, extraer minutas y generar entregables funcionales.
+        </p>
       </header>
 
       {/* API Key Missing Warning Banner (If no model provider is configured) */}
@@ -252,6 +226,17 @@ export const TranscripcionesPage = () => {
                 <List className="h-4 w-4" />
               </button>
             </div>
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={refreshTranscriptions}
+              disabled={isLoadingList}
+              className="p-2 text-slate-500 hover:text-[#002777] hover:bg-slate-100 bg-white border border-slate-200 rounded-xl transition cursor-pointer shadow-2xs shrink-0"
+              title="Actualizar transcripciones"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoadingList ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
 
@@ -388,16 +373,6 @@ export const TranscripcionesPage = () => {
         transcriptionId={selectedTranscriptionId}
         meetingTitle={activeMeetingTitle}
         onClose={() => setShowGenerateModal(false)}
-      />
-
-      {/* Full History Modal */}
-      <TranscriptionHistoryModal
-        isOpen={historyModalOpen}
-        onClose={() => setHistoryModalOpen(false)}
-        onSelect={(record) => {
-          setHistoryModalOpen(false)
-          openStudio(record.id)
-        }}
       />
     </div>
   )

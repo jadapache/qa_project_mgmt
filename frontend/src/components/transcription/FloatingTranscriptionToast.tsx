@@ -43,22 +43,27 @@ export const FloatingTranscriptionToast: React.FC<FloatingTranscriptionToastProp
     const isComplete = job.status === 'complete'
     const isFailed = job.status === 'failed'
 
-    let title = job.message || 'Transcripción de Reunión'
-    if (job.model_info) {
-      title = `${job.message || 'Transcripción'} (${job.model_info})`
+    // Title denotes the ongoing process
+    const title = job.model_info ? `Transcribiendo (${job.model_info})` : 'Transcribiendo Audio'
+
+    let stageText = 'Procesando...'
+    if (isComplete) {
+      stageText = 'Completado'
+    } else if (isFailed) {
+      stageText = job.error || job.message || 'Error en procesamiento'
+    } else if (job.stage) {
+      stageText = job.stage
+    } else if (job.message) {
+      stageText = job.message
     }
 
     return {
       id: job.id,
       type: 'transcription',
       title,
-      progress: job.progress || 0,
+      progress: typeof job.progress === 'number' ? job.progress : 0,
       status: job.status,
-      stageText: isComplete
-        ? 'Completado con éxito'
-        : isFailed
-        ? 'Error en procesamiento'
-        : job.stage || `${job.progress}%`,
+      stageText,
       eta: job.eta,
       speedOrSize: job.preview || null,
       onCancel: () => onCancelJob?.(job.id),

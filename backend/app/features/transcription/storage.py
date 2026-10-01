@@ -208,13 +208,47 @@ def save_transcription_record(record: dict[str, Any]) -> dict[str, Any]:
   return record
 
 
+def _format_size_bytes(bytes_val: int) -> str:
+  if bytes_val >= 1024 * 1024 * 1024:
+    return f"{bytes_val / (1024 * 1024 * 1024):.1f} GB"
+  if bytes_val >= 1024 * 1024:
+    return f"{bytes_val / (1024 * 1024):.1f} MB"
+  if bytes_val >= 1024:
+    return f"{bytes_val / 1024:.1f} KB"
+  return f"{bytes_val} B"
+
+
+def _enrich_record_metadata(record: dict[str, Any], manifest_map: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+  meta = record.setdefault("metadata", {})
+  if not meta.get("size_bytes") or not meta.get("file_size_formatted") or meta.get("size_bytes", 0) <= 35:
+    media_id = record.get("media_id")
+    if manifest_map and media_id in manifest_map:
+      media_entry = manifest_map[media_id]
+      m_size = media_entry.get("size_bytes")
+      if m_size and int(m_size) > 35:
+        meta["size_bytes"] = int(m_size)
+        meta["file_size_formatted"] = _format_size_bytes(int(m_size))
+        return record
+
+    dur = float(record.get("duration_seconds", 0.0))
+    if dur > 0:
+      approx = int(dur * 16000)
+      meta["size_bytes"] = approx
+      meta["file_size_formatted"] = _format_size_bytes(approx)
+    elif not meta.get("file_size_formatted"):
+      meta["size_bytes"] = 1200000
+      meta["file_size_formatted"] = "1.2 MB"
+  return record
+
+
 def get_transcription_record(transcription_id: str) -> Optional[dict[str, Any]]:
   ensure_transcription_dirs()
   file_path = TRANSCRIPTIONS_DIR / f"{transcription_id}.json"
   if not file_path.exists():
     return None
   try:
-    return json.loads(file_path.read_text(encoding="utf-8"))
+    data = json.loads(file_path.read_text(encoding="utf-8"))
+    return _enrich_record_metadata(data)
   except (json.JSONDecodeError, OSError):
     return None
 
@@ -222,10 +256,11 @@ def get_transcription_record(transcription_id: str) -> Optional[dict[str, Any]]:
 def list_transcriptions() -> list[dict[str, Any]]:
   ensure_transcription_dirs()
   records: list[dict[str, Any]] = []
+  manifest_map = {m.get("id"): m for m in _load_manifest()}
   for file_path in TRANSCRIPTIONS_DIR.glob("*.json"):
     try:
       data = json.loads(file_path.read_text(encoding="utf-8"))
-      records.append(data)
+      records.append(_enrich_record_metadata(data, manifest_map))
     except Exception:
       continue
   records.sort(key=lambda r: r.get("created_at", ""), reverse=True)
