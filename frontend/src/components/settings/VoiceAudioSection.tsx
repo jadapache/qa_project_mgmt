@@ -81,6 +81,15 @@ export const VoiceAudioSection = ({
   const isGroqKeyConfigured = Boolean(ai?.transcription_groq_api_key_set || ai?.groq_api_key_set)
   const isOpenaiKeyConfigured = Boolean(ai?.transcription_openai_api_key_set || ai?.openai_api_key_set)
 
+  const builtinFromCatalog = catalogModels.filter(
+    (m) => m.task_type === 'transcription' && (m.provider === 'builtin' || m.provider === 'local'),
+  )
+  const localList = builtinFromCatalog.length > 0 ? builtinFromCatalog : BUILT_IN_WHISPER_MODELS
+
+  const cloudModels = catalogModels.filter(
+    (m) => m.task_type === 'transcription' && m.provider === voiceAudioProvider,
+  )
+
   return (
     <div className="card space-y-6 border border-slate-200 bg-white p-6 md:p-8 shadow-xs rounded-2xl transition-all">
       <div
@@ -165,14 +174,19 @@ export const VoiceAudioSection = ({
               </div>
 
               <div className="space-y-3">
-                {BUILT_IN_WHISPER_MODELS.map((m) => {
+                {localList.map((m) => {
                   const isSelected = voiceAudioModel === m.id || voiceAudioModel === `whisper-${m.id}`
                   const cleanId = m.id.replace('whisper-', '')
                   const localInfo = localWhisperModels.find((lm) => lm.id === cleanId || lm.id === m.id)
-                  const isDownloaded = Boolean(localInfo?.is_downloaded)
+                  const isDownloaded = Boolean(m.is_downloaded || localInfo?.is_downloaded)
                   const isDownloading = downloadingWhisperId === cleanId || downloadingWhisperId === m.id
                   const isDeleting = deletingWhisperId === cleanId || deletingWhisperId === m.id
-                  const diskSizeStr = localInfo && localInfo.disk_size_mb > 0 ? `${localInfo.disk_size_mb} MB` : m.size
+                  const diskSizeStr =
+                    localInfo && localInfo.disk_size_mb > 0
+                      ? `${localInfo.disk_size_mb} MB`
+                      : m.disk_size_mb && m.disk_size_mb > 0
+                      ? `${m.disk_size_mb} MB`
+                      : m.size || '75 MB'
 
                   return (
                     <div
@@ -195,7 +209,7 @@ export const VoiceAudioSection = ({
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 border border-slate-200">
-                              No descargado ({m.size})
+                              No descargado ({m.size || 'Local'})
                             </span>
                           )}
                           {isSelected && (
@@ -208,9 +222,9 @@ export const VoiceAudioSection = ({
                           {m.description}
                         </p>
                         <p className="text-xs text-slate-400 font-medium pt-0.5 flex items-center gap-2">
-                          <span>Tamaño: {m.size}</span>
+                          <span>Tamaño: {m.size || 'Variable'}</span>
                           <span>•</span>
-                          <span>Precisión: {m.accuracy}</span>
+                          <span>Precisión: {m.accuracy || 'Estándar'}</span>
                         </p>
                       </div>
 
@@ -264,7 +278,7 @@ export const VoiceAudioSection = ({
                                 ) : (
                                   <>
                                     <Download className="h-3.5 w-3.5 text-[#002777]" />
-                                    Descargar ({m.size})
+                                    Descargar ({m.size || 'Modelo'})
                                   </>
                                 )}
                               </button>
@@ -304,7 +318,13 @@ export const VoiceAudioSection = ({
                   onChange={(e) => setVoiceAudioModel(e.target.value)}
                   className="input-field text-sm font-medium text-slate-900 border border-slate-300 rounded-xl"
                 >
-                  {isGroq ? (
+                  {cloudModels.length > 0 ? (
+                    cloudModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))
+                  ) : isGroq ? (
                     <>
                       <option value="whisper-large-v3">Whisper Large v3 (Recomendado / Máxima Precisión)</option>
                       <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo (Velocidad Extrema)</option>

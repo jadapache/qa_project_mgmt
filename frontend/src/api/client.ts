@@ -142,7 +142,7 @@ export type ModelCatalogItem = {
   id: string
   raw_id: string
   name: string
-  provider: 'groq' | 'openai' | 'claude' | 'gemini' | 'ollama'
+  provider: 'groq' | 'openai' | 'claude' | 'gemini' | 'ollama' | 'builtin' | 'local' | string
   provider_name: string
   description: string
   context_window: string
@@ -157,6 +157,10 @@ export type ModelCatalogItem = {
   max_output_tokens?: number
   badge?: string
   is_free: boolean
+  size?: string
+  accuracy?: string
+  is_downloaded?: boolean
+  disk_size_mb?: number
 }
 
 export type ModelCatalogResponse = {

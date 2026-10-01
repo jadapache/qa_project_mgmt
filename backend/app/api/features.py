@@ -234,6 +234,46 @@ async def pull_ollama_model(body: OllamaPullRequest) -> dict[str, Any]:
     raise HTTPException(status_code=500, detail=f"Error al descargar el modelo {body.name} en Ollama: {e}")
 
 
+@router.get("/ai/whisper/models")
+async def list_whisper_models() -> dict[str, Any]:
+  """List all local Whisper built-in models and their download status on disk."""
+  from app.features.transcription.whisper_local import get_local_models_info
+  models = get_local_models_info()
+  return {"ok": True, "models": models}
+
+
+@router.post("/ai/whisper/download/{model_id}")
+async def download_whisper_model_endpoint(model_id: str) -> dict[str, Any]:
+  """Download a local Whisper model to disk cache."""
+  import asyncio
+  from app.features.transcription.whisper_local import download_model_file
+  try:
+    clean_id = model_id.replace("whisper-", "")
+    path = await asyncio.to_thread(download_model_file, clean_id)
+    return {
+      "ok": True,
+      "model_id": clean_id,
+      "file_path": str(path),
+      "message": f"Modelo {clean_id} descargado y listo para uso local.",
+    }
+  except Exception as exc:
+    raise HTTPException(status_code=500, detail=f"Error descargando modelo Whisper {model_id}: {exc}") from exc
+
+
+@router.delete("/ai/whisper/{model_id}")
+async def delete_whisper_model_endpoint(model_id: str) -> dict[str, Any]:
+  """Delete a downloaded local Whisper model from disk to free space."""
+  from app.features.transcription.whisper_local import delete_model_file
+  try:
+    clean_id = model_id.replace("whisper-", "")
+    deleted = delete_model_file(clean_id)
+    if not deleted:
+      return {"ok": True, "message": f"El modelo {clean_id} no estaba descargado."}
+    return {"ok": True, "message": f"Modelo Whisper {clean_id} eliminado del disco con éxito."}
+  except Exception as exc:
+    raise HTTPException(status_code=500, detail=f"Error eliminando modelo Whisper {model_id}: {exc}") from exc
+
+
 @router.get("/ai/prompts")
 async def prompts() -> dict[str, Any]:
   return {"prompts": list_prompts()}

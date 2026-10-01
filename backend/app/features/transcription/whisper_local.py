@@ -11,46 +11,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-WHISPER_MODELS_METADATA = {
-  "tiny": {
-    "name": "Whisper Tiny",
-    "size_label": "75 MB",
-    "accuracy": "Básica (Rápido)",
-    "description": "Ultra ligero, ideal para pruebas rápidas y máquinas con recursos limitados.",
-  },
-  "base": {
-    "name": "Whisper Base",
-    "size_label": "142 MB",
-    "accuracy": "Estándar",
-    "description": "Excelente balance entre velocidad y precisión para reuniones estándar.",
-  },
-  "small": {
-    "name": "Whisper Small",
-    "size_label": "466 MB",
-    "accuracy": "Buena",
-    "description": "Mayor precisión con acentos y términos técnicos en español.",
-  },
-  "medium": {
-    "name": "Whisper Medium",
-    "size_label": "1.5 GB",
-    "accuracy": "Alta",
-    "description": "Alta fidelidad en la transcripción, requiere GPU o CPU con buen rendimiento.",
-  },
-  "large-v3": {
-    "name": "Whisper Large v3",
-    "size_label": "3.1 GB",
-    "accuracy": "Máxima",
-    "description": "El modelo insignia con la mayor precisión multilingüe disponible.",
-  },
-  "large-v3-turbo": {
-    "name": "Whisper Large v3 Turbo",
-    "size_label": "1.6 GB",
-    "accuracy": "Alta / Rápido",
-    "description": "Versión optimizada de Large v3 con decodificación acelerada.",
-  },
-}
-
-
 def get_whisper_cache_dir() -> Path:
   cache_dir = Path(os.path.expanduser("~")) / ".cache" / "whisper"
   cache_dir.mkdir(parents=True, exist_ok=True)
@@ -58,26 +18,50 @@ def get_whisper_cache_dir() -> Path:
 
 
 def get_local_models_info() -> List[Dict[str, Any]]:
-  """Inspects the local cache directory to list all Whisper models and their download status."""
+  """Inspects the local cache directory to list all Whisper models and their download status based on models_catalog.json."""
+  from app.ai.catalog import load_local_catalog
   cache_dir = get_whisper_cache_dir()
   results: List[Dict[str, Any]] = []
 
-  for model_id, meta in WHISPER_MODELS_METADATA.items():
+  try:
+    all_models = load_local_catalog()
+    builtin_whisper = [m for m in all_models if m.provider == "builtin" and m.task_type == "transcription"]
+  except Exception:
+    builtin_whisper = []
+
+  if builtin_whisper:
+    for m in builtin_whisper:
+      clean_id = m.id.replace("whisper-", "")
+      model_file = cache_dir / f"{clean_id}.pt"
+      is_downloaded = model_file.exists() and model_file.stat().st_size > 1024 * 1024
+      disk_size_mb = round(model_file.stat().st_size / (1024 * 1024), 1) if is_downloaded else 0.0
+
+      results.append({
+        "id": clean_id,
+        "name": m.name,
+        "size": m.size or "142 MB",
+        "accuracy": m.accuracy or "Estándar",
+        "description": m.description,
+        "is_downloaded": is_downloaded,
+        "disk_size_mb": disk_size_mb,
+        "file_path": str(model_file) if is_downloaded else None,
+      })
+    return results
+
+  for model_id in ("tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"):
     model_file = cache_dir / f"{model_id}.pt"
     is_downloaded = model_file.exists() and model_file.stat().st_size > 1024 * 1024
     disk_size_mb = round(model_file.stat().st_size / (1024 * 1024), 1) if is_downloaded else 0.0
-
     results.append({
       "id": model_id,
-      "name": meta["name"],
-      "size": meta["size_label"],
-      "accuracy": meta["accuracy"],
-      "description": meta["description"],
+      "name": f"Whisper {model_id.title()}",
+      "size": "N/A",
+      "accuracy": "N/A",
+      "description": "Modelo Whisper local",
       "is_downloaded": is_downloaded,
       "disk_size_mb": disk_size_mb,
       "file_path": str(model_file) if is_downloaded else None,
     })
-
   return results
 
 

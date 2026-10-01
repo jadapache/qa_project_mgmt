@@ -350,7 +350,7 @@ def test_progress_stream_endpoint(client: TestClient):
 
 
 def test_local_whisper_models_endpoint(client: TestClient):
-  res = client.get("/api/transcription/models/local")
+  res = client.get("/api/ai/whisper/models")
   assert res.status_code == 200
   data = res.json()
   assert data["ok"] is True

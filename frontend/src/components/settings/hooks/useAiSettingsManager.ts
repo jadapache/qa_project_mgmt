@@ -1,7 +1,6 @@
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { api, type AISettings, type ModelCatalogItem } from '../../../api/client'
-import { transcriptionApi, type LocalWhisperModelInfo } from '../../../api/modules/transcription'
 import { useToast } from '../../../context/ToastContext'
 import { normalizeOllamaUrl, validateAiSettingsPayload } from '../validators/settingsValidation'
 
@@ -103,7 +102,7 @@ export function useAiSettingsManager() {
   const fetchLocalWhisperModels = useCallback(async () => {
     setFetchingWhisperModels(true)
     try {
-      const res = await transcriptionApi.getLocalModels()
+      const res = await api.listWhisperModels()
       if (res.ok && res.models) {
         setLocalWhisperModels(res.models)
       }
@@ -182,10 +181,11 @@ export function useAiSettingsManager() {
     setDownloadingWhisperId(modelId)
     try {
       toast.info(`Iniciando descarga de Whisper ${modelId}... Esto puede demorar según tu conexión.`)
-      const res = await transcriptionApi.downloadLocalModel(modelId)
+      const res = await api.downloadWhisperModel(modelId)
       if (res.ok) {
         toast.success(res.message || `Modelo Whisper ${modelId} descargado correctamente.`)
         await fetchLocalWhisperModels()
+        await loadDynamicCatalog(true)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : `Error descargando modelo ${modelId}`)
@@ -197,10 +197,11 @@ export function useAiSettingsManager() {
   const handleDeleteWhisperModel = async (modelId: string) => {
     setDeletingWhisperId(modelId)
     try {
-      const res = await transcriptionApi.deleteLocalModel(modelId)
+      const res = await api.deleteWhisperModel(modelId)
       if (res.ok) {
         toast.success(res.message || `Modelo Whisper ${modelId} eliminado del disco.`)
         await fetchLocalWhisperModels()
+        await loadDynamicCatalog(true)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : `Error al eliminar modelo ${modelId}`)

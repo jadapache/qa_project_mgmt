@@ -65,4 +65,19 @@ export const aiSettingsApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ criteria }),
     }).then((r) => handleResponse<Record<string, unknown>>(r)),
+
+  listWhisperModels: () =>
+    fetch(`${API_BASE}/api/ai/whisper/models`).then((r) =>
+      handleResponse<{ ok: boolean; models: Array<{ id: string; name: string; size: string; accuracy: string; description: string; is_downloaded: boolean; disk_size_mb: number }> }>(r),
+    ),
+
+  downloadWhisperModel: (modelId: string) =>
+    fetch(`${API_BASE}/api/ai/whisper/download/${modelId}`, {
+      method: 'POST',
+    }).then((r) => handleResponse<{ ok: boolean; model_id: string; file_path: string; message: string }>(r)),
+
+  deleteWhisperModel: (modelId: string) =>
+    fetch(`${API_BASE}/api/ai/whisper/${modelId}`, {
+      method: 'DELETE',
+    }).then((r) => handleResponse<{ ok: boolean; message: string }>(r)),
 }
