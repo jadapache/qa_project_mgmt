@@ -7,8 +7,17 @@ import { docAgentApi } from './modules/docAgent'
 import { integrationsApi } from './modules/integrations'
 import { templatesApi } from './modules/templates'
 import { settingsApi } from './modules/settings'
+import { transcriptionApi } from './modules/transcription'
 
 export type { AppSettings, IntegrationInfo, TestConnectionResult } from '../types'
+export type {
+  MediaMetadata,
+  TranscriptionSegment,
+  TranscriptionSummary,
+  TranscriptionProgress,
+  TranscriptionResult,
+  TranscribeOptions,
+} from './modules/transcription'
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -215,6 +224,7 @@ export const api = {
   ...integrationsApi,
   ...templatesApi,
   ...settingsApi,
+  ...transcriptionApi,
 }
 
 export const apiClient = api

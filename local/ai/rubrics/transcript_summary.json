@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "feature": "transcript_summary",
+  "criteria": [
+    "Extrae con precisi\u00f3n los nombres o roles de los participantes identificados en el audio",
+    "Sintetiza los temas clave sin redundancias",
+    "Separa con claridad las decisiones tomadas de los requerimientos identificados",
+    "No alucina compromisos que no fueron expresados por los interlocutores"
+  ]
+}

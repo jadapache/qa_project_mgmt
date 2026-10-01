@@ -457,6 +457,38 @@ async def mejoras_doc(body: FeatureWorkspaceRequest) -> dict[str, Any]:
     raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@router.post("/features/inventario")
+async def inventario_doc_endpoint(body: FeatureWorkspaceRequest) -> dict[str, Any]:
+  try:
+    return await run_grounded_feature(
+      feature="inventario_doc",
+      query=body.query,
+      sources=body.sources or ["knowledge", "jira", "github"],
+      document_ids=body.document_ids,
+      chat_context=body.chat_context,
+    )
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  except Exception as exc:
+    raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("/features/levantamiento")
+async def levantamiento_doc_endpoint(body: FeatureWorkspaceRequest) -> dict[str, Any]:
+  try:
+    return await run_grounded_feature(
+      feature="levantamiento_doc",
+      query=body.query,
+      sources=body.sources or ["knowledge", "jira", "github"],
+      document_ids=body.document_ids,
+      chat_context=body.chat_context,
+    )
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  except Exception as exc:
+    raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 class TemplateMetadataUpdate(BaseModel):
 
 
