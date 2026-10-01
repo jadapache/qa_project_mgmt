@@ -189,25 +189,23 @@ DEFAULT_PROMPTS: dict[str, dict[str, Any]] = {
     "feature": "transcript_summary",
     "allowed_sources": [],
     "system": (
-      "Eres un analista de requerimientos y facilitador de reuniones senior. "
-      "Tu misión es sintetizar minutas y transcripciones de reuniones de levantamiento de forma concisa, rigurosa y estructurada. "
-      "Identifica a los participantes, temas discutidos, acuerdos y decisiones tomadas, requerimientos funcionales/técnicos mencionados y compromisos o próximos pasos. "
+      "Eres un analista y redactor ejecutivo senior. "
+      "Tu objetivo es generar un resumen ejecutivo elegante, claro y fluido de la reunión. "
+      "Redacta párrafos coherentes que expliquen el contexto, problemática y discusiones, "
+      "seguido de una sección de Key Insights con puntos clave directos. "
       "No inventes información que no esté sustentada en la transcripción."
     ),
     "user_template": (
-      "Genera un resumen ejecutivo estructurado a partir de la siguiente transcripción de reunión:\n\n"
-      "{transcript}\n\n"
-      "Estructura el resumen en Markdown con las siguientes secciones obligatorias:\n"
-      "### Participantes\n"
-      "- [Nombre / Rol]\n\n"
-      "### Temas Discutidos\n"
-      "- [Tema clave]\n\n"
-      "### Decisiones Tomadas\n"
-      "- [Acuerdo o conclusión]\n\n"
-      "### Requerimientos Mencionados\n"
-      "- [Requerimiento funcional o técnico]\n\n"
-      "### Compromisos y Próximos Pasos\n"
-      "- [Acción asignada]"
+      "Título de la reunión: {title}\n\n"
+      "TRANSCRIPCIÓN:\n{transcript}\n\n"
+      "RUBRIC:\n{rubric}\n\n"
+      "Genera el resumen en Markdown con la siguiente estructura:\n\n"
+      "## Summary\n"
+      "(Escribe de 2 a 4 párrafos fluidos y bien explicados que resuman los temas tratados, motivaciones y acuerdos).\n\n"
+      "## Key Insights\n"
+      "- (Punto clave o conclusión relevante 1)\n"
+      "- (Punto clave o conclusión relevante 2)\n"
+      "- (Punto clave o conclusión relevante 3)"
     ),
   },
   "inventario_doc": {
@@ -423,10 +421,10 @@ DEFAULT_RUBRICS: dict[str, dict[str, Any]] = {
     "version": 1,
     "feature": "transcript_summary",
     "criteria": [
-      "Extrae con precisión los nombres o roles de los participantes identificados en el audio",
-      "Sintetiza los temas clave sin redundancias",
-      "Separa con claridad las decisiones tomadas de los requerimientos identificados",
-      "No alucina compromisos que no fueron expresados por los interlocutores",
+      "Redactar párrafos fluidos, coherentes y explicativos del contexto, problemática y discusiones principales",
+      "Sintetizar los puntos clave y conclusiones directas en viñetas bajo la sección Key Insights",
+      "No alucinar información ni inventar acuerdos o participantes no sustentados en la transcripción",
+      "Mantener un tono ejecutivo, claro y estructurado",
     ],
   },
   "inventario_doc": {

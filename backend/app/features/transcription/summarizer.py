@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 
 from app.ai.providers.base import AIMessage
 from app.ai.providers.factory import resolve_provider
-from app.ai.templates import get_prompt
+from app.ai.templates import get_prompt, get_rubric, rubric_to_text
 from app.schemas.transcription import TranscriptionSummary
 
 logger = logging.getLogger(__name__)
@@ -142,31 +142,20 @@ async def summarize_transcript(
 
   formatted_transcript = format_transcript_for_llm(segments)
 
+  prompt_cfg = get_prompt("transcript_summary")
   try:
-    prompt_cfg = get_prompt("transcript_summary")
+    rubric_cfg = get_rubric("transcript_summary")
+    rubric_text = rubric_to_text(rubric_cfg)
   except Exception:
-    prompt_cfg = {
-      "system": (
-        "Eres un analista y redactor ejecutivo senior. Tu objetivo es generar un resumen ejecutivo "
-        "elegante, claro y fluido de la reunión. Redacta párrafos coherentes que expliquen el contexto "
-        "y las discusiones, seguido de una sección de Key Insights con puntos clave directos."
-      ),
-      "user_template": (
-        "Título de la reunión: {title}\n\n"
-        "TRANSCRIPCIÓN:\n{transcript}\n\n"
-        "Escribe un resumen con la siguiente estructura Markdown:\n\n"
-        "## Summary\n"
-        "(Escribe 2 a 4 párrafos fluidos y bien explicados que resuman los temas tratados, motivaciones y acuerdos).\n\n"
-        "## Key Insights\n"
-        "- (Punto clave 1 explicando un aspecto relevante de la reunión)\n"
-        "- (Punto clave 2...)\n"
-        "- (Punto clave 3...)\n"
-      ),
-    }
+    rubric_text = ""
 
   system_msg = prompt_cfg.get("system", "")
   user_template = prompt_cfg.get("user_template", "")
-  user_content = user_template.replace("{title}", title).replace("{transcript}", formatted_transcript)
+  user_content = (
+    user_template.replace("{title}", title)
+    .replace("{transcript}", formatted_transcript)
+    .replace("{rubric}", rubric_text)
+  )
 
   messages = [
     AIMessage(role="system", content=system_msg),
