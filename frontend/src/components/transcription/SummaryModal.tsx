@@ -167,8 +167,23 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
 
             <button
               type="button"
+              onClick={handleNext}
+              disabled={isSaving || !transcriptionId}
+              className="px-3.5 py-1.5 bg-[#002777] hover:bg-[#001e5c] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              title="Generar Inventario y Levantamiento"
+            >
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              )}
+              <span className="hidden sm:inline">Generar Documento</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition ml-2"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition ml-1 cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>

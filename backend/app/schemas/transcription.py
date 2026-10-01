@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 class MediaMetadata(BaseModel):
   title: str = Field(..., min_length=1, max_length=250)
   description: Optional[str] = Field(default="", max_length=2000)
+  size_bytes: Optional[int] = None
+  file_size_formatted: Optional[str] = None
 
 
 class TranscriptionSegment(BaseModel):

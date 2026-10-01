@@ -3,6 +3,8 @@ import { API_BASE, getAuthHeaders, handleResponse } from '../client'
 export type MediaMetadata = {
   title: string
   description?: string
+  size_bytes?: number
+  file_size_formatted?: string
 }
 
 export type TranscriptionSegment = {

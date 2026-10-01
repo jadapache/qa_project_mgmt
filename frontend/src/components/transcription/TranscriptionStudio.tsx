@@ -426,18 +426,33 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
               </h2>
             </div>
 
-            {isSummaryReady && (
-              <button
-                type="button"
-                onClick={handleGenerateSummary}
-                disabled={isGeneratingSummary}
-                className="px-2.5 py-1 bg-white hover:bg-slate-100 text-[#002777] border border-blue-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-2xs"
-                title="Regenerar resumen con IA"
-              >
-                <RefreshCw className={`h-3 w-3 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
-                <span>Regenerar</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {isSummaryReady && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSummary}
+                    disabled={isGeneratingSummary}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition shadow-2xs cursor-pointer"
+                    title="Regenerar resumen con IA"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                    <span>Regenerar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setGenerateModalOpen(true)}
+                    disabled={!isSummaryReady || isJobActive}
+                    className="px-3 py-1 bg-[#002777] hover:bg-[#001e5c] text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                    title="Generar Inventario (.xlsx) y Levantamiento (.docx)"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Generar Documento</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Panel Body: Empty / In-Progress / Ready with Univer */}

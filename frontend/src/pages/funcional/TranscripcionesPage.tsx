@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Sparkles,
   History,
@@ -7,9 +7,15 @@ import {
   RefreshCw,
   AlertTriangle,
   ArrowRight,
+  LayoutGrid,
+  List,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranscription } from '../../hooks/useTranscription'
+import type { TranscriptionResult } from '../../api/modules/transcription'
+import { ConfirmationModal } from '../../components/common'
 import {
   UploadArea,
   RecentTranscriptionItem,
@@ -18,6 +24,8 @@ import {
   FloatingTranscriptionToast,
   TranscriptionStudio,
 } from '../../components/transcription'
+
+const ITEMS_PER_PAGE = 10
 
 export const TranscripcionesPage = () => {
   const {
@@ -37,13 +45,18 @@ export const TranscripcionesPage = () => {
     handleCancelTranscription,
     handleDeleteTranscription,
     handleDismissJob,
-    openGenerateModal,
     setShowGenerateModal,
     refreshTranscriptions,
   } = useTranscription()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Delete confirmation modal state
+  const [transcriptionToDelete, setTranscriptionToDelete] = useState<TranscriptionResult | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const isModelConfigured =
     !availableModels ||
@@ -51,14 +64,39 @@ export const TranscripcionesPage = () => {
     availableModels.groq_configured ||
     availableModels.openai_configured
 
-  const filteredRecents = recentTranscriptions.filter((t) => {
-    if (!searchQuery.trim()) return true
-    const q = searchQuery.toLowerCase()
-    const titleMatch = t.metadata.title.toLowerCase().includes(q)
-    const descMatch = t.metadata.description?.toLowerCase().includes(q)
-    const participantsMatch = t.summary?.participants?.some((p) => p.toLowerCase().includes(q))
-    return titleMatch || descMatch || participantsMatch
-  })
+  const filteredRecents = useMemo(() => {
+    return recentTranscriptions.filter((t) => {
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase()
+      const titleMatch = t.metadata.title.toLowerCase().includes(q)
+      const descMatch = t.metadata.description?.toLowerCase().includes(q)
+      const participantsMatch = t.summary?.participants?.some((p) => p.toLowerCase().includes(q))
+      return titleMatch || descMatch || participantsMatch
+    })
+  }, [recentTranscriptions, searchQuery])
+
+  // Reset to page 1 on search
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredRecents.length / ITEMS_PER_PAGE))
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredRecents.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredRecents, currentPage])
+
+  const confirmDelete = async () => {
+    if (!transcriptionToDelete) return
+    try {
+      setIsDeleting(true)
+      await handleDeleteTranscription(transcriptionToDelete.id)
+      setTranscriptionToDelete(null)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   // If in Studio mode and a transcription is selected, render the TranscriptionStudio workspace
   if (viewMode === 'studio' && selectedTranscriptionId) {
@@ -70,7 +108,7 @@ export const TranscripcionesPage = () => {
           onBackToDashboard={closeStudio}
           onRefreshData={refreshTranscriptions}
         />
-        {/* Floating toast widget also available */}
+        {/* Floating toast widget in top right */}
         <FloatingTranscriptionToast
           activeJobs={activeJobs}
           onOpenStudio={(id) => openStudio(id)}
@@ -105,7 +143,7 @@ export const TranscripcionesPage = () => {
           <button
             type="button"
             onClick={() => setHistoryModalOpen(true)}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-[#002777] border border-blue-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+            className="px-4 py-2 bg-white hover:bg-slate-50 text-[#002777] border border-blue-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <History className="h-4 w-4" />
             <span>Ver Historial Completo</span>
@@ -115,7 +153,7 @@ export const TranscripcionesPage = () => {
             type="button"
             onClick={refreshTranscriptions}
             disabled={isLoadingList}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             title="Actualizar lista"
           >
             <RefreshCw className={`h-4 w-4 ${isLoadingList ? 'animate-spin' : ''}`} />
@@ -150,7 +188,7 @@ export const TranscripcionesPage = () => {
         </div>
       )}
 
-      {/* Upload Area (Full width, right sidebar cards removed as requested) */}
+      {/* Upload Area */}
       <div className="w-full">
         <UploadArea
           onUpload={async (file, title, desc) => {
@@ -161,30 +199,60 @@ export const TranscripcionesPage = () => {
         />
       </div>
 
-      {/* Recent Transcriptions Section */}
+      {/* Transcriptions Section */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              Transcripciones y Minutas Recientes
+              Transcripciones
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Consulta resúmenes, edita en el espacio Univer y genera entregables de requerimientos.
+              Consulta tus grabaciones procesadas, visualiza sus minutas y genera entregables.
             </p>
           </div>
 
-          {recentTranscriptions.length > 0 && (
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por título o participante..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#002777]/20 focus:border-[#002777] shadow-2xs"
-              />
+          <div className="flex items-center gap-2.5 self-start sm:self-auto w-full sm:w-auto">
+            {recentTranscriptions.length > 0 && (
+              <div className="relative flex-1 sm:w-60">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por título..."
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#002777]/20 focus:border-[#002777] shadow-2xs"
+                />
+              </div>
+            )}
+
+            {/* View Switcher: Grid vs List */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewStyle('grid')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewStyle === 'grid'
+                    ? 'bg-white text-[#002777] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="Vista en Cuadrícula"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewStyle('list')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewStyle === 'list'
+                    ? 'bg-white text-[#002777] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="Vista en Lista"
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
         {recentTranscriptions.length === 0 && activeJobs.length === 0 ? (
@@ -204,26 +272,114 @@ export const TranscripcionesPage = () => {
             No se encontraron transcripciones que coincidan con "{searchQuery}".
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredRecents.map((item) => (
-              <RecentTranscriptionItem
-                key={item.id}
-                transcription={item}
-                onOpenSummary={(id) => openStudio(id)}
-                onOpenGenerate={(id) => openGenerateModal(id)}
-                onDelete={(id) => handleDeleteTranscription(id)}
-              />
-            ))}
+          <div className="space-y-4">
+            {/* Grid or List Display */}
+            {viewStyle === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {paginatedItems.map((item) => (
+                  <RecentTranscriptionItem
+                    key={item.id}
+                    transcription={item}
+                    viewMode="grid"
+                    onOpenSummary={(id) => openStudio(id)}
+                    onRequestDelete={(t) => setTranscriptionToDelete(t)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {paginatedItems.map((item) => (
+                  <RecentTranscriptionItem
+                    key={item.id}
+                    transcription={item}
+                    viewMode="list"
+                    onOpenSummary={(id) => openStudio(id)}
+                    onRequestDelete={(t) => setTranscriptionToDelete(t)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 text-xs text-slate-600">
+                <p>
+                  Mostrando{' '}
+                  <span className="font-bold text-slate-900">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                  </span>{' '}
+                  a{' '}
+                  <span className="font-bold text-slate-900">
+                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredRecents.length)}
+                  </span>{' '}
+                  de{' '}
+                  <span className="font-bold text-slate-900">{filteredRecents.length}</span>{' '}
+                  transcripciones
+                </p>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-slate-700"
+                    title="Página anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`min-w-[32px] h-8 px-2 rounded-lg font-bold text-xs transition cursor-pointer ${
+                        currentPage === pageNum
+                          ? 'bg-[#002777] text-white'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-slate-700"
+                    title="Página siguiente"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
 
-      {/* Floating Transcription Toast (Bottom-Right Widget) */}
+      {/* Floating Background Task Toast (Top-Right Widget) */}
       <FloatingTranscriptionToast
         activeJobs={activeJobs}
         onOpenStudio={(id) => openStudio(id)}
         onCancelJob={(id) => handleCancelTranscription(id)}
         onDismissJob={(id) => handleDismissJob(id)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(transcriptionToDelete)}
+        title="¿Eliminar Transcripción?"
+        message={`¿Estás seguro de que deseas eliminar permanentemente "${
+          transcriptionToDelete?.metadata.title || 'esta transcripción'
+        }" y sus archivos asociados? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar Transcripción"
+        cancelLabel="Cancelar"
+        isDestructive={true}
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onClose={() => setTranscriptionToDelete(null)}
       />
 
       {/* Generate Deliverables Modal */}

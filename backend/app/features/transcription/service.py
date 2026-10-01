@@ -396,12 +396,25 @@ class TranscriptionService:
         for s in labeled_segments
       ]
 
+      file_bytes_val = media_entry.get("size_bytes", 0)
+      if file_bytes_val > 0:
+        if file_bytes_val >= 1024 * 1024 * 1024:
+          size_fmt = f"{file_bytes_val / (1024 * 1024 * 1024):.1f} GB"
+        elif file_bytes_val >= 1024 * 1024:
+          size_fmt = f"{file_bytes_val / (1024 * 1024):.1f} MB"
+        else:
+          size_fmt = f"{file_bytes_val / 1024:.1f} KB"
+      else:
+        size_fmt = None
+
       result = TranscriptionResult(
         id=transcription_id,
         media_id=media_id,
         metadata=MediaMetadata(
           title=media_entry.get("title", "Reunión"),
           description=media_entry.get("description", ""),
+          size_bytes=file_bytes_val if file_bytes_val > 0 else None,
+          file_size_formatted=size_fmt,
         ),
         language=transcription_output.get("language", language or "es"),
         duration_seconds=float(transcription_output.get("duration", 0.0)),
