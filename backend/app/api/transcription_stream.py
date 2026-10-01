@@ -87,7 +87,11 @@ async def transcription_progress_stream(transcription_id: str) -> AsyncGenerator
 
     # If we already have a latest progress status, send it immediately
     if transcription_id in _LATEST_PROGRESS:
-      yield f"data: {json.dumps(_LATEST_PROGRESS[transcription_id])}\n\n"
+      latest = _LATEST_PROGRESS[transcription_id]
+      yield f"data: {json.dumps(latest)}\n\n"
+      latest_stage = str(latest.get("stage") or latest.get("status") or "")
+      if latest_stage in {"complete", "failed", "cancelled"} or latest.get("progress") == 100:
+        return
 
     while True:
       try:

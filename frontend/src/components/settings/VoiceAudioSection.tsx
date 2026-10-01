@@ -5,15 +5,18 @@ import {
   ChevronUp,
   Coins,
   Cpu,
+  Download,
   Eye,
   EyeOff,
-  Gauge,
+  Loader2,
   Lock,
   Mic,
   RefreshCw,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
 import type { AISettings, ModelCatalogItem } from '../../api/client'
+import type { LocalWhisperModelInfo } from '../../api/modules/transcription'
 import { BUILT_IN_WHISPER_MODELS } from './constants'
 
 export type VoiceAudioSectionProps = {
@@ -33,6 +36,13 @@ export type VoiceAudioSectionProps = {
   setShowTranscriptionKey: (show: boolean) => void
   savingAi: boolean
   handleVoiceAudioSave: (e?: FormEvent) => Promise<void>
+  localWhisperModels?: LocalWhisperModelInfo[]
+  downloadingWhisperId?: string | null
+  deletingWhisperId?: string | null
+  fetchingWhisperModels?: boolean
+  fetchLocalWhisperModels?: () => Promise<void>
+  handleDownloadWhisperModel?: (modelId: string) => Promise<void>
+  handleDeleteWhisperModel?: (modelId: string) => Promise<void>
 }
 
 export const VoiceAudioSection = ({
@@ -52,6 +62,13 @@ export const VoiceAudioSection = ({
   setShowTranscriptionKey,
   savingAi,
   handleVoiceAudioSave,
+  localWhisperModels = [],
+  downloadingWhisperId = null,
+  deletingWhisperId = null,
+  fetchingWhisperModels = false,
+  fetchLocalWhisperModels,
+  handleDownloadWhisperModel,
+  handleDeleteWhisperModel,
 }: VoiceAudioSectionProps) => {
   const isGroq = voiceAudioProvider === 'groq'
   const isOpenAI = voiceAudioProvider === 'openai'
@@ -77,7 +94,7 @@ export const VoiceAudioSection = ({
           <div>
             <h3 className="text-lg font-bold text-slate-900">Modelo de Transcripción y Comandos de Voz</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Configura el motor Whisper (Local o en la Nube) y sus credenciales de API para procesar grabaciones y audio.
+              Configura el motor Whisper (Local integrado o Cloud) y gestiona los modelos instalados en tu equipo.
             </p>
           </div>
         </div>
@@ -118,7 +135,7 @@ export const VoiceAudioSection = ({
               }}
               className="input-field text-sm font-medium text-slate-900 w-full bg-white border border-slate-300 rounded-xl py-2.5 px-3"
             >
-              <option value="builtin">Whisper Integrado (Local / Sin costo por token)</option>
+              <option value="builtin">Whisper Integrado (Local / Ejecución en tu equipo sin costo)</option>
               <option value="groq">Groq Cloud (Whisper LPU Ultrarrápido - Free Tier)</option>
               <option value="openai">OpenAI API (Whisper Oficial Cloud)</option>
             </select>
@@ -127,16 +144,35 @@ export const VoiceAudioSection = ({
           {/* CASO 1: WHISPER LOCAL INTEGRADO */}
           {isBuiltIn && (
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#002777]">
-                <Cpu className="h-4 w-4 shrink-0 text-[#002777]" />
-                <span className="font-medium">
-                  El procesamiento local ejecuta Whisper directamente en tu equipo sin enviar datos de audio a servidores externos.
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#002777]">
+                <div className="flex items-center gap-2.5">
+                  <Cpu className="h-4 w-4 shrink-0 text-[#002777]" />
+                  <span className="font-medium">
+                    El procesamiento local ejecuta Whisper directamente en tu GPU/CPU sin enviar audio a internet. Puedes descargar y gestionar los modelos en tu disco.
+                  </span>
+                </div>
+                {fetchLocalWhisperModels && (
+                  <button
+                    type="button"
+                    onClick={() => void fetchLocalWhisperModels()}
+                    disabled={fetchingWhisperModels}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-[11px] font-semibold text-[#002777] hover:bg-blue-50 transition shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={['h-3 w-3', fetchingWhisperModels ? 'animate-spin' : ''].join(' ')} />
+                    Actualizar estado
+                  </button>
+                )}
               </div>
 
               <div className="space-y-3">
                 {BUILT_IN_WHISPER_MODELS.map((m) => {
                   const isSelected = voiceAudioModel === m.id || voiceAudioModel === `whisper-${m.id}`
+                  const cleanId = m.id.replace('whisper-', '')
+                  const localInfo = localWhisperModels.find((lm) => lm.id === cleanId || lm.id === m.id)
+                  const isDownloaded = Boolean(localInfo?.is_downloaded)
+                  const isDownloading = downloadingWhisperId === cleanId || downloadingWhisperId === m.id
+                  const isDeleting = deletingWhisperId === cleanId || deletingWhisperId === m.id
+                  const diskSizeStr = localInfo && localInfo.disk_size_mb > 0 ? `${localInfo.disk_size_mb} MB` : m.size
 
                   return (
                     <div
@@ -149,9 +185,19 @@ export const VoiceAudioSection = ({
                           : 'border border-slate-200 bg-white hover:border-slate-300',
                       ].join(' ')}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
                           <h5 className="font-bold text-slate-900 text-base">{m.name}</h5>
+                          {isDownloaded ? (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              Descargado ({diskSizeStr})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 border border-slate-200">
+                              No descargado ({m.size})
+                            </span>
+                          )}
                           {isSelected && (
                             <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-[#002777]">
                               Seleccionado
@@ -161,24 +207,83 @@ export const VoiceAudioSection = ({
                         <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
                           {m.description}
                         </p>
-                        <p className="text-xs text-slate-400 font-medium pt-0.5">
-                          Tamaño: {m.size} • Precisión: {m.accuracy}
+                        <p className="text-xs text-slate-400 font-medium pt-0.5 flex items-center gap-2">
+                          <span>Tamaño: {m.size}</span>
+                          <span>•</span>
+                          <span>Precisión: {m.accuracy}</span>
                         </p>
                       </div>
 
                       <div className="shrink-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => setVoiceAudioModel(m.id)}
-                          className={[
-                            'px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer',
-                            isSelected
-                              ? 'bg-[#002777] text-white font-bold'
-                              : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700',
-                          ].join(' ')}
-                        >
-                          {isSelected ? 'Activo' : 'Seleccionar'}
-                        </button>
+                        {isDownloaded ? (
+                          <>
+                            {handleDeleteWhisperModel && (
+                              <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={() => void handleDeleteWhisperModel(cleanId)}
+                                title="Eliminar archivo del modelo para liberar espacio en disco"
+                                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition cursor-pointer disabled:opacity-50"
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                                Borrar
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setVoiceAudioModel(m.id)}
+                              className={[
+                                'px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer',
+                                isSelected
+                                  ? 'bg-[#002777] text-white font-bold'
+                                  : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700',
+                              ].join(' ')}
+                            >
+                              {isSelected ? 'Activo' : 'Seleccionar'}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {handleDownloadWhisperModel && (
+                              <button
+                                type="button"
+                                disabled={isDownloading}
+                                onClick={() => void handleDownloadWhisperModel(cleanId)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#002777] bg-blue-50 hover:bg-blue-100 border border-blue-200 transition cursor-pointer disabled:opacity-50"
+                              >
+                                {isDownloading ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#002777]" />
+                                    Descargando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="h-3.5 w-3.5 text-[#002777]" />
+                                    Descargar ({m.size})
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setVoiceAudioModel(m.id)}
+                              className={[
+                                'px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer',
+                                isSelected
+                                  ? 'bg-[#002777] text-white font-bold'
+                                  : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700',
+                              ].join(' ')}
+                            >
+                              {isSelected ? 'Activo' : 'Seleccionar'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )
@@ -232,129 +337,115 @@ export const VoiceAudioSection = ({
                   )}
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-3 text-[11px] pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 pt-1">
                   <div>
-                    <span className="text-slate-500 block flex items-center gap-1">
-                      <Gauge className="h-3 w-3 text-[#002777]" /> Límites de uso:
-                    </span>
-                    <span className="font-medium text-slate-800">
-                      {isGroq ? '30 RPM • 14,400 RPD' : 'Tier 1: 500 RPM'}
-                    </span>
+                    <span className="text-slate-400">Tipo de motor:</span>{' '}
+                    <span className="font-semibold text-slate-700">Audio Speech-to-Text</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block flex items-center gap-1">
-                      <Coins className="h-3 w-3 text-emerald-600" /> Costo estimado:
-                    </span>
-                    <span className="font-medium text-slate-800">
-                      {isGroq ? '$0.00 (Incluido en Free Tier)' : '$0.006 por minuto de audio'}
+                    <span className="text-slate-400">Latencia estimada:</span>{' '}
+                    <span className="font-semibold text-slate-700">
+                      {isGroq ? 'Ultrarrápida (~10x tiempo real)' : 'Media (~2-5s)'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-slate-500 block flex items-center gap-1">
-                      <Cpu className="h-3 w-3 text-[#002777]" /> Tarea asignada:
+                  <div className="sm:col-span-2">
+                    <span className="text-slate-400">Diarización y resumen:</span>{' '}
+                    <span className="font-semibold text-slate-700">
+                      Compatible con segmentación de participantes y extracción de requerimientos
                     </span>
-                    <span className="font-medium text-slate-800">Transcripción y Análisis de Reuniones</span>
                   </div>
                 </div>
               </div>
 
-              {/* API Key Específica para Transcripción */}
-              {isGroq && (
-                <div className="space-y-2 rounded-xl bg-slate-50 p-4 border border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Lock className="h-3.5 w-3.5" /> Clave de API de Groq para Transcripción
-                    </label>
-                    {isGroqKeyConfigured ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                        <Check className="h-3 w-3" /> Clave configurada
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        Sin clave configurada
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showTranscriptionKey ? 'text' : 'password'}
-                      value={transcriptionGroqKey}
-                      onChange={(e) => setTranscriptionGroqKey(e.target.value)}
-                      placeholder={
-                        isGroqKeyConfigured
-                          ? '••••••••••••••••'
-                          : 'gsk_... (Ingresa tu clave de Groq para transcripción)'
-                      }
-                      className="input-field pr-10 font-mono text-xs border border-slate-300 rounded-xl"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowTranscriptionKey(!showTranscriptionKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      {showTranscriptionKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-500">
-                    Opcional: Si lo dejas vacío, se usará automáticamente la clave de Groq configurada en el Modelo de Redacción.
-                  </p>
+              {/* Credenciales de API */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-slate-500" />
+                    {isGroq ? 'Groq API Key (Voz y Transcripción)' : 'OpenAI API Key (Voz y Transcripción)'}
+                  </label>
+                  {(isGroq ? isGroqKeyConfigured : isOpenaiKeyConfigured) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
+                      <Check className="h-3 w-3" /> Configurada
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {isOpenAI && (
-                <div className="space-y-2 rounded-xl bg-slate-50 p-4 border border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Lock className="h-3.5 w-3.5" /> Clave de API de OpenAI para Transcripción
-                    </label>
-                    {isOpenaiKeyConfigured ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                        <Check className="h-3 w-3" /> Clave configurada
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        Sin clave configurada
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showTranscriptionKey ? 'text' : 'password'}
-                      value={transcriptionOpenaiKey}
-                      onChange={(e) => setTranscriptionOpenaiKey(e.target.value)}
-                      placeholder={
-                        isOpenaiKeyConfigured
-                          ? '••••••••••••••••'
-                          : 'sk-proj-... (Ingresa tu clave de OpenAI para transcripción)'
-                      }
-                      className="input-field pr-10 font-mono text-xs border border-slate-300 rounded-xl"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowTranscriptionKey(!showTranscriptionKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      {showTranscriptionKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-500">
-                    Opcional: Si lo dejas vacío, se usará automáticamente la clave de OpenAI configurada en el Modelo de Redacción.
-                  </p>
+                <div className="relative">
+                  <input
+                    type={showTranscriptionKey ? 'text' : 'password'}
+                    value={isGroq ? transcriptionGroqKey : transcriptionOpenaiKey}
+                    onChange={(e) =>
+                      isGroq
+                        ? setTranscriptionGroqKey(e.target.value)
+                        : setTranscriptionOpenaiKey(e.target.value)
+                    }
+                    placeholder={
+                      isGroq
+                        ? isGroqKeyConfigured
+                          ? '•••••••••••••••••••••••• (dejar en blanco para conservar actual)'
+                          : 'gsk_...'
+                        : isOpenaiKeyConfigured
+                        ? '•••••••••••••••••••••••• (dejar en blanco para conservar actual)'
+                        : 'sk-...'
+                    }
+                    className="input-field pr-10 text-sm font-mono text-slate-900 border border-slate-300 rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTranscriptionKey(!showTranscriptionKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                  >
+                    {showTranscriptionKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-              )}
+                <p className="text-[11px] text-slate-500">
+                  {isGroq ? (
+                    <>
+                      Obtén tu clave gratuita en{' '}
+                      <a
+                        href="https://console.groq.com/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#002777] font-semibold underline hover:text-blue-800"
+                      >
+                        console.groq.com/keys
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      Obtén tu clave en{' '}
+                      <a
+                        href="https://platform.openai.com/api-keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#002777] font-semibold underline hover:text-blue-800"
+                      >
+                        platform.openai.com/api-keys
+                      </a>
+                    </>
+                  )}
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Botón Guardar Modelo de Transcripción */}
-          <div className="flex justify-end pt-2 border-t border-slate-100">
+          {/* Botón de Guardar Panel */}
+          <div className="flex justify-end pt-4 border-t border-slate-100">
             <button
               type="button"
-              onClick={() => void handleVoiceAudioSave()}
               disabled={savingAi}
-              className="bg-[#002777] hover:bg-[#001e5c] text-white font-medium px-5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer text-xs"
+              onClick={() => void handleVoiceAudioSave()}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#002777] px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#001f5f] transition disabled:opacity-50 cursor-pointer"
             >
-              {savingAi ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              <span>Guardar Configuración de Transcripción</span>
+              {savingAi ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Guardando configuración...
+                </>
+              ) : (
+                'Guardar Configuración de Voz'
+              )}
             </button>
           </div>
         </>

@@ -26,7 +26,13 @@ from app.features.transcription.storage import (
 )
 from app.features.transcription.summarizer import summarize_transcript
 from app.features.transcription.whisper_cloud import WhisperCloudService
-from app.features.transcription.whisper_local import WhisperLocalService, extract_audio_track
+from app.features.transcription.whisper_local import (
+  WhisperLocalService,
+  delete_model_file,
+  download_model_file,
+  extract_audio_track,
+  get_local_models_info,
+)
 from app.schemas.transcription import (
   MediaMetadata,
   TranscriptionProgress,
@@ -149,11 +155,11 @@ class TranscriptionService:
       available.append("openai")
 
     active_label = "Whisper Auto"
-    if provider == "local" or (provider == "auto" and local_avail and not groq_key and not openai_key):
+    if provider in ("local", "builtin") or (provider == "auto" and local_avail and not groq_key and not openai_key):
       active_label = f"Whisper Local ({model or 'base'})"
-    elif groq_key and (provider in ("groq", "auto", "cloud")):
+    elif provider == "groq" or (groq_key and provider in ("groq", "auto", "cloud")):
       active_label = f"Groq Whisper ({model or 'whisper-large-v3'})"
-    elif openai_key and (provider in ("openai", "auto", "cloud")):
+    elif provider == "openai" or (openai_key and provider in ("openai", "auto", "cloud")):
       active_label = f"OpenAI Whisper ({model or 'whisper-1'})"
 
     return {
@@ -165,6 +171,24 @@ class TranscriptionService:
       "available_providers": available,
       "active_model_label": active_label,
     }
+
+  def get_local_whisper_models(self) -> List[Dict[str, Any]]:
+    """Lists local Whisper models and their download status in the cache."""
+    return get_local_models_info()
+
+  async def download_local_whisper_model(
+    self,
+    model_id: str,
+    progress_callback: Optional[Any] = None,
+  ) -> Path:
+    """Downloads a local Whisper model file asynchronously."""
+    clean_id = model_id.replace("whisper-", "")
+    return await asyncio.to_thread(download_model_file, clean_id, progress_callback)
+
+  def delete_local_whisper_model(self, model_id: str) -> bool:
+    """Deletes a downloaded local Whisper model file from disk."""
+    clean_id = model_id.replace("whisper-", "")
+    return delete_model_file(clean_id)
 
   async def transcribe_media_async(
     self,
@@ -261,43 +285,34 @@ class TranscriptionService:
       audio_track_path = media_path
       if media_entry.get("is_video"):
         wav_candidate = media_path.with_suffix(".wav")
-        audio_track_path = extract_audio_track(media_path, wav_candidate)
+        audio_track_path = await asyncio.to_thread(extract_audio_track, media_path, wav_candidate)
 
       _check_cancelled()
 
-      # 2. Transcribing with smooth progress ticker
+      # 2. Transcribing with smooth progress ticker and live frame updates
       self._update_progress(
         TranscriptionProgress(
           id=transcription_id,
           media_id=media_id,
           status="transcribing",
           stage="transcribing",
-          progress=25,
+          progress=20,
           message=f"Decodificando audio con {active_model_label}...",
           eta=_format_eta(35),
           model_info=active_model_label,
         )
       )
 
-      # Background progress ticker while transcribe executes
-      ticker_running = True
+      def _on_local_progress(prog_pct: int, message: str, eta_str: str):
+        if transcription_id in _ACTIVE_JOBS and _ACTIVE_JOBS[transcription_id].status == "transcribing":
+          _ACTIVE_JOBS[transcription_id].progress = prog_pct
+          _ACTIVE_JOBS[transcription_id].message = message
+          _ACTIVE_JOBS[transcription_id].eta = eta_str
+          save_active_job_progress(_ACTIVE_JOBS[transcription_id].model_dump())
+          emit_progress_sync(transcription_id, _ACTIVE_JOBS[transcription_id].model_dump())
 
-      async def _progress_ticker():
-        curr_prog = 25
-        while ticker_running and curr_prog < 70:
-          await asyncio.sleep(1.2)
-          if not ticker_running or transcription_id in _CANCELLED_JOBS:
-            break
-          curr_prog += 5
-          elapsed = time.time() - start_time
-          remaining = max(5, (100 - curr_prog) * (elapsed / max(curr_prog, 1)))
-          if transcription_id in _ACTIVE_JOBS and _ACTIVE_JOBS[transcription_id].status == "transcribing":
-            _ACTIVE_JOBS[transcription_id].progress = curr_prog
-            _ACTIVE_JOBS[transcription_id].eta = _format_eta(remaining)
-            _ACTIVE_JOBS[transcription_id].message = f"Transcribiendo audio ({curr_prog}%)..."
-            save_active_job_progress(_ACTIVE_JOBS[transcription_id].model_dump())
-
-      ticker_task = asyncio.create_task(_progress_ticker())
+      def _local_cancel_check() -> bool:
+        return transcription_id in _CANCELLED_JOBS
 
       transcription_output: Dict[str, Any] = {}
       used_mode = mode.lower()
@@ -305,21 +320,26 @@ class TranscriptionService:
       ai_cfg = load_app_settings().get("ai", {})
       cfg_provider = (ai_cfg.get("transcription_provider") or "").lower()
 
-      try:
-        if (
-          used_mode == "local"
-          or (used_mode == "auto" and cfg_provider == "local")
-          or (used_mode == "auto" and self.local_service.is_available() and not has_groq and not has_openai)
-        ):
-          if model_size and model_size != self.local_service.model_size:
-            self.local_service = WhisperLocalService(model_size=model_size)
-          transcription_output = self.local_service.transcribe(audio_track_path, language=language)
-        else:
-          # Cloud mode (Groq or OpenAI)
-          transcription_output = await self.cloud_service.transcribe(audio_track_path, language=language)
-      finally:
-        ticker_running = False
-        ticker_task.cancel()
+      is_local_requested = (
+        used_mode in ("local", "builtin")
+        or (used_mode == "auto" and cfg_provider in ("local", "builtin"))
+      )
+
+      if is_local_requested or (used_mode == "auto" and self.local_service.is_available() and not has_groq and not has_openai):
+        target_size = model_size or ai_cfg.get("transcription_model") or "base"
+        if target_size.startswith("whisper-"):
+          target_size = target_size.replace("whisper-", "")
+        self.local_service = WhisperLocalService(model_size=target_size)
+        transcription_output = await asyncio.to_thread(
+          self.local_service.transcribe,
+          audio_track_path,
+          language=language,
+          on_progress=_on_local_progress,
+          cancel_check=_local_cancel_check,
+        )
+      else:
+        # Cloud mode (Groq or OpenAI)
+        transcription_output = await self.cloud_service.transcribe(audio_track_path, language=language)
 
       _check_cancelled()
 
@@ -339,7 +359,7 @@ class TranscriptionService:
 
       raw_segments = transcription_output.get("segments", [])
       if enable_diarization and raw_segments:
-        labeled_segments = self.diarizer.diarize_segments(raw_segments, audio_track_path)
+        labeled_segments = await asyncio.to_thread(self.diarizer.diarize_segments, raw_segments, audio_track_path)
       else:
         labeled_segments = raw_segments
 

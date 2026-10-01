@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { api, type AISettings, type ModelCatalogItem } from '../../../api/client'
+import { transcriptionApi, type LocalWhisperModelInfo } from '../../../api/modules/transcription'
 import { useToast } from '../../../context/ToastContext'
 import { normalizeOllamaUrl, validateAiSettingsPayload } from '../validators/settingsValidation'
 
@@ -29,6 +30,12 @@ export function useAiSettingsManager() {
   const [transcriptionGroqKey, setTranscriptionGroqKey] = useState('')
   const [transcriptionOpenaiKey, setTranscriptionOpenaiKey] = useState('')
   const [showTranscriptionKey, setShowTranscriptionKey] = useState(false)
+
+  // Local Whisper models & download state
+  const [localWhisperModels, setLocalWhisperModels] = useState<LocalWhisperModelInfo[]>([])
+  const [downloadingWhisperId, setDownloadingWhisperId] = useState<string | null>(null)
+  const [deletingWhisperId, setDeletingWhisperId] = useState<string | null>(null)
+  const [fetchingWhisperModels, setFetchingWhisperModels] = useState(false)
 
   // API Keys & credentials
   const [groqKey, setGroqKey] = useState('')
@@ -93,6 +100,20 @@ export function useAiSettingsManager() {
     }
   }, [ollamaUrl, toast])
 
+  const fetchLocalWhisperModels = useCallback(async () => {
+    setFetchingWhisperModels(true)
+    try {
+      const res = await transcriptionApi.getLocalModels()
+      if (res.ok && res.models) {
+        setLocalWhisperModels(res.models)
+      }
+    } catch (e) {
+      console.error('Error fetching local whisper models:', e)
+    } finally {
+      setFetchingWhisperModels(false)
+    }
+  }, [])
+
   useEffect(() => {
     let isMounted = true
     const load = async () => {
@@ -137,8 +158,9 @@ export function useAiSettingsManager() {
           setOllamaUrl('')
         }
 
-        // Fetch local Ollama models silently in background
+        // Fetch local Ollama and Whisper models silently in background
         void fetchOllamaModels(settings.ollama_base_url || 'http://localhost:11434', false)
+        void fetchLocalWhisperModels()
       } catch (err) {
         if (isMounted) {
           toast.error(err instanceof Error ? err.message : 'Error al cargar la configuración del sistema')
@@ -154,7 +176,38 @@ export function useAiSettingsManager() {
     return () => {
       isMounted = false
     }
-  }, [fetchOllamaModels, loadDynamicCatalog, toast])
+  }, [fetchLocalWhisperModels, fetchOllamaModels, loadDynamicCatalog, toast])
+
+  const handleDownloadWhisperModel = async (modelId: string) => {
+    setDownloadingWhisperId(modelId)
+    try {
+      toast.info(`Iniciando descarga de Whisper ${modelId}... Esto puede demorar según tu conexión.`)
+      const res = await transcriptionApi.downloadLocalModel(modelId)
+      if (res.ok) {
+        toast.success(res.message || `Modelo Whisper ${modelId} descargado correctamente.`)
+        await fetchLocalWhisperModels()
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Error descargando modelo ${modelId}`)
+    } finally {
+      setDownloadingWhisperId(null)
+    }
+  }
+
+  const handleDeleteWhisperModel = async (modelId: string) => {
+    setDeletingWhisperId(modelId)
+    try {
+      const res = await transcriptionApi.deleteLocalModel(modelId)
+      if (res.ok) {
+        toast.success(res.message || `Modelo Whisper ${modelId} eliminado del disco.`)
+        await fetchLocalWhisperModels()
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Error al eliminar modelo ${modelId}`)
+    } finally {
+      setDeletingWhisperId(null)
+    }
+  }
 
   const handlePullModel = async (targetModelTag: string) => {
     setIsPulling(true)
@@ -365,6 +418,13 @@ export function useAiSettingsManager() {
     fetchOllamaModels,
     handlePullModel,
     isModelDownloaded,
+    localWhisperModels,
+    downloadingWhisperId,
+    deletingWhisperId,
+    fetchingWhisperModels,
+    fetchLocalWhisperModels,
+    handleDownloadWhisperModel,
+    handleDeleteWhisperModel,
     savingAi,
     testingConnection,
     handleAiSave,

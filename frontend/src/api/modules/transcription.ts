@@ -56,6 +56,17 @@ export type TranscribeOptions = {
   enable_diarization?: boolean
 }
 
+export type LocalWhisperModelInfo = {
+  id: string
+  name: string
+  size: string
+  accuracy: string
+  description: string
+  is_downloaded: boolean
+  disk_size_mb: number
+  file_path?: string | null
+}
+
 export type AvailableModelsInfo = {
   configured_provider: string
   configured_model: string
@@ -149,6 +160,29 @@ export const transcriptionApi = {
 
   async getAvailableModels(): Promise<AvailableModelsInfo> {
     const response = await fetch(`${API_BASE}/api/transcription/available-models`, {
+      headers: getAuthHeaders(),
+    })
+    return handleResponse(response)
+  },
+
+  async getLocalModels(): Promise<{ ok: boolean; models: LocalWhisperModelInfo[] }> {
+    const response = await fetch(`${API_BASE}/api/transcription/models/local`, {
+      headers: getAuthHeaders(),
+    })
+    return handleResponse(response)
+  },
+
+  async downloadLocalModel(modelId: string): Promise<{ ok: boolean; model_id: string; message: string }> {
+    const response = await fetch(`${API_BASE}/api/transcription/models/local/download/${modelId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    })
+    return handleResponse(response)
+  },
+
+  async deleteLocalModel(modelId: string): Promise<{ ok: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/transcription/models/local/${modelId}`, {
+      method: 'DELETE',
       headers: getAuthHeaders(),
     })
     return handleResponse(response)

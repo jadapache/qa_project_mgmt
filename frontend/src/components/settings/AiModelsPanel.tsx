@@ -57,6 +57,13 @@ export const AiModelsPanel = () => {
     isVoiceAudioOpen,
     setIsVoiceAudioOpen,
     handleVoiceAudioSave,
+    localWhisperModels,
+    downloadingWhisperId,
+    deletingWhisperId,
+    fetchingWhisperModels,
+    fetchLocalWhisperModels,
+    handleDownloadWhisperModel,
+    handleDeleteWhisperModel,
   } = useAiSettingsManager()
 
   if (loadingAi) {
@@ -152,6 +159,13 @@ export const AiModelsPanel = () => {
         setShowTranscriptionKey={setShowTranscriptionKey}
         savingAi={savingAi}
         handleVoiceAudioSave={handleVoiceAudioSave}
+        localWhisperModels={localWhisperModels}
+        downloadingWhisperId={downloadingWhisperId}
+        deletingWhisperId={deletingWhisperId}
+        fetchingWhisperModels={fetchingWhisperModels}
+        fetchLocalWhisperModels={fetchLocalWhisperModels}
+        handleDownloadWhisperModel={handleDownloadWhisperModel}
+        handleDeleteWhisperModel={handleDeleteWhisperModel}
       />
     </div>
   )

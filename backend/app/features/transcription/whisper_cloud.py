@@ -85,26 +85,64 @@ class WhisperCloudService:
     if language:
       data["language"] = language
 
-    filename = audio_path.name
+    effective_audio_path = audio_path
+    temp_compressed_path: Optional[Path] = None
+
+    # If file size is large (>20MB) or uncompressed WAV, compress with ffmpeg to compact 48k mono MP3
+    file_size = audio_path.stat().st_size
+    if file_size > 20 * 1024 * 1024 or audio_path.suffix.lower() in {".wav", ".mkv", ".mp4", ".avi", ".webm", ".mov", ".flac"}:
+      import shutil
+      import subprocess
+      ffmpeg_cmd = shutil.which("ffmpeg")
+      if ffmpeg_cmd:
+        comp_candidate = audio_path.parent / f"compressed_{audio_path.stem}.mp3"
+        try:
+          cmd = [
+            ffmpeg_cmd,
+            "-y",
+            "-i", str(audio_path),
+            "-vn",
+            "-acodec", "libmp3lame",
+            "-b:a", "48k",
+            "-ar", "16000",
+            "-ac", "1",
+            str(comp_candidate),
+          ]
+          subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          if comp_candidate.exists() and comp_candidate.stat().st_size > 0:
+            effective_audio_path = comp_candidate
+            temp_compressed_path = comp_candidate
+            logger.info(f"Compressed audio for cloud upload: {file_size} -> {comp_candidate.stat().st_size} bytes")
+        except Exception as e:
+          logger.warning(f"Could not compress audio with ffmpeg: {e}")
+
+    filename = effective_audio_path.name
     content_type = "audio/mpeg" if filename.endswith(".mp3") else "audio/wav"
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
-      with open(audio_path, "rb") as f:
-        files = {
-          "file": (filename, f, content_type),
-        }
-        response = await client.post(url, headers=headers, data=data, files=files)
+    try:
+      async with httpx.AsyncClient(timeout=300.0) as client:
+        with open(effective_audio_path, "rb") as f:
+          files = {
+            "file": (filename, f, content_type),
+          }
+          response = await client.post(url, headers=headers, data=data, files=files)
 
-      if response.status_code != 200:
-        err_detail = response.text
+        if response.status_code != 200:
+          err_detail = response.text
+          try:
+            err_json = response.json()
+            err_detail = err_json.get("error", {}).get("message", err_detail)
+          except Exception:
+            pass
+          raise RuntimeError(f"Error del servicio de transcripción {provider} ({response.status_code}): {err_detail}")
+
+        res_data = response.json()
+    finally:
+      if temp_compressed_path and temp_compressed_path.exists():
         try:
-          err_json = response.json()
-          err_detail = err_json.get("error", {}).get("message", err_detail)
+          temp_compressed_path.unlink()
         except Exception:
           pass
-        raise RuntimeError(f"Error del servicio de transcripción {provider} ({response.status_code}): {err_detail}")
-
-      res_data = response.json()
 
     # Parse response
     detected_lang = res_data.get("language", language or "es")

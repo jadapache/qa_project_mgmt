@@ -208,6 +208,42 @@ async def get_available_models() -> dict[str, Any]:
   return transcription_service.get_available_models_info()
 
 
+@router.get("/models/local")
+async def get_local_models() -> dict[str, Any]:
+  """List all local Whisper built-in models and their download status on disk."""
+  models = transcription_service.get_local_whisper_models()
+  return {"ok": True, "models": models}
+
+
+@router.post("/models/local/download/{model_id}")
+async def download_local_model(model_id: str) -> dict[str, Any]:
+  """Download a local Whisper model to disk cache."""
+  try:
+    path = await transcription_service.download_local_whisper_model(model_id)
+    return {
+      "ok": True,
+      "model_id": model_id,
+      "file_path": str(path),
+      "message": f"Modelo {model_id} descargado y listo para uso local.",
+    }
+  except Exception as exc:
+    logger.exception(f"Error downloading local model {model_id}: {exc}")
+    raise HTTPException(status_code=500, detail=f"Error descargando modelo {model_id}: {exc}") from exc
+
+
+@router.delete("/models/local/{model_id}")
+async def delete_local_model(model_id: str) -> dict[str, Any]:
+  """Delete a downloaded local Whisper model from disk to free space."""
+  try:
+    deleted = transcription_service.delete_local_whisper_model(model_id)
+    if not deleted:
+      return {"ok": True, "message": f"El modelo {model_id} no estaba descargado."}
+    return {"ok": True, "message": f"Modelo {model_id} eliminado del disco con éxito."}
+  except Exception as exc:
+    logger.exception(f"Error deleting local model {model_id}: {exc}")
+    raise HTTPException(status_code=500, detail=f"Error eliminando modelo {model_id}: {exc}") from exc
+
+
 @router.post("/cancel/{transcription_id}")
 async def cancel_transcription(transcription_id: str) -> dict[str, Any]:
   """Cancel an active transcription process and clean up temporary files."""

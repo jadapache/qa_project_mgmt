@@ -335,11 +335,29 @@ def test_upload_stream_and_sse_events(client: TestClient):
 
 
 def test_progress_stream_endpoint(client: TestClient):
-  # Ensure stream endpoint returns 200 with text/event-stream headers
+  from app.api.transcription_stream import _LATEST_PROGRESS
+  _LATEST_PROGRESS["test-stream-id"] = {"stage": "complete", "progress": 100, "message": "done"}
   with client.stream("GET", "/api/transcription/progress-stream/test-stream-id") as response:
     assert response.status_code == 200
     assert "text/event-stream" in response.headers["content-type"]
-    first_chunk = next(response.iter_lines())
-    assert "data:" in first_chunk
+    lines = []
+    for line in response.iter_lines():
+      if line:
+        lines.append(line)
+      if len(lines) >= 1:
+        break
+    assert any("data:" in l for l in lines)
+
+
+def test_local_whisper_models_endpoint(client: TestClient):
+  res = client.get("/api/transcription/models/local")
+  assert res.status_code == 200
+  data = res.json()
+  assert data["ok"] is True
+  assert "models" in data
+  assert len(data["models"]) >= 5
+  assert any(m["id"] == "tiny" for m in data["models"])
+  assert any(m["id"] == "base" for m in data["models"])
+
 
 
