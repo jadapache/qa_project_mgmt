@@ -1,246 +1,290 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  api,
-  type MediaMetadata,
+  transcriptionApi,
+  type AvailableModelsInfo,
+  type TranscriptionProgress,
   type TranscriptionResult,
-  type TranscriptionSummary,
-  type TranscribeOptions,
-} from '../api/client'
-
-export type WizardStep = 'upload' | 'transcribe' | 'summary' | 'generate'
+} from '../api/modules/transcription'
+import { useToast } from '../context/ToastContext'
 
 export function useTranscription() {
-  const [step, setStep] = useState<WizardStep>('upload')
-  const [file, setFile] = useState<File | null>(null)
-  const [metadata, setMetadata] = useState<MediaMetadata>({ title: '', description: '' })
-  const [mediaId, setMediaId] = useState<string | null>(null)
-  const [transcriptionId, setTranscriptionId] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  // Data lists
+  const [activeJobs, setActiveJobs] = useState<Record<string, TranscriptionProgress>>({})
+  const [recentTranscriptions, setRecentTranscriptions] = useState<TranscriptionResult[]>([])
+  const [availableModels, setAvailableModels] = useState<AvailableModelsInfo | null>(null)
+  const [isLoadingList, setIsLoadingList] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [isTranscribing, setIsTranscribing] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [status, setStatus] = useState<
-    'idle' | 'uploading' | 'pending' | 'preprocessing' | 'transcribing' | 'diarizing' | 'summarizing' | 'complete' | 'failed'
-  >('idle')
-  const [statusMessage, setStatusMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [result, setResult] = useState<TranscriptionResult | null>(null)
-  const [summary, setSummary] = useState<TranscriptionSummary | null>(null)
-  const [options, setOptions] = useState<TranscribeOptions>({
-    mode: 'auto',
-    language: 'es',
-    enable_diarization: true,
-  })
 
-  const pollingRef = useRef<number | null>(null)
+  // Modals state
+  const [showProgressModal, setShowProgressModal] = useState(false)
+  const [showSummaryModal, setShowSummaryModal] = useState(false)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [selectedTranscriptionId, setSelectedTranscriptionId] = useState<string | null>(null)
+  const [activeMeetingTitle, setActiveMeetingTitle] = useState<string>('')
 
-  const stopPolling = () => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current)
-      pollingRef.current = null
-    }
-  }
+  // Toast milestone milestones already notified per job
+  const notifiedMilestones = useRef<Record<string, Set<number>>>({})
+  const pollingTimerRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    return () => {
-      stopPolling()
+  // Fetch recent saved transcriptions
+  const refreshTranscriptions = useCallback(async () => {
+    try {
+      setIsLoadingList(true)
+      const res = await transcriptionApi.listTranscriptions()
+      setRecentTranscriptions(res.transcriptions || [])
+    } catch (err: any) {
+      console.warn('Error fetching transcriptions list:', err)
+    } finally {
+      setIsLoadingList(false)
     }
   }, [])
 
-  const handleUpload = async (uploadedFile: File, meta: MediaMetadata): Promise<string> => {
+  // Fetch available models configuration on mount
+  useEffect(() => {
+    transcriptionApi
+      .getAvailableModels()
+      .then(setAvailableModels)
+      .catch((e) => console.warn('Could not load models info:', e))
+
+    refreshTranscriptions()
+  }, [refreshTranscriptions])
+
+  // Polling loop for active jobs (every 1 second)
+  useEffect(() => {
+    const activeIds = Object.keys(activeJobs).filter(
+      (id) => activeJobs[id].status !== 'complete' && activeJobs[id].status !== 'failed' && activeJobs[id].status !== 'cancelled'
+    )
+
+    if (activeIds.length === 0) {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current)
+        pollingTimerRef.current = null
+      }
+      return
+    }
+
+    if (!pollingTimerRef.current) {
+      pollingTimerRef.current = window.setInterval(async () => {
+        for (const id of activeIds) {
+          try {
+            const status = await transcriptionApi.getTranscriptionStatus(id)
+
+            setActiveJobs((prev) => ({
+              ...prev,
+              [id]: status,
+            }))
+
+            // Track milestone toasts
+            if (!notifiedMilestones.current[id]) {
+              notifiedMilestones.current[id] = new Set()
+            }
+
+            const sent = notifiedMilestones.current[id]
+            if (status.progress >= 25 && !sent.has(25)) {
+              sent.add(25)
+              toast.info(`Transcripción: 25% completado (${status.message || 'Procesando'})`)
+            }
+            if (status.progress >= 50 && !sent.has(50)) {
+              sent.add(50)
+              toast.info(`Transcripción: 50% completado`)
+            }
+            if (status.progress >= 75 && !sent.has(75)) {
+              sent.add(75)
+              toast.info(`Transcripción: 75% completado - Diarización de interlocutores`)
+            }
+
+            // On Completion
+            if (status.status === 'complete' || status.progress === 100) {
+              toast.success('¡Transcripción completada con éxito!')
+              await refreshTranscriptions()
+
+              // Auto-open summary modal if this was the focused transcription
+              setSelectedTranscriptionId(id)
+              setShowProgressModal(false)
+              setShowSummaryModal(true)
+            } else if (status.status === 'failed') {
+              toast.error(status.error || 'Error en el proceso de transcripción.')
+            }
+          } catch (e) {
+            // If job not found or failed, check result
+            try {
+              const res = await transcriptionApi.getTranscriptionResult(id)
+              if (res) {
+                setActiveJobs((prev) => ({
+                  ...prev,
+                  [id]: {
+                    id,
+                    media_id: res.media_id,
+                    status: 'complete',
+                    stage: 'complete',
+                    progress: 100,
+                    message: 'Transcripción finalizada.',
+                  },
+                }))
+                await refreshTranscriptions()
+              }
+            } catch {
+              // Ignore temporary poll failure
+            }
+          }
+        }
+      }, 1000)
+    }
+
+    return () => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current)
+        pollingTimerRef.current = null
+      }
+    }
+  }, [activeJobs, refreshTranscriptions, toast])
+
+  // Start upload and transcription pipeline
+  const handleUploadAndStart = async (file: File, title: string, description: string = '') => {
     try {
       setIsUploading(true)
-      setStatus('uploading')
-      setStatusMessage('Subiendo archivo multimedia...')
-      setErrorMessage(null)
-      setFile(uploadedFile)
-      setMetadata(meta)
+      setActiveMeetingTitle(title)
 
-      const res = await api.uploadMedia(uploadedFile, meta.title, meta.description || '')
-      setMediaId(res.media_id)
+      // 1. Upload media
+      const uploadRes = await transcriptionApi.uploadMedia(file, title, description)
+      const mediaId = uploadRes.media_id
+
+      // 2. Start transcription
+      const transRes = await transcriptionApi.startTranscription(mediaId, {
+        mode: 'auto',
+        enable_diarization: true,
+      })
+
+      const transcriptionId = transRes.transcription_id
+      setSelectedTranscriptionId(transcriptionId)
+
+      // Initialize active job
+      const initialProgress: TranscriptionProgress = {
+        id: transcriptionId,
+        media_id: mediaId,
+        status: 'preprocessing',
+        stage: 'preprocessing',
+        progress: 10,
+        message: 'Importando y preparando archivo de audio...',
+        eta: '~45 s',
+        model_info: availableModels?.active_model_label || 'Whisper Auto',
+      }
+
+      setActiveJobs((prev) => ({
+        ...prev,
+        [transcriptionId]: initialProgress,
+      }))
+
+      setShowProgressModal(true)
+      toast.success('Grabación subida. Transcripción iniciada en segundo plano.')
+    } catch (err: any) {
+      toast.error(`Error al iniciar transcripción: ${err.message}`)
+      throw err
+    } finally {
       setIsUploading(false)
-      setStatus('idle')
-      return res.media_id
-    } catch (err: any) {
-      setIsUploading(false)
-      setStatus('failed')
-      setErrorMessage(err.message || 'Error al subir el archivo.')
-      throw err
     }
   }
 
-  const startTranscription = async (
-    targetMediaId?: string,
-    customOptions?: TranscribeOptions,
-  ) => {
-    const idToUse = targetMediaId || mediaId
-    if (!idToUse) {
-      throw new Error('No hay un archivo multimedia seleccionado para transcribir.')
-    }
-
+  // Cancel transcription
+  const handleCancelTranscription = async (transcriptionId: string) => {
     try {
-      setIsTranscribing(true)
-      setStatus('pending')
-      setProgress(5)
-      setStatusMessage('Iniciando pipeline de transcripción...')
-      setErrorMessage(null)
-
-      const opts = customOptions || options
-      setOptions(opts)
-
-      const res = await api.startTranscription(idToUse, opts)
-      const transId = res.transcription_id
-      setTranscriptionId(transId)
-      setStep('transcribe')
-
-      stopPolling()
-
-      // Start polling
-      pollingRef.current = window.setInterval(async () => {
-        try {
-          const prog = await api.getTranscriptionStatus(transId)
-          setProgress(prog.progress)
-          setStatus(prog.status)
-          setStatusMessage(prog.message || 'Procesando transcripción...')
-
-          if (prog.status === 'complete') {
-            stopPolling()
-            setIsTranscribing(false)
-            const finalResult = await api.getTranscriptionResult(transId)
-            setResult(finalResult)
-            if (finalResult.summary) {
-              setSummary(finalResult.summary)
-            }
-          } else if (prog.status === 'failed') {
-            stopPolling()
-            setIsTranscribing(false)
-            setErrorMessage(prog.error || prog.message || 'Error en el proceso de transcripción.')
-          }
-        } catch (pollErr: any) {
-          // If polling fails temporarily, check result
-          try {
-            const fallbackResult = await api.getTranscriptionResult(transId)
-            if (fallbackResult && fallbackResult.segments?.length > 0) {
-              stopPolling()
-              setIsTranscribing(false)
-              setStatus('complete')
-              setProgress(100)
-              setResult(fallbackResult)
-              if (fallbackResult.summary) {
-                setSummary(fallbackResult.summary)
-              }
-            }
-          } catch {
-            // Keep waiting or log
-          }
-        }
-      }, 1500)
-    } catch (err: any) {
-      setIsTranscribing(false)
-      setStatus('failed')
-      setErrorMessage(err.message || 'Error al iniciar la transcripción.')
-      throw err
-    }
-  }
-
-  const handleUpdateSummary = async (newSummary: TranscriptionSummary) => {
-    if (!transcriptionId) return
-    try {
-      const res = await api.updateTranscriptionSummary(transcriptionId, newSummary)
-      setSummary(newSummary)
-      if (result) {
-        setResult({ ...result, summary: newSummary })
+      await transcriptionApi.cancelTranscription(transcriptionId)
+      setActiveJobs((prev) => {
+        const next = { ...prev }
+        delete next[transcriptionId]
+        return next
+      })
+      if (selectedTranscriptionId === transcriptionId) {
+        setShowProgressModal(false)
       }
-      return res
+      toast.info('Transcripción cancelada y archivos limpiados.')
+      await refreshTranscriptions()
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error al actualizar el resumen.')
-      throw err
+      toast.error(`Error al cancelar: ${err.message}`)
     }
   }
 
-  const handleRenameSpeakers = async (speakerMap: Record<string, string>) => {
-    if (!transcriptionId) return
+  // Delete saved transcription
+  const handleDeleteTranscription = async (transcriptionId: string) => {
+    if (!window.confirm('¿Seguro que deseas eliminar esta transcripción y sus archivos asociados?')) {
+      return
+    }
+
     try {
-      const res = await api.renameSpeakers(transcriptionId, speakerMap)
-      if (res.transcription) {
-        setResult(res.transcription)
-        if (res.transcription.summary) {
-          setSummary(res.transcription.summary)
-        }
-      }
-      return res
+      await transcriptionApi.deleteTranscription(transcriptionId)
+      setRecentTranscriptions((prev) => prev.filter((t) => t.id !== transcriptionId))
+      setActiveJobs((prev) => {
+        const next = { ...prev }
+        delete next[transcriptionId]
+        return next
+      })
+      toast.success('Transcripción eliminada con éxito.')
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error al renombrar interlocutores.')
-      throw err
+      toast.error(`Error al eliminar: ${err.message}`)
     }
   }
 
-  const handleSaveToKB = async (customTags: string[] = []) => {
-    if (!transcriptionId) return
-    try {
-      const res = await api.saveToKnowledgeBase(transcriptionId, customTags)
-      if (result) {
-        setResult({ ...result, saved_to_knowledge: true, document_id: res.document_id })
-      }
-      return res
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Error al guardar en la biblioteca.')
-      throw err
+  // Modal open helpers
+  const openProgressModal = (transcriptionId: string) => {
+    setSelectedTranscriptionId(transcriptionId)
+    const job = activeJobs[transcriptionId]
+    if (job) {
+      setShowProgressModal(true)
     }
   }
 
-  const loadExistingTranscription = (record: TranscriptionResult) => {
-    setTranscriptionId(record.id)
-    setMediaId(record.media_id)
-    setMetadata(record.metadata)
-    setResult(record)
-    setSummary(record.summary || null)
-    setProgress(100)
-    setStatus('complete')
-    setStep('summary')
+  const openSummaryModal = (transcriptionId: string) => {
+    setSelectedTranscriptionId(transcriptionId)
+    const recent = recentTranscriptions.find((t) => t.id === transcriptionId)
+    if (recent) {
+      setActiveMeetingTitle(recent.metadata.title)
+    }
+    setShowSummaryModal(true)
   }
 
-  const reset = () => {
-    stopPolling()
-    setStep('upload')
-    setFile(null)
-    setMetadata({ title: '', description: '' })
-    setMediaId(null)
-    setTranscriptionId(null)
-    setIsUploading(false)
-    setIsTranscribing(false)
-    setProgress(0)
-    setStatus('idle')
-    setStatusMessage('')
-    setErrorMessage(null)
-    setResult(null)
-    setSummary(null)
+  const openGenerateModal = (transcriptionId: string) => {
+    setSelectedTranscriptionId(transcriptionId)
+    const recent = recentTranscriptions.find((t) => t.id === transcriptionId)
+    if (recent) {
+      setActiveMeetingTitle(recent.metadata.title)
+    }
+    setShowSummaryModal(false)
+    setShowGenerateModal(true)
   }
+
+  const closeAllModals = () => {
+    setShowProgressModal(false)
+    setShowSummaryModal(false)
+    setShowGenerateModal(false)
+  }
+
+  // Get active progress item currently selected
+  const currentProgress = selectedTranscriptionId ? activeJobs[selectedTranscriptionId] || null : null
 
   return {
-    step,
-    setStep,
-    file,
-    setFile,
-    metadata,
-    setMetadata,
-    mediaId,
-    transcriptionId,
+    activeJobs: Object.values(activeJobs).filter((j) => j.status !== 'complete'),
+    recentTranscriptions,
+    availableModels,
+    isLoadingList,
     isUploading,
-    isTranscribing,
-    progress,
-    status,
-    statusMessage,
-    errorMessage,
-    result,
-    summary,
-    options,
-    setOptions,
-    handleUpload,
-    startTranscription,
-    handleUpdateSummary,
-    handleRenameSpeakers,
-    handleSaveToKB,
-    loadExistingTranscription,
-    reset,
+    showProgressModal,
+    showSummaryModal,
+    showGenerateModal,
+    selectedTranscriptionId,
+    activeMeetingTitle,
+    currentProgress,
+    handleUploadAndStart,
+    handleCancelTranscription,
+    handleDeleteTranscription,
+    openProgressModal,
+    openSummaryModal,
+    openGenerateModal,
+    closeAllModals,
+    setShowProgressModal,
+    setShowSummaryModal,
+    setShowGenerateModal,
+    refreshTranscriptions,
   }
 }

@@ -28,9 +28,12 @@ class TranscriptionSummary(BaseModel):
 class TranscriptionProgress(BaseModel):
   id: str
   media_id: str
-  status: str = "pending"  # pending, preprocessing, transcribing, diarizing, summarizing, complete, failed
+  status: str = "pending"  # pending, preprocessing, transcribing, diarizing, summarizing, complete, failed, cancelled
+  stage: str = "pending"
   progress: int = 0  # 0 to 100
   message: str = ""
+  eta: Optional[str] = None
+  model_info: Optional[str] = None
   error: Optional[str] = None
 
 

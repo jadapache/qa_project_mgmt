@@ -23,9 +23,12 @@ export type TranscriptionSummary = {
 export type TranscriptionProgress = {
   id: string
   media_id: string
-  status: 'pending' | 'preprocessing' | 'transcribing' | 'diarizing' | 'summarizing' | 'complete' | 'failed'
+  status: 'pending' | 'preprocessing' | 'transcribing' | 'diarizing' | 'summarizing' | 'complete' | 'failed' | 'cancelled'
+  stage?: string
   progress: number
   message: string
+  eta?: string | null
+  model_info?: string | null
   error?: string | null
 }
 
@@ -50,7 +53,24 @@ export type TranscribeOptions = {
   enable_diarization?: boolean
 }
 
+export type AvailableModelsInfo = {
+  configured_provider: string
+  configured_model: string
+  local_available: boolean
+  groq_configured: boolean
+  openai_configured: boolean
+  available_providers: string[]
+  active_model_label: string
+}
+
 export const transcriptionApi = {
+  async getAvailableModels(): Promise<AvailableModelsInfo> {
+    const response = await fetch(`${API_BASE}/api/transcription/available-models`, {
+      headers: getAuthHeaders(),
+    })
+    return handleResponse(response)
+  },
+
   async uploadMedia(file: File, title: string, description: string = ''): Promise<{ ok: boolean; media_id: string; message: string }> {
     const formData = new FormData()
     formData.append('file', file)
@@ -80,6 +100,17 @@ export const transcriptionApi = {
   async getTranscriptionStatus(transcriptionId: string): Promise<TranscriptionProgress> {
     const response = await fetch(`${API_BASE}/api/transcription/status/${transcriptionId}`, {
       headers: getAuthHeaders(),
+    })
+    return handleResponse(response)
+  },
+
+  async cancelTranscription(transcriptionId: string): Promise<{ ok: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/transcription/cancel/${transcriptionId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
     })
     return handleResponse(response)
   },
@@ -155,10 +186,6 @@ export const transcriptionApi = {
       throw new Error(`Error al exportar Inventario XLSX (${response.status})`)
     }
     return response.blob()
-  },
-
-  async exportInventarioDocx(content: string, title: string = 'Inventario_de_Requerimientos'): Promise<Blob> {
-    return this.exportInventarioXlsx(content, title)
   },
 
   async exportLevantamientoDocx(content: string, title: string = 'Levantamiento_Detallado'): Promise<Blob> {

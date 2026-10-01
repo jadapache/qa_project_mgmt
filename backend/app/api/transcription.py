@@ -105,6 +105,19 @@ async def start_transcription(
   }
 
 
+@router.get("/available-models")
+async def get_available_models() -> dict[str, Any]:
+  """Return available transcription models and active configuration."""
+  return transcription_service.get_available_models_info()
+
+
+@router.post("/cancel/{transcription_id}")
+async def cancel_transcription(transcription_id: str) -> dict[str, Any]:
+  """Cancel an active transcription process and clean up temporary files."""
+  success = transcription_service.cancel_transcription(transcription_id)
+  return {"ok": success, "message": "Transcripción cancelada exitosamente."}
+
+
 @router.get("/status/{transcription_id}")
 async def get_transcription_status(transcription_id: str) -> TranscriptionProgress:
   """Poll transcription status and progress."""
@@ -116,8 +129,11 @@ async def get_transcription_status(transcription_id: str) -> TranscriptionProgre
         id=transcription_id,
         media_id=record.get("media_id", ""),
         status="complete",
+        stage="complete",
         progress=100,
         message="Transcripción completa.",
+        eta="0 s",
+        model_info=record.get("model_info", "Whisper"),
       )
     raise HTTPException(status_code=404, detail="Trabajo de transcripción no encontrado.")
   return prog

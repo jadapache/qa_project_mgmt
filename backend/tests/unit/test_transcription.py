@@ -298,3 +298,18 @@ def test_transcription_api_lifecycle(client: TestClient):
   # 9. Delete
   del_res = client.delete(f"/api/transcription/{transcription_id}")
   assert del_res.status_code == 200
+
+
+def test_transcription_cancel_and_models(client: TestClient):
+  # Available models
+  models_res = client.get("/api/transcription/available-models")
+  assert models_res.status_code == 200
+  data = models_res.json()
+  assert "active_model_label" in data
+  assert "available_providers" in data
+
+  # Cancel transcription
+  cancel_res = client.post("/api/transcription/cancel/test-fake-id-123")
+  assert cancel_res.status_code == 200
+  assert cancel_res.json()["ok"] is True
+
