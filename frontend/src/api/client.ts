@@ -163,6 +163,17 @@ export type ModelCatalogItem = {
   disk_size_mb?: number
 }
 
+export type LocalWhisperModelInfo = {
+  id: string
+  name: string
+  size: string
+  accuracy: string
+  description: string
+  is_downloaded: boolean
+  disk_size_mb: number
+  file_path?: string | null
+}
+
 export type ModelCatalogResponse = {
   updated_at: string
   source: string

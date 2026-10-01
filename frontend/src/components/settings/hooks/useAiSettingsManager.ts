@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { api, type AISettings, type ModelCatalogItem } from '../../../api/client'
+import { api, type AISettings, type LocalWhisperModelInfo, type ModelCatalogItem } from '../../../api/client'
 import { useToast } from '../../../context/ToastContext'
 import { normalizeOllamaUrl, validateAiSettingsPayload } from '../validators/settingsValidation'
 

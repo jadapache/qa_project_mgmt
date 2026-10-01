@@ -15,8 +15,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
-import type { AISettings, ModelCatalogItem } from '../../api/client'
-import type { LocalWhisperModelInfo } from '../../api/modules/transcription'
+import type { AISettings, LocalWhisperModelInfo, ModelCatalogItem } from '../../api/client'
 import { BUILT_IN_WHISPER_MODELS } from './constants'
 
 export type VoiceAudioSectionProps = {
@@ -178,14 +177,17 @@ export const VoiceAudioSection = ({
                   const isSelected = voiceAudioModel === m.id || voiceAudioModel === `whisper-${m.id}`
                   const cleanId = m.id.replace('whisper-', '')
                   const localInfo = localWhisperModels.find((lm) => lm.id === cleanId || lm.id === m.id)
-                  const isDownloaded = Boolean(m.is_downloaded || localInfo?.is_downloaded)
+                  const isDownloaded = Boolean(
+                    ('is_downloaded' in m && m.is_downloaded) || localInfo?.is_downloaded,
+                  )
                   const isDownloading = downloadingWhisperId === cleanId || downloadingWhisperId === m.id
                   const isDeleting = deletingWhisperId === cleanId || deletingWhisperId === m.id
+                  const catalogMb = 'disk_size_mb' in m && typeof m.disk_size_mb === 'number' ? m.disk_size_mb : 0
                   const diskSizeStr =
                     localInfo && localInfo.disk_size_mb > 0
                       ? `${localInfo.disk_size_mb} MB`
-                      : m.disk_size_mb && m.disk_size_mb > 0
-                      ? `${m.disk_size_mb} MB`
+                      : catalogMb > 0
+                      ? `${catalogMb} MB`
                       : m.size || '75 MB'
 
                   return (
