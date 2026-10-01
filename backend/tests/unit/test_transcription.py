@@ -313,3 +313,33 @@ def test_transcription_cancel_and_models(client: TestClient):
   assert cancel_res.status_code == 200
   assert cancel_res.json()["ok"] is True
 
+
+def test_upload_stream_and_sse_events(client: TestClient):
+  from app.api.transcription_stream import get_or_create_progress_queue
+
+  audio_content = b"ID3\x03\x00\x00\x00\x00\x00#TSSE\x00\x00\x00\x0f\x00\x00\x03Lavf58.29.100\x00" * 50
+  upload_res = client.post(
+    "/api/transcription/upload-stream",
+    files={"file": ("stream_demo.mp3", io.BytesIO(audio_content), "audio/mpeg")},
+    data={"title": "Reunión en Tiempo Real", "description": "Prueba de streaming SSE"},
+  )
+  assert upload_res.status_code == 200
+  data = upload_res.json()
+  assert data["ok"] is True
+  assert "transcription_id" in data
+  assert "media_id" in data
+
+  transcription_id = data["transcription_id"]
+  queue = get_or_create_progress_queue(transcription_id)
+  assert queue is not None
+
+
+def test_progress_stream_endpoint(client: TestClient):
+  # Ensure stream endpoint returns 200 with text/event-stream headers
+  with client.stream("GET", "/api/transcription/progress-stream/test-stream-id") as response:
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    first_chunk = next(response.iter_lines())
+    assert "data:" in first_chunk
+
+

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
+from app.api.transcription_stream import emit_progress_sync
 from app.context.knowledge import ingest_document
 from app.core.storage import load_app_settings
 from app.features.transcription.diarization import SpeakerDiarization
@@ -63,6 +64,10 @@ class TranscriptionService:
       save_active_job_progress(job_progress.model_dump())
     except Exception as exc:
       logger.warning(f"Could not persist active job progress for {job_progress.id}: {exc}")
+    try:
+      emit_progress_sync(job_progress.id, job_progress.model_dump())
+    except Exception as exc:
+      logger.warning(f"Could not emit SSE progress for {job_progress.id}: {exc}")
 
   def get_job_progress(self, transcription_id: str) -> Optional[TranscriptionProgress]:
     if transcription_id in _ACTIVE_JOBS:

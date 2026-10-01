@@ -134,6 +134,50 @@ def save_media_file(
   return entry
 
 
+def get_media_destination(filename: str, media_id: Optional[str] = None) -> tuple[str, Path, str]:
+  ensure_transcription_dirs()
+  mid = media_id or str(uuid.uuid4())
+  safe_name = re.sub(r"[^a-zA-Z0-9._-]+", "_", filename)
+  stored_filename = f"{mid}_{safe_name}"
+  file_path = MEDIA_DIR / stored_filename
+  return mid, file_path, stored_filename
+
+
+def register_saved_media_file(
+  media_id: str,
+  filename: str,
+  stored_filename: str,
+  file_path: Path,
+  file_size: int,
+  file_hash: str,
+  title: str,
+  description: str = "",
+) -> dict[str, Any]:
+  ensure_transcription_dirs()
+  ext = Path(filename).suffix.lower()
+  now = datetime.now(timezone.utc).isoformat()
+  is_video = ext in SUPPORTED_VIDEO_EXTS
+  entry = {
+    "id": media_id,
+    "filename": filename,
+    "stored_filename": stored_filename,
+    "path": str(file_path),
+    "size_bytes": file_size,
+    "hash": file_hash,
+    "is_video": is_video,
+    "title": title.strip() or filename,
+    "description": description.strip(),
+    "created_at": now,
+  }
+
+  manifest = _load_manifest()
+  # Remove existing entry if any
+  manifest = [m for m in manifest if m.get("id") != media_id]
+  manifest.append(entry)
+  _save_manifest(manifest)
+  return entry
+
+
 def get_media_entry(media_id: str) -> Optional[dict[str, Any]]:
   manifest = _load_manifest()
   for item in manifest:

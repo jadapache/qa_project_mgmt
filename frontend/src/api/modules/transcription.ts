@@ -23,13 +23,15 @@ export type TranscriptionSummary = {
 export type TranscriptionProgress = {
   id: string
   media_id: string
-  status: 'pending' | 'preprocessing' | 'transcribing' | 'diarizing' | 'summarizing' | 'complete' | 'failed' | 'cancelled'
+  status: 'pending' | 'uploading' | 'preprocessing' | 'transcribing' | 'diarizing' | 'summarizing' | 'complete' | 'failed' | 'cancelled'
   stage?: string
   progress: number
   message: string
+  preview?: string | null
   eta?: string | null
   model_info?: string | null
   error?: string | null
+  timestamp?: string | null
 }
 
 export type TranscriptionResult = {
@@ -47,6 +49,7 @@ export type TranscriptionResult = {
 }
 
 export type TranscribeOptions = {
+  transcription_id?: string
   mode?: 'auto' | 'local' | 'cloud' | 'groq' | 'openai'
   language?: string
   model_size?: string
@@ -63,7 +66,87 @@ export type AvailableModelsInfo = {
   active_model_label: string
 }
 
+/**
+ * Upload media file with XMLHttpRequest to track real-time upload progress.
+ */
+export function uploadMediaWithProgress(
+  file: File,
+  title: string,
+  description: string = '',
+  onProgress?: (progress: number, message: string) => void
+): Promise<{ ok: boolean; media_id: string; transcription_id: string; size: number; message: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const fileSize = file.size || 1
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const bytesReceived = event.loaded
+        const uploadProgress = Math.min(100, Math.round((bytesReceived / fileSize) * 100))
+        const mbReceived = (bytesReceived / 1024 / 1024).toFixed(1)
+        const mbTotal = (fileSize / 1024 / 1024).toFixed(1)
+        const message = `Subiendo archivo... ${mbReceived}MB / ${mbTotal}MB`
+        onProgress?.(uploadProgress, message)
+      }
+    })
+
+    xhr.upload.addEventListener('loadstart', () => {
+      onProgress?.(0, 'Iniciando subida de archivo...')
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          onProgress?.(100, 'Subida completada con éxito')
+          resolve(response)
+        } catch {
+          reject(new Error('Respuesta del servidor no válida'))
+        }
+      } else {
+        try {
+          const errJson = JSON.parse(xhr.responseText)
+          reject(new Error(errJson.detail || `Error al subir archivo (${xhr.status})`))
+        } catch {
+          reject(new Error(`Error al subir archivo (${xhr.status})`))
+        }
+      }
+    })
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Error de red durante la subida del archivo'))
+    })
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Subida cancelada por el usuario'))
+    })
+
+    xhr.timeout = 10 * 60 * 1000 // 10 minutes timeout for large recordings
+    xhr.addEventListener('timeout', () => {
+      reject(new Error('Tiempo de espera agotado al subir el archivo'))
+    })
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('title', title)
+    formData.append('description', description)
+
+    const token = localStorage.getItem('auth_token')
+    xhr.open('POST', `${API_BASE}/api/transcription/upload-stream`, true)
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+    xhr.send(formData)
+  })
+}
+
 export const transcriptionApi = {
+  uploadMediaWithProgress,
+
+  getProgressStreamUrl(transcriptionId: string): string {
+    return `${API_BASE}/api/transcription/progress-stream/${transcriptionId}`
+  },
+
   async getAvailableModels(): Promise<AvailableModelsInfo> {
     const response = await fetch(`${API_BASE}/api/transcription/available-models`, {
       headers: getAuthHeaders(),
@@ -71,18 +154,8 @@ export const transcriptionApi = {
     return handleResponse(response)
   },
 
-  async uploadMedia(file: File, title: string, description: string = ''): Promise<{ ok: boolean; media_id: string; message: string }> {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('title', title)
-    formData.append('description', description)
-
-    const response = await fetch(`${API_BASE}/api/transcription/upload`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: formData,
-    })
-    return handleResponse(response)
+  async uploadMedia(file: File, title: string, description: string = ''): Promise<{ ok: boolean; media_id: string; transcription_id?: string; message: string }> {
+    return uploadMediaWithProgress(file, title, description)
   },
 
   async startTranscription(mediaId: string, options?: TranscribeOptions): Promise<{ ok: boolean; status: string; transcription_id: string }> {

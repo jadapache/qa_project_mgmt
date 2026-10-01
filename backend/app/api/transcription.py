@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import re
 import uuid
@@ -11,17 +12,21 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
+from app.api.transcription_stream import emit_progress
 from app.features.inventario.xlsx_builder import create_inventario_xlsx
 from app.features.levantamiento.docx_builder import create_levantamiento_docx
 from app.features.transcription.service import transcription_service
 from app.features.transcription.storage import (
   delete_transcription_record,
+  get_media_destination,
   get_media_entry,
   get_transcription_record,
   list_transcriptions,
+  register_saved_media_file,
   rename_transcription_speakers,
   save_media_file,
   update_transcription_summary,
+  validate_file,
 )
 from app.schemas.transcription import (
   RenameSpeakerRequest,
@@ -70,6 +75,95 @@ async def upload_media(
     raise HTTPException(status_code=500, detail=f"Error procesando archivo: {exc}") from exc
 
 
+@router.post("/upload-stream")
+async def upload_stream(
+  file: UploadFile = File(...),
+  title: str = Form(...),
+  description: str = Form(default=""),
+) -> dict[str, Any]:
+  """
+  Stream-based file upload with real-time progress tracking.
+  Writes file chunks to disk without memory overhead and emits SSE progress.
+  """
+  transcription_id = str(uuid.uuid4())
+  filename = file.filename or "audio_file"
+  media_id, file_path, stored_filename = get_media_destination(filename)
+
+  sha = hashlib.sha256()
+  received_bytes = 0
+  chunk_size = 1024 * 1024  # 1MB chunks
+
+  await emit_progress(transcription_id, {
+    "stage": "uploading",
+    "progress": 0,
+    "message": f"Iniciando subida de {filename}...",
+    "model_info": "Whisper",
+  })
+
+  try:
+    with open(file_path, "wb") as out_f:
+      while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+          break
+        out_f.write(chunk)
+        sha.update(chunk)
+        received_bytes += len(chunk)
+
+    if received_bytes == 0:
+      if file_path.exists():
+        file_path.unlink()
+      raise HTTPException(status_code=400, detail="El archivo subido está vacío.")
+
+    valid, err = validate_file(filename, received_bytes)
+    if not valid:
+      if file_path.exists():
+        file_path.unlink()
+      raise HTTPException(status_code=400, detail=err or "Archivo no válido.")
+
+    file_hash = sha.hexdigest()
+    entry = register_saved_media_file(
+      media_id=media_id,
+      filename=filename,
+      stored_filename=stored_filename,
+      file_path=file_path,
+      file_size=received_bytes,
+      file_hash=file_hash,
+      title=title,
+      description=description,
+    )
+
+    await emit_progress(transcription_id, {
+      "stage": "uploading",
+      "progress": 10,
+      "message": "Archivo cargado con éxito. Preparando procesamiento...",
+    })
+
+    return {
+      "ok": True,
+      "media_id": media_id,
+      "transcription_id": transcription_id,
+      "size": received_bytes,
+      "filename": filename,
+      "entry": entry,
+      "message": "Archivo multimedia cargado con éxito.",
+    }
+  except HTTPException:
+    raise
+  except Exception as exc:
+    if file_path.exists():
+      try:
+        file_path.unlink()
+      except Exception:
+        pass
+    await emit_progress(transcription_id, {
+      "stage": "failed",
+      "progress": 0,
+      "message": f"Error en la subida: {exc}",
+    })
+    raise HTTPException(status_code=500, detail=f"Error en subida de archivo: {exc}") from exc
+
+
 @router.post("/transcribe/{media_id}")
 async def start_transcription(
   media_id: str,
@@ -81,8 +175,8 @@ async def start_transcription(
   if not entry:
     raise HTTPException(status_code=404, detail="Archivo multimedia no encontrado.")
 
-  transcription_id = str(uuid.uuid4())
   transcribe_cfg = req or TranscribeRequest()
+  transcription_id = transcribe_cfg.transcription_id or str(uuid.uuid4())
 
   async def _run_job():
     try:

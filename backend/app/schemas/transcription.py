@@ -28,13 +28,15 @@ class TranscriptionSummary(BaseModel):
 class TranscriptionProgress(BaseModel):
   id: str
   media_id: str
-  status: str = "pending"  # pending, preprocessing, transcribing, diarizing, summarizing, complete, failed, cancelled
+  status: str = "pending"  # pending, uploading, preprocessing, transcribing, diarizing, summarizing, complete, failed, cancelled
   stage: str = "pending"
   progress: int = 0  # 0 to 100
   message: str = ""
+  preview: Optional[str] = None
   eta: Optional[str] = None
   model_info: Optional[str] = None
   error: Optional[str] = None
+  timestamp: Optional[str] = None
 
 
 class TranscriptionResult(BaseModel):
@@ -52,6 +54,7 @@ class TranscriptionResult(BaseModel):
 
 
 class TranscribeRequest(BaseModel):
+  transcription_id: Optional[str] = None
   mode: str = "auto"  # auto, local, cloud, groq, openai
   language: Optional[str] = None
   model_size: Optional[str] = None

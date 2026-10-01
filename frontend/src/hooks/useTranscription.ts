@@ -29,8 +29,6 @@ export function useTranscription() {
   const [selectedTranscriptionId, setSelectedTranscriptionId] = useState<string | null>(null)
   const [activeMeetingTitle, setActiveMeetingTitle] = useState<string>('')
 
-  // Toast milestone milestones already notified per job
-  const notifiedMilestones = useRef<Record<string, Set<number>>>({})
   const pollingTimerRef = useRef<number | null>(null)
 
   // Synchronize active jobs with localStorage
@@ -89,134 +87,201 @@ export function useTranscription() {
     saveActiveJobsToStorage(activeJobs)
   }, [activeJobs, saveActiveJobsToStorage])
 
-  // Polling loop for active jobs (every 1.5 seconds)
+  // SSE connections for active jobs
+  const eventSourcesRef = useRef<Record<string, EventSource>>({})
+
+  // Manage SSE connections and polling fallback for active jobs
   useEffect(() => {
     const activeIds = Object.keys(activeJobs).filter(
       (id) =>
         activeJobs[id].status !== 'complete' &&
         activeJobs[id].status !== 'failed' &&
-        activeJobs[id].status !== 'cancelled'
+        activeJobs[id].status !== 'cancelled' &&
+        activeJobs[id].status !== 'uploading'
     )
 
-    if (activeIds.length === 0) {
-      if (pollingTimerRef.current) {
-        clearInterval(pollingTimerRef.current)
-        pollingTimerRef.current = null
+    // Open EventSource for each active job
+    for (const id of activeIds) {
+      if (!eventSourcesRef.current[id] && !id.startsWith('upload_')) {
+        try {
+          const streamUrl = transcriptionApi.getProgressStreamUrl(id)
+          const es = new EventSource(streamUrl)
+          eventSourcesRef.current[id] = es
+
+          es.addEventListener('message', async (event) => {
+            try {
+              const data = JSON.parse(event.data)
+              if (data.stage === 'heartbeat' || data.event === 'heartbeat' || data.event === 'connected') {
+                return
+              }
+
+              setActiveJobs((prev) => {
+                const existing = prev[id]
+                return {
+                  ...prev,
+                  [id]: {
+                    id,
+                    media_id: existing?.media_id || data.media_id || '',
+                    status: data.stage === 'complete' ? 'complete' : data.stage === 'failed' ? 'failed' : 'transcribing',
+                    stage: data.stage || existing?.stage,
+                    progress: typeof data.progress === 'number' ? data.progress : existing?.progress || 0,
+                    message: data.message || existing?.message || 'Procesando audio...',
+                    preview: data.preview,
+                    eta: data.eta || existing?.eta,
+                    model_info: data.model_info || existing?.model_info,
+                    error: data.error,
+                  },
+                }
+              })
+
+              if (data.stage === 'complete' || data.progress === 100) {
+                toast.success('¡Transcripción completada con éxito!')
+                await refreshTranscriptions()
+                es.close()
+                delete eventSourcesRef.current[id]
+              } else if (data.stage === 'failed') {
+                toast.error(data.error || data.message || 'Error en el proceso de transcripción.')
+                es.close()
+                delete eventSourcesRef.current[id]
+              }
+            } catch (err) {
+              console.warn('Error parsing SSE in useTranscription:', err)
+            }
+          })
+
+          es.addEventListener('error', () => {
+            // Keep fallback polling alive
+          })
+        } catch (e) {
+          console.warn('Could not start EventSource for job:', id, e)
+        }
       }
-      return
     }
 
-    if (!pollingTimerRef.current) {
+    // Clean up closed EventSources for finished/dismissed jobs
+    for (const id of Object.keys(eventSourcesRef.current)) {
+      if (!activeIds.includes(id)) {
+        eventSourcesRef.current[id]?.close()
+        delete eventSourcesRef.current[id]
+      }
+    }
+
+    // Fallback polling loop (every 3 seconds) for resilience
+    if (activeIds.length > 0 && !pollingTimerRef.current) {
       pollingTimerRef.current = window.setInterval(async () => {
         for (const id of activeIds) {
           try {
             const status = await transcriptionApi.getTranscriptionStatus(id)
-
             setActiveJobs((prev) => ({
               ...prev,
               [id]: status,
             }))
 
-            // Track milestone toasts
-            if (!notifiedMilestones.current[id]) {
-              notifiedMilestones.current[id] = new Set()
-            }
-
-            const sent = notifiedMilestones.current[id]
-            if (status.progress >= 25 && !sent.has(25)) {
-              sent.add(25)
-              toast.info(`Transcripción: 25% completado (${status.message || 'Procesando'})`)
-            }
-            if (status.progress >= 50 && !sent.has(50)) {
-              sent.add(50)
-              toast.info(`Transcripción: 50% completado`)
-            }
-            if (status.progress >= 75 && !sent.has(75)) {
-              sent.add(75)
-              toast.info(`Transcripción: 75% completado - Diarización de interlocutores`)
-            }
-
-            // On Completion
             if (status.status === 'complete' || status.progress === 100) {
-              toast.success('¡Transcripción completada con éxito!')
               await refreshTranscriptions()
-            } else if (status.status === 'failed') {
-              toast.error(status.error || 'Error en el proceso de transcripción.')
             }
-          } catch (e) {
-            // Check if job completed in background
-            try {
-              const res = await transcriptionApi.getTranscriptionResult(id)
-              if (res) {
-                setActiveJobs((prev) => ({
-                  ...prev,
-                  [id]: {
-                    id,
-                    media_id: res.media_id,
-                    status: 'complete',
-                    stage: 'complete',
-                    progress: 100,
-                    message: 'Transcripción finalizada.',
-                  },
-                }))
-                await refreshTranscriptions()
-              }
-            } catch {
-              // Ignore temporary poll failure
-            }
+          } catch {
+            // Fallback check
           }
         }
-      }, 1500)
+      }, 3000)
+    } else if (activeIds.length === 0 && pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current)
+      pollingTimerRef.current = null
     }
 
+    return () => {
+      // Retain connections during rerenders
+    }
+  }, [activeJobs, refreshTranscriptions, toast])
+
+  // Clean up all EventSources on unmount
+  useEffect(() => {
     return () => {
       if (pollingTimerRef.current) {
         clearInterval(pollingTimerRef.current)
         pollingTimerRef.current = null
       }
+      for (const es of Object.values(eventSourcesRef.current)) {
+        es?.close()
+      }
+      eventSourcesRef.current = {}
     }
-  }, [activeJobs, refreshTranscriptions, toast])
+  }, [])
 
   // Start upload and transcription pipeline -> auto-transition to Studio
   const handleUploadAndStart = async (file: File, title: string, description: string = '') => {
+    const tempId = `upload_${Date.now()}`
     try {
       setIsUploading(true)
       setActiveMeetingTitle(title)
 
-      // 1. Upload media
-      const uploadRes = await transcriptionApi.uploadMedia(file, title, description)
-      const mediaId = uploadRes.media_id
+      setActiveJobs((prev) => ({
+        ...prev,
+        [tempId]: {
+          id: tempId,
+          media_id: '',
+          status: 'uploading',
+          stage: 'uploading',
+          progress: 5,
+          message: `Iniciando subida de "${file.name}"...`,
+          model_info: availableModels?.active_model_label || 'Whisper Auto',
+        },
+      }))
 
-      // 2. Start transcription
-      const transRes = await transcriptionApi.startTranscription(mediaId, {
+      // 1. Upload media with real-time XMLHttpRequest progress
+      const uploadRes = await transcriptionApi.uploadMediaWithProgress(file, title, description, (prog, msg) => {
+        setActiveJobs((prev) => {
+          if (!prev[tempId]) return prev
+          return {
+            ...prev,
+            [tempId]: {
+              ...prev[tempId],
+              progress: Math.min(10, Math.max(5, Math.round(prog / 10))), // 0-10% range
+              message: msg,
+            },
+          }
+        })
+      })
+
+      const mediaId = uploadRes.media_id
+      const transcriptionId = uploadRes.transcription_id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `trans_${Date.now()}`)
+
+      // Replace tempId with actual transcriptionId
+      setActiveJobs((prev) => {
+        const next = { ...prev }
+        delete next[tempId]
+        next[transcriptionId] = {
+          id: transcriptionId,
+          media_id: mediaId,
+          status: 'preprocessing',
+          stage: 'preprocessing',
+          progress: 15,
+          message: 'Archivo cargado. Extrayendo audio...',
+          eta: '~45 s',
+          model_info: availableModels?.active_model_label || 'Whisper Auto',
+        }
+        return next
+      })
+
+      setSelectedTranscriptionId(transcriptionId)
+
+      // 2. Start transcription on backend
+      await transcriptionApi.startTranscription(mediaId, {
+        transcription_id: transcriptionId,
         mode: 'auto',
         enable_diarization: true,
       })
-
-      const transcriptionId = transRes.transcription_id
-      setSelectedTranscriptionId(transcriptionId)
-
-      // Initialize active job
-      const initialProgress: TranscriptionProgress = {
-        id: transcriptionId,
-        media_id: mediaId,
-        status: 'preprocessing',
-        stage: 'preprocessing',
-        progress: 15,
-        message: 'Importando y extrayendo audio...',
-        eta: '~45 s',
-        model_info: availableModels?.active_model_label || 'Whisper Auto',
-      }
-
-      setActiveJobs((prev) => ({
-        ...prev,
-        [transcriptionId]: initialProgress,
-      }))
 
       // Transition immediately to the Live Transcription Studio
       setViewMode('studio')
       toast.success('Grabación cargada. Transcribiendo en tiempo real...')
     } catch (err: any) {
+      setActiveJobs((prev) => {
+        const next = { ...prev }
+        delete next[tempId]
+        return next
+      })
       toast.error(`Error al iniciar transcripción: ${err.message}`)
       throw err
     } finally {
