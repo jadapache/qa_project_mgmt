@@ -46,6 +46,11 @@ export const aiSettingsApi = {
       body: JSON.stringify({ name, base_url: baseUrl }),
     }).then((r) => handleResponse<{ status: string; model: string }>(r)),
 
+  deleteOllamaModel: (name: string, baseUrl?: string) =>
+    fetch(`${API_BASE}/api/ai/ollama/${encodeURIComponent(name)}${baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : ''}`, {
+      method: 'DELETE',
+    }).then((r) => handleResponse<{ ok: boolean; message: string; model: string }>(r)),
+
   getPrompt: (feature: string) =>
     fetch(`${API_BASE}/api/ai/prompts/${feature}`).then((r) => handleResponse<Record<string, unknown>>(r)),
 

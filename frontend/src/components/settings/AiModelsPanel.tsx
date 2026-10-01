@@ -24,8 +24,10 @@ export const AiModelsPanel = () => {
     fetchOllamaModels,
     isPulling,
     pullingModelTag,
+    deletingModelTag,
     pullStatusMsg,
     handlePullModel,
+    handleDeleteModel,
     isModelDownloaded,
     catalogModels,
     catalogError,
@@ -121,8 +123,10 @@ export const AiModelsPanel = () => {
         fetchOllamaModels={fetchOllamaModels}
         isPulling={isPulling}
         pullingModelTag={pullingModelTag}
+        deletingModelTag={deletingModelTag}
         pullStatusMsg={pullStatusMsg}
         handlePullModel={handlePullModel}
+        handleDeleteModel={handleDeleteModel}
         isModelDownloaded={isModelDownloaded}
         catalogModels={catalogModels}
         groqKey={groqKey}

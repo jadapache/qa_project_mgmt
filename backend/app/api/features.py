@@ -234,6 +234,22 @@ async def pull_ollama_model(body: OllamaPullRequest) -> dict[str, Any]:
     raise HTTPException(status_code=500, detail=f"Error al descargar el modelo {body.name} en Ollama: {e}")
 
 
+@router.delete("/ai/ollama/{model_name:path}")
+async def delete_ollama_model_endpoint(model_name: str, base_url: str | None = None) -> dict[str, Any]:
+  """Delete a local Ollama model to free disk space."""
+  config = get_ai_settings()
+  target_url = (base_url or config.get("ollama_base_url") or "http://127.0.0.1:11434").rstrip("/")
+  try:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+      req = client.build_request("DELETE", f"{target_url}/api/delete", json={"name": model_name})
+      res = await client.send(req)
+      res.raise_for_status()
+      return {"ok": True, "model": model_name, "message": f"Modelo {model_name} eliminado de Ollama correctamente."}
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Error al eliminar el modelo {model_name} en Ollama: {e}")
+
+
+
 @router.get("/ai/whisper/models")
 async def list_whisper_models() -> dict[str, Any]:
   """List all local Whisper built-in models and their download status on disk."""

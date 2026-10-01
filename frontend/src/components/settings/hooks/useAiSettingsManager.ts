@@ -49,6 +49,7 @@ export function useAiSettingsManager() {
   const [ollamaModels, setOllamaModels] = useState<string[]>([])
   const [isPulling, setIsPulling] = useState(false)
   const [pullingModelTag, setPullingModelTag] = useState<string | null>(null)
+  const [deletingModelTag, setDeletingModelTag] = useState<string | null>(null)
   const [pullStatusMsg, setPullStatusMsg] = useState<string | null>(null)
   const [fetchingModels, setFetchingModels] = useState(false)
 
@@ -234,6 +235,23 @@ export function useAiSettingsManager() {
     }
   }
 
+  const handleDeleteModel = async (targetModelTag: string) => {
+    setDeletingModelTag(targetModelTag)
+    const effectiveTargetUrl = normalizeOllamaUrl(ollamaUrl)
+
+    try {
+      await api.deleteOllamaModel(targetModelTag, effectiveTargetUrl)
+      toast.success(`Modelo "${targetModelTag}" eliminado de Ollama correctamente.`)
+      void fetchOllamaModels(effectiveTargetUrl, false)
+      await loadDynamicCatalog(true)
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : `Error al eliminar el modelo ${targetModelTag}`
+      toast.error(errMsg)
+    } finally {
+      setDeletingModelTag(null)
+    }
+  }
+
   const isModelDownloaded = (modelTag: string) => {
     return ollamaModels.some((m) => m === modelTag || m.startsWith(`${modelTag}:`))
   }
@@ -414,10 +432,12 @@ export function useAiSettingsManager() {
     ollamaModels,
     isPulling,
     pullingModelTag,
+    deletingModelTag,
     pullStatusMsg,
     fetchingModels,
     fetchOllamaModels,
     handlePullModel,
+    handleDeleteModel,
     isModelDownloaded,
     localWhisperModels,
     downloadingWhisperId,
