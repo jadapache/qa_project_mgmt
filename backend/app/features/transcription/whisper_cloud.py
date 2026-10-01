@@ -19,26 +19,38 @@ class WhisperCloudService:
 
   def _resolve_credentials(self) -> tuple[str, str, str]:
     config = get_ai_settings()
-    prov = self.provider
+    prov = (self.provider or config.get("transcription_provider") or "auto").lower()
+    configured_model = config.get("transcription_model")
+
+    groq_key = (
+      self.api_key
+      or config.get("transcription_groq_api_key")
+      or config.get("groq_api_key")
+      or os.getenv("GROQ_API_KEY", "")
+    )
+    openai_key = (
+      self.api_key
+      or config.get("transcription_openai_api_key")
+      or config.get("openai_api_key")
+      or os.getenv("OPENAI_API_KEY", "")
+    )
 
     if prov in {"groq", "auto"}:
-      key = self.api_key or config.get("groq_api_key") or os.getenv("GROQ_API_KEY", "")
-      if key:
-        return "groq", key, "whisper-large-v3"
+      if groq_key:
+        model = configured_model if configured_model and "whisper" in configured_model else "whisper-large-v3"
+        return "groq", groq_key, model
 
     if prov in {"openai", "auto"}:
-      key = self.api_key or config.get("openai_api_key") or os.getenv("OPENAI_API_KEY", "")
-      if key:
-        return "openai", key, "whisper-1"
+      if openai_key:
+        model = configured_model if configured_model and "whisper" in configured_model else "whisper-1"
+        return "openai", openai_key, model
 
     # Fallback checking any available key
-    groq_key = config.get("groq_api_key") or os.getenv("GROQ_API_KEY", "")
     if groq_key:
-      return "groq", groq_key, "whisper-large-v3"
+      return "groq", groq_key, configured_model or "whisper-large-v3"
 
-    openai_key = config.get("openai_api_key") or os.getenv("OPENAI_API_KEY", "")
     if openai_key:
-      return "openai", openai_key, "whisper-1"
+      return "openai", openai_key, configured_model or "whisper-1"
 
     raise ValueError(
       "No se encontró una clave de API válida para transcripción en la nube. "

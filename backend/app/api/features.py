@@ -60,6 +60,8 @@ class AISettingsUpdate(BaseModel):
   claude_api_key: str | None = None
   groq_api_key: str | None = None
   gemini_api_key: str | None = None
+  transcription_groq_api_key: str | None = None
+  transcription_openai_api_key: str | None = None
   ollama_base_url: str | None = None
 
 
@@ -132,6 +134,12 @@ async def ai_settings() -> dict[str, Any]:
     "claude_api_key_set": bool(config.get("claude_api_key") or os.getenv("ANTHROPIC_API_KEY")),
     "groq_api_key_set": bool(config.get("groq_api_key") or os.getenv("GROQ_API_KEY")),
     "gemini_api_key_set": bool(config.get("gemini_api_key") or os.getenv("GEMINI_API_KEY")),
+    "transcription_groq_api_key_set": bool(
+      config.get("transcription_groq_api_key") or config.get("groq_api_key") or os.getenv("GROQ_API_KEY")
+    ),
+    "transcription_openai_api_key_set": bool(
+      config.get("transcription_openai_api_key") or config.get("openai_api_key") or os.getenv("OPENAI_API_KEY")
+    ),
     "ollama_base_url": config.get("ollama_base_url"),
     "active_api_key_set": active_key_set,
   }
