@@ -7,8 +7,13 @@ import {
 } from '../api/modules/transcription'
 import { useToast } from '../context/ToastContext'
 
+const LOCAL_STORAGE_ACTIVE_JOBS = 'qa_active_transcription_jobs'
+
 export function useTranscription() {
   const { toast } = useToast()
+
+  // View mode
+  const [viewMode, setViewMode] = useState<'dashboard' | 'studio'>('dashboard')
 
   // Data lists
   const [activeJobs, setActiveJobs] = useState<Record<string, TranscriptionProgress>>({})
@@ -28,6 +33,21 @@ export function useTranscription() {
   const notifiedMilestones = useRef<Record<string, Set<number>>>({})
   const pollingTimerRef = useRef<number | null>(null)
 
+  // Synchronize active jobs with localStorage
+  const saveActiveJobsToStorage = useCallback((jobs: Record<string, TranscriptionProgress>) => {
+    try {
+      const activeOnly: Record<string, TranscriptionProgress> = {}
+      for (const [id, job] of Object.entries(jobs)) {
+        if (job.status !== 'complete' && job.status !== 'failed' && job.status !== 'cancelled') {
+          activeOnly[id] = job
+        }
+      }
+      localStorage.setItem(LOCAL_STORAGE_ACTIVE_JOBS, JSON.stringify(activeOnly))
+    } catch (e) {
+      console.warn('Could not persist active jobs to localStorage:', e)
+    }
+  }, [])
+
   // Fetch recent saved transcriptions
   const refreshTranscriptions = useCallback(async () => {
     try {
@@ -41,7 +61,7 @@ export function useTranscription() {
     }
   }, [])
 
-  // Fetch available models configuration on mount
+  // Fetch available models and restore persisted jobs on mount
   useEffect(() => {
     transcriptionApi
       .getAvailableModels()
@@ -49,12 +69,33 @@ export function useTranscription() {
       .catch((e) => console.warn('Could not load models info:', e))
 
     refreshTranscriptions()
+
+    // Restore jobs from localStorage
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_ACTIVE_JOBS)
+      if (stored) {
+        const parsed: Record<string, TranscriptionProgress> = JSON.parse(stored)
+        if (Object.keys(parsed).length > 0) {
+          setActiveJobs(parsed)
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading active jobs from storage:', e)
+    }
   }, [refreshTranscriptions])
 
-  // Polling loop for active jobs (every 1 second)
+  // Save active jobs changes to localStorage
+  useEffect(() => {
+    saveActiveJobsToStorage(activeJobs)
+  }, [activeJobs, saveActiveJobsToStorage])
+
+  // Polling loop for active jobs (every 1.5 seconds)
   useEffect(() => {
     const activeIds = Object.keys(activeJobs).filter(
-      (id) => activeJobs[id].status !== 'complete' && activeJobs[id].status !== 'failed' && activeJobs[id].status !== 'cancelled'
+      (id) =>
+        activeJobs[id].status !== 'complete' &&
+        activeJobs[id].status !== 'failed' &&
+        activeJobs[id].status !== 'cancelled'
     )
 
     if (activeIds.length === 0) {
@@ -99,16 +140,11 @@ export function useTranscription() {
             if (status.status === 'complete' || status.progress === 100) {
               toast.success('¡Transcripción completada con éxito!')
               await refreshTranscriptions()
-
-              // Auto-open summary modal if this was the focused transcription
-              setSelectedTranscriptionId(id)
-              setShowProgressModal(false)
-              setShowSummaryModal(true)
             } else if (status.status === 'failed') {
               toast.error(status.error || 'Error en el proceso de transcripción.')
             }
           } catch (e) {
-            // If job not found or failed, check result
+            // Check if job completed in background
             try {
               const res = await transcriptionApi.getTranscriptionResult(id)
               if (res) {
@@ -130,7 +166,7 @@ export function useTranscription() {
             }
           }
         }
-      }, 1000)
+      }, 1500)
     }
 
     return () => {
@@ -141,7 +177,7 @@ export function useTranscription() {
     }
   }, [activeJobs, refreshTranscriptions, toast])
 
-  // Start upload and transcription pipeline
+  // Start upload and transcription pipeline -> auto-transition to Studio
   const handleUploadAndStart = async (file: File, title: string, description: string = '') => {
     try {
       setIsUploading(true)
@@ -166,8 +202,8 @@ export function useTranscription() {
         media_id: mediaId,
         status: 'preprocessing',
         stage: 'preprocessing',
-        progress: 10,
-        message: 'Importando y preparando archivo de audio...',
+        progress: 15,
+        message: 'Importando y extrayendo audio...',
         eta: '~45 s',
         model_info: availableModels?.active_model_label || 'Whisper Auto',
       }
@@ -177,8 +213,9 @@ export function useTranscription() {
         [transcriptionId]: initialProgress,
       }))
 
-      setShowProgressModal(true)
-      toast.success('Grabación subida. Transcripción iniciada en segundo plano.')
+      // Transition immediately to the Live Transcription Studio
+      setViewMode('studio')
+      toast.success('Grabación cargada. Transcribiendo en tiempo real...')
     } catch (err: any) {
       toast.error(`Error al iniciar transcripción: ${err.message}`)
       throw err
@@ -196,9 +233,10 @@ export function useTranscription() {
         delete next[transcriptionId]
         return next
       })
-      if (selectedTranscriptionId === transcriptionId) {
-        setShowProgressModal(false)
+      if (selectedTranscriptionId === transcriptionId && viewMode === 'studio') {
+        setViewMode('dashboard')
       }
+      setShowProgressModal(false)
       toast.info('Transcripción cancelada y archivos limpiados.')
       await refreshTranscriptions()
     } catch (err: any) {
@@ -220,28 +258,36 @@ export function useTranscription() {
         delete next[transcriptionId]
         return next
       })
+      if (selectedTranscriptionId === transcriptionId) {
+        setViewMode('dashboard')
+        setSelectedTranscriptionId(null)
+      }
       toast.success('Transcripción eliminada con éxito.')
     } catch (err: any) {
       toast.error(`Error al eliminar: ${err.message}`)
     }
   }
 
-  // Modal open helpers
-  const openProgressModal = (transcriptionId: string) => {
-    setSelectedTranscriptionId(transcriptionId)
-    const job = activeJobs[transcriptionId]
-    if (job) {
-      setShowProgressModal(true)
-    }
-  }
-
-  const openSummaryModal = (transcriptionId: string) => {
+  // Navigation helpers
+  const openStudio = (transcriptionId: string) => {
     setSelectedTranscriptionId(transcriptionId)
     const recent = recentTranscriptions.find((t) => t.id === transcriptionId)
     if (recent) {
       setActiveMeetingTitle(recent.metadata.title)
     }
-    setShowSummaryModal(true)
+    setViewMode('studio')
+  }
+
+  const closeStudio = () => {
+    setViewMode('dashboard')
+  }
+
+  const openProgressModal = (transcriptionId: string) => {
+    openStudio(transcriptionId)
+  }
+
+  const openSummaryModal = (transcriptionId: string) => {
+    openStudio(transcriptionId)
   }
 
   const openGenerateModal = (transcriptionId: string) => {
@@ -250,7 +296,6 @@ export function useTranscription() {
     if (recent) {
       setActiveMeetingTitle(recent.metadata.title)
     }
-    setShowSummaryModal(false)
     setShowGenerateModal(true)
   }
 
@@ -260,11 +305,23 @@ export function useTranscription() {
     setShowGenerateModal(false)
   }
 
-  // Get active progress item currently selected
+  const handleDismissJob = (id: string) => {
+    setActiveJobs((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
+  // Active progress for selected transcription
   const currentProgress = selectedTranscriptionId ? activeJobs[selectedTranscriptionId] || null : null
 
   return {
-    activeJobs: Object.values(activeJobs).filter((j) => j.status !== 'complete'),
+    viewMode,
+    setViewMode,
+    openStudio,
+    closeStudio,
+    activeJobs: Object.values(activeJobs),
     recentTranscriptions,
     availableModels,
     isLoadingList,
@@ -278,6 +335,7 @@ export function useTranscription() {
     handleUploadAndStart,
     handleCancelTranscription,
     handleDeleteTranscription,
+    handleDismissJob,
     openProgressModal,
     openSummaryModal,
     openGenerateModal,

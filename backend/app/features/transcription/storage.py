@@ -13,6 +13,7 @@ from app.core.settings import LOCAL_DIR, ensure_local_dirs
 
 MEDIA_DIR = LOCAL_DIR / "media" / "uploads"
 TRANSCRIPTIONS_DIR = LOCAL_DIR / "transcriptions"
+ACTIVE_JOBS_DIR = LOCAL_DIR / "transcriptions" / "active_jobs"
 MEDIA_MANIFEST_PATH = LOCAL_DIR / "media" / "manifest.json"
 
 MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
@@ -30,8 +31,38 @@ def ensure_transcription_dirs() -> None:
   ensure_local_dirs()
   MEDIA_DIR.mkdir(parents=True, exist_ok=True)
   TRANSCRIPTIONS_DIR.mkdir(parents=True, exist_ok=True)
+  ACTIVE_JOBS_DIR.mkdir(parents=True, exist_ok=True)
   if not MEDIA_MANIFEST_PATH.exists():
     MEDIA_MANIFEST_PATH.write_text("[]", encoding="utf-8")
+
+
+def save_active_job_progress(progress_dict: dict[str, Any]) -> None:
+  ensure_transcription_dirs()
+  job_id = progress_dict.get("id")
+  if job_id:
+    path = ACTIVE_JOBS_DIR / f"{job_id}.json"
+    path.write_text(json.dumps(progress_dict, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def load_active_job_progress(job_id: str) -> Optional[dict[str, Any]]:
+  ensure_transcription_dirs()
+  path = ACTIVE_JOBS_DIR / f"{job_id}.json"
+  if path.exists():
+    try:
+      return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+      return None
+  return None
+
+
+def delete_active_job_progress(job_id: str) -> None:
+  ensure_transcription_dirs()
+  path = ACTIVE_JOBS_DIR / f"{job_id}.json"
+  if path.exists():
+    try:
+      path.unlink()
+    except Exception:
+      pass
 
 
 def _load_manifest() -> list[dict[str, Any]]:

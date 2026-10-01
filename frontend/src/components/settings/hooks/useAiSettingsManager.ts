@@ -26,6 +26,9 @@ export function useAiSettingsManager() {
   // Voice & Transcription unified state
   const [voiceAudioProvider, setVoiceAudioProvider] = useState<string>('groq')
   const [voiceAudioModel, setVoiceAudioModel] = useState<string>('whisper-large-v3')
+  const [transcriptionGroqKey, setTranscriptionGroqKey] = useState('')
+  const [transcriptionOpenaiKey, setTranscriptionOpenaiKey] = useState('')
+  const [showTranscriptionKey, setShowTranscriptionKey] = useState(false)
 
   // API Keys & credentials
   const [groqKey, setGroqKey] = useState('')
@@ -99,16 +102,31 @@ export function useAiSettingsManager() {
         const settings = await api.getAiSettings()
         if (!isMounted) return
         setAi(settings)
-        if (settings.provider) {
-          setProvider(settings.provider)
-        }
-        if (settings.model) {
+
+        const prov = settings.provider || 'builtin'
+        setProvider(prov)
+
+        if (settings.model && settings.model.trim()) {
           setModel(settings.model)
+        } else {
+          if (prov === 'groq') setModel('llama-3.3-70b-versatile')
+          else if (prov === 'builtin') setModel('qwen3.5:2b')
+          else if (prov === 'gemini') setModel('gemini-1.5-flash')
+          else if (prov === 'openai') setModel('gpt-4o-mini')
+          else if (prov === 'claude') setModel('claude-3-5-haiku-latest')
         }
+
         const unifiedProvider = settings.transcription_provider || settings.voice_command_provider || 'groq'
-        const unifiedModel = settings.transcription_model || settings.voice_command_model || 'whisper-large-v3'
+        const defaultTransModel =
+          unifiedProvider === 'groq'
+            ? 'whisper-large-v3'
+            : unifiedProvider === 'openai'
+            ? 'whisper-1'
+            : 'base'
+        const unifiedModel = settings.transcription_model || settings.voice_command_model || defaultTransModel
         setVoiceAudioProvider(unifiedProvider)
         setVoiceAudioModel(unifiedModel)
+
         if (
           settings.ollama_base_url &&
           settings.ollama_base_url !== 'http://localhost:11434' &&
@@ -272,15 +290,27 @@ export function useAiSettingsManager() {
   const handleVoiceAudioSave = async (event?: FormEvent) => {
     if (event) event.preventDefault()
     setSavingAi(true)
+
+    const payload: Record<string, string> = {
+      transcription_provider: voiceAudioProvider,
+      transcription_model: voiceAudioModel.trim(),
+      voice_command_provider: voiceAudioProvider,
+      voice_command_model: voiceAudioModel.trim(),
+    }
+
+    if (transcriptionGroqKey.trim()) {
+      payload.transcription_groq_api_key = transcriptionGroqKey.trim()
+    }
+    if (transcriptionOpenaiKey.trim()) {
+      payload.transcription_openai_api_key = transcriptionOpenaiKey.trim()
+    }
+
     try {
-      const updated = await api.updateAiSettings({
-        transcription_provider: voiceAudioProvider,
-        transcription_model: voiceAudioModel.trim(),
-        voice_command_provider: voiceAudioProvider,
-        voice_command_model: voiceAudioModel.trim(),
-      })
+      const updated = await api.updateAiSettings(payload)
       setAi(updated)
-      toast.success('Configuración del modelo de transcripción y comandos de voz guardada exitosamente.')
+      setTranscriptionGroqKey('')
+      setTranscriptionOpenaiKey('')
+      toast.success('Configuración del motor de transcripción y voz guardada exitosamente.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al guardar el modelo de voz y transcripción')
     } finally {
@@ -308,6 +338,12 @@ export function useAiSettingsManager() {
     setVoiceAudioProvider,
     voiceAudioModel,
     setVoiceAudioModel,
+    transcriptionGroqKey,
+    setTranscriptionGroqKey,
+    transcriptionOpenaiKey,
+    setTranscriptionOpenaiKey,
+    showTranscriptionKey,
+    setShowTranscriptionKey,
     groqKey,
     setGroqKey,
     geminiKey,

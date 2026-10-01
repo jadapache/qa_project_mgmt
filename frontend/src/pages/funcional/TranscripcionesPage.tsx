@@ -2,34 +2,33 @@ import { useState } from 'react'
 import {
   Sparkles,
   History,
-  FileAudio,
   FileText,
   Search,
-  Settings,
-  CheckCircle2,
   RefreshCw,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranscription } from '../../hooks/useTranscription'
 import {
   UploadArea,
-  ActiveTranscriptionItem,
   RecentTranscriptionItem,
-  TranscriptionProgressModal,
-  SummaryModal,
   GenerateModal,
   TranscriptionHistoryModal,
+  FloatingTranscriptionToast,
+  TranscriptionStudio,
 } from '../../components/transcription'
 
 export const TranscripcionesPage = () => {
   const {
+    viewMode,
+    openStudio,
+    closeStudio,
     activeJobs,
     recentTranscriptions,
     availableModels,
     isLoadingList,
     isUploading,
-    showProgressModal,
-    showSummaryModal,
     showGenerateModal,
     selectedTranscriptionId,
     activeMeetingTitle,
@@ -37,17 +36,20 @@ export const TranscripcionesPage = () => {
     handleUploadAndStart,
     handleCancelTranscription,
     handleDeleteTranscription,
-    openProgressModal,
-    openSummaryModal,
+    handleDismissJob,
     openGenerateModal,
-    setShowProgressModal,
-    setShowSummaryModal,
     setShowGenerateModal,
     refreshTranscriptions,
   } = useTranscription()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
+
+  const isModelConfigured =
+    !availableModels ||
+    availableModels.local_available ||
+    availableModels.groq_configured ||
+    availableModels.openai_configured
 
   const filteredRecents = recentTranscriptions.filter((t) => {
     if (!searchQuery.trim()) return true
@@ -58,8 +60,29 @@ export const TranscripcionesPage = () => {
     return titleMatch || descMatch || participantsMatch
   })
 
+  // If in Studio mode and a transcription is selected, render the TranscriptionStudio workspace
+  if (viewMode === 'studio' && selectedTranscriptionId) {
+    return (
+      <div className="animate-fade-in font-sans">
+        <TranscriptionStudio
+          transcriptionId={selectedTranscriptionId}
+          activeProgress={currentProgress}
+          onBackToDashboard={closeStudio}
+          onRefreshData={refreshTranscriptions}
+        />
+        {/* Floating toast widget also available */}
+        <FloatingTranscriptionToast
+          activeJobs={activeJobs}
+          onOpenStudio={(id) => openStudio(id)}
+          onCancelJob={(id) => handleCancelTranscription(id)}
+          onDismissJob={(id) => handleDismissJob(id)}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-8 max-w-6xl mx-auto font-sans pb-12">
+    <div className="space-y-8 max-w-5xl mx-auto font-sans pb-12 animate-fade-in">
       {/* Page Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -100,112 +123,43 @@ export const TranscripcionesPage = () => {
         </div>
       </header>
 
-      {/* Main Top Grid: Upload Area + System Info */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left 2 Cols: Upload Area */}
-        <div className="lg:col-span-2">
-          <UploadArea
-            onUpload={async (file, title, desc) => {
-              await handleUploadAndStart(file, title, desc)
-            }}
-            isUploading={isUploading}
-            configuredModelLabel={availableModels?.active_model_label}
-          />
-        </div>
-
-        {/* Right 1 Col: Info Panels */}
-        <div className="space-y-4">
-          {/* Configured AI Model Card */}
-          <div className="card p-5 bg-gradient-to-br from-blue-50/80 to-white border border-blue-200/80 rounded-2xl space-y-3 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 text-[#002777]">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                  Motor de Transcripción
-                </h3>
-              </div>
-              <Link
-                to="/configuracion"
-                className="text-slate-400 hover:text-blue-700 p-1 rounded-lg transition"
-                title="Configurar en Ajustes"
-              >
-                <Settings className="h-4 w-4" />
-              </Link>
+      {/* API Key Missing Warning Banner (If no model provider is configured) */}
+      {!isModelConfigured && (
+        <div className="card p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+              <AlertTriangle className="h-5 w-5" />
             </div>
-
-            <div className="space-y-1.5 pt-1">
-              <p className="text-sm font-bold text-[#002777]">
-                {availableModels?.active_model_label || 'Whisper Auto'}
-              </p>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Reconocimiento de voz de alta precisión con diarización y segmentación de hablantes integrada.
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-blue-100/60 flex items-center justify-between text-[11px] text-slate-600">
-              <span className="flex items-center gap-1 text-emerald-700 font-semibold">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Motor activo y validado
-              </span>
-              <Link to="/configuracion" className="font-bold text-[#002777] hover:underline">
-                Cambiar en Ajustes
-              </Link>
-            </div>
-          </div>
-
-          {/* Formatos y Especificaciones */}
-          <div className="card p-5 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-xs">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                <FileAudio className="h-4 w-4" />
-              </div>
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                Formatos y Límites
+            <div>
+              <h3 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                Configuración de Motor de Transcripción Requerida
               </h3>
+              <p className="text-xs text-amber-900 mt-0.5">
+                No se detectó API Key para Groq ni OpenAI Whisper. Configura tu clave en Ajustes para habilitar el procesamiento en la nube.
+              </p>
             </div>
-
-            <ul className="text-xs text-slate-600 space-y-2">
-              <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">•</span>
-                <span><strong>Audio:</strong> MP3, WAV, M4A, OGG, FLAC, AAC, OPUS</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">•</span>
-                <span><strong>Video:</strong> MP4, WebM, MKV, MOV (audio extraído auto)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">•</span>
-                <span><strong>Capacidad:</strong> Hasta 2 GB por grabación</span>
-              </li>
-            </ul>
           </div>
+
+          <Link
+            to="/configuracion"
+            className="px-3.5 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs"
+          >
+            <span>Configurar Ajustes</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
-      </div>
-
-      {/* Active In-Progress Transcriptions (If any) */}
-      {activeJobs.length > 0 && (
-        <section className="space-y-3 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span className="flex h-2.5 w-2.5 rounded-full bg-blue-600 animate-ping" />
-              <span>Transcripciones en Proceso ({activeJobs.length})</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeJobs.map((job) => (
-              <ActiveTranscriptionItem
-                key={job.id}
-                progress={job}
-                title={job.id === selectedTranscriptionId && activeMeetingTitle ? activeMeetingTitle : undefined}
-                onOpenModal={(id) => openProgressModal(id)}
-                onCancel={(id) => handleCancelTranscription(id)}
-              />
-            ))}
-          </div>
-        </section>
       )}
+
+      {/* Upload Area (Full width, right sidebar cards removed as requested) */}
+      <div className="w-full">
+        <UploadArea
+          onUpload={async (file, title, desc) => {
+            await handleUploadAndStart(file, title, desc)
+          }}
+          isUploading={isUploading}
+          configuredModelLabel={availableModels?.active_model_label}
+        />
+      </div>
 
       {/* Recent Transcriptions Section */}
       <section className="space-y-4">
@@ -215,7 +169,7 @@ export const TranscripcionesPage = () => {
               Transcripciones y Minutas Recientes
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Consulta resúmenes, minutas y genera entregables de requerimientos en cualquier momento.
+              Consulta resúmenes, edita en el espacio Univer y genera entregables de requerimientos.
             </p>
           </div>
 
@@ -234,7 +188,7 @@ export const TranscripcionesPage = () => {
         </div>
 
         {recentTranscriptions.length === 0 && activeJobs.length === 0 ? (
-          <div className="card p-12 bg-white border border-slate-200 rounded-2xl text-center space-y-3">
+          <div className="card p-12 bg-white border border-slate-200 rounded-2xl text-center space-y-3 shadow-xs">
             <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-blue-50 text-[#002777]">
               <FileText className="h-6 w-6" />
             </div>
@@ -255,7 +209,7 @@ export const TranscripcionesPage = () => {
               <RecentTranscriptionItem
                 key={item.id}
                 transcription={item}
-                onOpenSummary={(id) => openSummaryModal(id)}
+                onOpenSummary={(id) => openStudio(id)}
                 onOpenGenerate={(id) => openGenerateModal(id)}
                 onDelete={(id) => handleDeleteTranscription(id)}
               />
@@ -264,24 +218,15 @@ export const TranscripcionesPage = () => {
         )}
       </section>
 
-      {/* Modal 1: Progress Modal */}
-      <TranscriptionProgressModal
-        isOpen={showProgressModal}
-        progress={currentProgress}
-        title={activeMeetingTitle}
-        onClose={() => setShowProgressModal(false)}
-        onCancel={(id) => handleCancelTranscription(id)}
+      {/* Floating Transcription Toast (Bottom-Right Widget) */}
+      <FloatingTranscriptionToast
+        activeJobs={activeJobs}
+        onOpenStudio={(id) => openStudio(id)}
+        onCancelJob={(id) => handleCancelTranscription(id)}
+        onDismissJob={(id) => handleDismissJob(id)}
       />
 
-      {/* Modal 2: Summary Modal */}
-      <SummaryModal
-        isOpen={showSummaryModal}
-        transcriptionId={selectedTranscriptionId}
-        onClose={() => setShowSummaryModal(false)}
-        onNextGenerate={(id) => openGenerateModal(id)}
-      />
-
-      {/* Modal 3: Generate Modal */}
+      {/* Generate Deliverables Modal */}
       <GenerateModal
         isOpen={showGenerateModal}
         transcriptionId={selectedTranscriptionId}
@@ -295,7 +240,7 @@ export const TranscripcionesPage = () => {
         onClose={() => setHistoryModalOpen(false)}
         onSelect={(record) => {
           setHistoryModalOpen(false)
-          openSummaryModal(record.id)
+          openStudio(record.id)
         }}
       />
     </div>

@@ -122,6 +122,17 @@ export const transcriptionApi = {
     return handleResponse(response)
   },
 
+  async generateSummary(transcriptionId: string): Promise<{ ok: boolean; summary: TranscriptionSummary; transcription: TranscriptionResult }> {
+    const response = await fetch(`${API_BASE}/api/transcription/generate-summary/${transcriptionId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+    })
+    return handleResponse(response)
+  },
+
   async updateTranscriptionSummary(transcriptionId: string, summary: TranscriptionSummary): Promise<{ ok: boolean; transcription: TranscriptionResult }> {
     const response = await fetch(`${API_BASE}/api/transcription/summary/${transcriptionId}`, {
       method: 'PUT',

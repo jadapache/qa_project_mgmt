@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -13,10 +14,13 @@ from app.context.knowledge import ingest_document
 from app.core.storage import load_app_settings
 from app.features.transcription.diarization import SpeakerDiarization
 from app.features.transcription.storage import (
+  delete_active_job_progress,
   delete_transcription_record,
   get_media_entry,
   get_media_path,
   get_transcription_record,
+  load_active_job_progress,
+  save_active_job_progress,
   save_transcription_record,
 )
 from app.features.transcription.summarizer import summarize_transcript
@@ -53,11 +57,28 @@ class TranscriptionService:
     self.cloud_service = WhisperCloudService()
     self.diarizer = SpeakerDiarization()
 
+  def _update_progress(self, job_progress: TranscriptionProgress) -> None:
+    _ACTIVE_JOBS[job_progress.id] = job_progress
+    try:
+      save_active_job_progress(job_progress.model_dump())
+    except Exception as exc:
+      logger.warning(f"Could not persist active job progress for {job_progress.id}: {exc}")
+
   def get_job_progress(self, transcription_id: str) -> Optional[TranscriptionProgress]:
     if transcription_id in _ACTIVE_JOBS:
       return _ACTIVE_JOBS[transcription_id]
 
-    # Check if already completed and stored on disk
+    # Check if active status was persisted on disk
+    persisted = load_active_job_progress(transcription_id)
+    if persisted:
+      try:
+        prog = TranscriptionProgress(**persisted)
+        _ACTIVE_JOBS[transcription_id] = prog
+        return prog
+      except Exception:
+        pass
+
+    # Check if already completed and stored in final transcriptions
     record = get_transcription_record(transcription_id)
     if record:
       return TranscriptionProgress(
@@ -82,6 +103,7 @@ class TranscriptionService:
       job.message = "Transcripción cancelada por el usuario."
       job.progress = 0
       job.eta = None
+      self._update_progress(job)
 
       # Clean up uploaded media file immediately
       if job.media_id:
@@ -92,7 +114,7 @@ class TranscriptionService:
           except OSError:
             pass
 
-    # Clean up JSON record if partial
+    delete_active_job_progress(transcription_id)
     delete_transcription_record(transcription_id)
     return True
 
@@ -101,8 +123,16 @@ class TranscriptionService:
     ai_cfg = load_app_settings().get("ai", {})
     provider = (ai_cfg.get("transcription_provider") or "auto").lower()
     model = ai_cfg.get("transcription_model") or "whisper-large-v3"
-    groq_key = bool(ai_cfg.get("groq_api_key") or os.getenv("GROQ_API_KEY"))
-    openai_key = bool(ai_cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY"))
+    groq_key = bool(
+      ai_cfg.get("transcription_groq_api_key")
+      or ai_cfg.get("groq_api_key")
+      or os.getenv("GROQ_API_KEY")
+    )
+    openai_key = bool(
+      ai_cfg.get("transcription_openai_api_key")
+      or ai_cfg.get("openai_api_key")
+      or os.getenv("OPENAI_API_KEY")
+    )
     local_avail = self.local_service.is_available()
 
     available = []
@@ -150,7 +180,7 @@ class TranscriptionService:
 
     media_entry = get_media_entry(media_id)
     if not media_entry:
-      _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
+      prog = TranscriptionProgress(
         id=transcription_id,
         media_id=media_id,
         status="failed",
@@ -160,11 +190,12 @@ class TranscriptionService:
         error="Media file not found in storage.",
         model_info=active_model_label,
       )
+      self._update_progress(prog)
       raise FileNotFoundError(f"Media entry {media_id} not found.")
 
     media_path = get_media_path(media_id)
     if not media_path or not media_path.exists():
-      _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
+      prog = TranscriptionProgress(
         id=transcription_id,
         media_id=media_id,
         status="failed",
@@ -174,7 +205,31 @@ class TranscriptionService:
         error="Media file missing on disk.",
         model_info=active_model_label,
       )
+      self._update_progress(prog)
       raise FileNotFoundError(f"Media file on disk for {media_id} not found.")
+
+    # Up-front validation: check if any provider is available
+    has_local = model_info_data.get("local_available", False)
+    has_groq = model_info_data.get("groq_configured", False)
+    has_openai = model_info_data.get("openai_configured", False)
+
+    if not has_local and not has_groq and not has_openai:
+      err_msg = (
+        "No se encontró ninguna clave de API configurada para Groq u OpenAI, ni un modelo Whisper local. "
+        "Por favor configure su API Key en la sección de Ajustes."
+      )
+      prog = TranscriptionProgress(
+        id=transcription_id,
+        media_id=media_id,
+        status="failed",
+        stage="failed",
+        progress=0,
+        message="No hay ningún motor de transcripción configurado.",
+        error=err_msg,
+        model_info=active_model_label,
+      )
+      self._update_progress(prog)
+      raise ValueError(err_msg)
 
     start_time = time.time()
 
@@ -182,157 +237,201 @@ class TranscriptionService:
       if transcription_id in _CANCELLED_JOBS:
         raise asyncio.CancelledError(f"Job {transcription_id} was cancelled by user.")
 
-    # 1. Start Preprocessing
-    _check_cancelled()
-    _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
-      id=transcription_id,
-      media_id=media_id,
-      status="preprocessing",
-      stage="preprocessing",
-      progress=15,
-      message="Extrayendo y normalizando pista de audio...",
-      eta=_format_eta(45),
-      model_info=active_model_label,
-    )
-
-    audio_track_path = media_path
-    if media_entry.get("is_video"):
-      wav_candidate = media_path.with_suffix(".wav")
-      audio_track_path = extract_audio_track(media_path, wav_candidate)
-
-    _check_cancelled()
-
-    # 2. Transcribing with smooth progress ticker
-    _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
-      id=transcription_id,
-      media_id=media_id,
-      status="transcribing",
-      stage="transcribing",
-      progress=25,
-      message=f"Decodificando audio con {active_model_label}...",
-      eta=_format_eta(35),
-      model_info=active_model_label,
-    )
-
-    # Background progress ticker while transcribe executes
-    ticker_running = True
-
-    async def _progress_ticker():
-      curr_prog = 25
-      while ticker_running and curr_prog < 70:
-        await asyncio.sleep(1.2)
-        if not ticker_running or transcription_id in _CANCELLED_JOBS:
-          break
-        curr_prog += 5
-        elapsed = time.time() - start_time
-        remaining = max(5, (100 - curr_prog) * (elapsed / max(curr_prog, 1)))
-        if transcription_id in _ACTIVE_JOBS and _ACTIVE_JOBS[transcription_id].status == "transcribing":
-          _ACTIVE_JOBS[transcription_id].progress = curr_prog
-          _ACTIVE_JOBS[transcription_id].eta = _format_eta(remaining)
-          _ACTIVE_JOBS[transcription_id].message = f"Transcribiendo audio ({curr_prog}%)..."
-
-    ticker_task = asyncio.create_task(_progress_ticker())
-
-    transcription_output: Dict[str, Any] = {}
-    used_mode = mode.lower()
-
-    # Read config settings if mode is auto
-    ai_cfg = load_app_settings().get("ai", {})
-    cfg_provider = (ai_cfg.get("transcription_provider") or "").lower()
-
     try:
-      if used_mode == "local" or (used_mode == "auto" and cfg_provider == "local") or (used_mode == "auto" and self.local_service.is_available() and not model_info_data.get("groq_configured") and not model_info_data.get("openai_configured")):
-        if model_size and model_size != self.local_service.model_size:
-          self.local_service = WhisperLocalService(model_size=model_size)
-        transcription_output = self.local_service.transcribe(audio_track_path, language=language)
-      else:
-        # Cloud mode (Groq or OpenAI)
-        transcription_output = await self.cloud_service.transcribe(audio_track_path, language=language)
-    finally:
-      ticker_running = False
-      ticker_task.cancel()
-
-    _check_cancelled()
-
-    # 3. Speaker Diarization
-    _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
-      id=transcription_id,
-      media_id=media_id,
-      status="diarizing",
-      stage="diarizing",
-      progress=75,
-      message="Identificando interlocutores y segmentando turnos de habla...",
-      eta=_format_eta(15),
-      model_info=active_model_label,
-    )
-
-    raw_segments = transcription_output.get("segments", [])
-    if enable_diarization and raw_segments:
-      labeled_segments = self.diarizer.diarize_segments(raw_segments, audio_track_path)
-    else:
-      labeled_segments = raw_segments
-
-    _check_cancelled()
-
-    # 4. Summarization
-    _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
-      id=transcription_id,
-      media_id=media_id,
-      status="summarizing",
-      stage="summarizing",
-      progress=88,
-      message="Extrayendo resumen ejecutivo, participantes y requerimientos con IA...",
-      eta=_format_eta(5),
-      model_info=active_model_label,
-    )
-
-    meeting_title = media_entry.get("title") or "Reunión de Requerimientos"
-    summary = await summarize_transcript(labeled_segments, title=meeting_title)
-
-    _check_cancelled()
-
-    # 5. Finalize and Save
-    now = datetime.now(timezone.utc).isoformat()
-    typed_segments = [
-      TranscriptionSegment(
-        start=float(s.get("start", 0.0)),
-        end=float(s.get("end", 0.0)),
-        speaker=s.get("speaker", "Participante 1"),
-        text=s.get("text", "").strip(),
+      # 1. Start Preprocessing
+      _check_cancelled()
+      self._update_progress(
+        TranscriptionProgress(
+          id=transcription_id,
+          media_id=media_id,
+          status="preprocessing",
+          stage="preprocessing",
+          progress=15,
+          message="Extrayendo y normalizando pista de audio...",
+          eta=_format_eta(45),
+          model_info=active_model_label,
+        )
       )
-      for s in labeled_segments
-    ]
 
-    result = TranscriptionResult(
-      id=transcription_id,
-      media_id=media_id,
-      metadata=MediaMetadata(
-        title=media_entry.get("title", "Reunión"),
-        description=media_entry.get("description", ""),
-      ),
-      language=transcription_output.get("language", language or "es"),
-      duration_seconds=float(transcription_output.get("duration", 0.0)),
-      created_at=now,
-      segments=typed_segments,
-      text=transcription_output.get("text", ""),
-      summary=summary,
-      saved_to_knowledge=False,
-    )
+      audio_track_path = media_path
+      if media_entry.get("is_video"):
+        wav_candidate = media_path.with_suffix(".wav")
+        audio_track_path = extract_audio_track(media_path, wav_candidate)
 
-    save_transcription_record(result.model_dump())
+      _check_cancelled()
 
-    _ACTIVE_JOBS[transcription_id] = TranscriptionProgress(
-      id=transcription_id,
-      media_id=media_id,
-      status="complete",
-      stage="complete",
-      progress=100,
-      message="Transcripción y análisis completados con éxito.",
-      eta="0 s",
-      model_info=active_model_label,
-    )
+      # 2. Transcribing with smooth progress ticker
+      self._update_progress(
+        TranscriptionProgress(
+          id=transcription_id,
+          media_id=media_id,
+          status="transcribing",
+          stage="transcribing",
+          progress=25,
+          message=f"Decodificando audio con {active_model_label}...",
+          eta=_format_eta(35),
+          model_info=active_model_label,
+        )
+      )
 
-    return result
+      # Background progress ticker while transcribe executes
+      ticker_running = True
+
+      async def _progress_ticker():
+        curr_prog = 25
+        while ticker_running and curr_prog < 70:
+          await asyncio.sleep(1.2)
+          if not ticker_running or transcription_id in _CANCELLED_JOBS:
+            break
+          curr_prog += 5
+          elapsed = time.time() - start_time
+          remaining = max(5, (100 - curr_prog) * (elapsed / max(curr_prog, 1)))
+          if transcription_id in _ACTIVE_JOBS and _ACTIVE_JOBS[transcription_id].status == "transcribing":
+            _ACTIVE_JOBS[transcription_id].progress = curr_prog
+            _ACTIVE_JOBS[transcription_id].eta = _format_eta(remaining)
+            _ACTIVE_JOBS[transcription_id].message = f"Transcribiendo audio ({curr_prog}%)..."
+            save_active_job_progress(_ACTIVE_JOBS[transcription_id].model_dump())
+
+      ticker_task = asyncio.create_task(_progress_ticker())
+
+      transcription_output: Dict[str, Any] = {}
+      used_mode = mode.lower()
+
+      ai_cfg = load_app_settings().get("ai", {})
+      cfg_provider = (ai_cfg.get("transcription_provider") or "").lower()
+
+      try:
+        if (
+          used_mode == "local"
+          or (used_mode == "auto" and cfg_provider == "local")
+          or (used_mode == "auto" and self.local_service.is_available() and not has_groq and not has_openai)
+        ):
+          if model_size and model_size != self.local_service.model_size:
+            self.local_service = WhisperLocalService(model_size=model_size)
+          transcription_output = self.local_service.transcribe(audio_track_path, language=language)
+        else:
+          # Cloud mode (Groq or OpenAI)
+          transcription_output = await self.cloud_service.transcribe(audio_track_path, language=language)
+      finally:
+        ticker_running = False
+        ticker_task.cancel()
+
+      _check_cancelled()
+
+      # 3. Speaker Diarization
+      self._update_progress(
+        TranscriptionProgress(
+          id=transcription_id,
+          media_id=media_id,
+          status="diarizing",
+          stage="diarizing",
+          progress=75,
+          message="Identificando interlocutores y segmentando turnos de habla...",
+          eta=_format_eta(15),
+          model_info=active_model_label,
+        )
+      )
+
+      raw_segments = transcription_output.get("segments", [])
+      if enable_diarization and raw_segments:
+        labeled_segments = self.diarizer.diarize_segments(raw_segments, audio_track_path)
+      else:
+        labeled_segments = raw_segments
+
+      _check_cancelled()
+
+      # 4. Summarization
+      self._update_progress(
+        TranscriptionProgress(
+          id=transcription_id,
+          media_id=media_id,
+          status="summarizing",
+          stage="summarizing",
+          progress=88,
+          message="Extrayendo resumen ejecutivo, participantes y requerimientos con IA...",
+          eta=_format_eta(5),
+          model_info=active_model_label,
+        )
+      )
+
+      meeting_title = media_entry.get("title") or "Reunión de Requerimientos"
+      summary = await summarize_transcript(labeled_segments, title=meeting_title)
+
+      _check_cancelled()
+
+      # 5. Finalize and Save
+      now = datetime.now(timezone.utc).isoformat()
+      typed_segments = [
+        TranscriptionSegment(
+          start=float(s.get("start", 0.0)),
+          end=float(s.get("end", 0.0)),
+          speaker=s.get("speaker", "Participante 1"),
+          text=s.get("text", "").strip(),
+        )
+        for s in labeled_segments
+      ]
+
+      result = TranscriptionResult(
+        id=transcription_id,
+        media_id=media_id,
+        metadata=MediaMetadata(
+          title=media_entry.get("title", "Reunión"),
+          description=media_entry.get("description", ""),
+        ),
+        language=transcription_output.get("language", language or "es"),
+        duration_seconds=float(transcription_output.get("duration", 0.0)),
+        created_at=now,
+        segments=typed_segments,
+        text=transcription_output.get("text", ""),
+        summary=summary,
+        saved_to_knowledge=False,
+      )
+
+      save_transcription_record(result.model_dump())
+
+      final_prog = TranscriptionProgress(
+        id=transcription_id,
+        media_id=media_id,
+        status="complete",
+        stage="complete",
+        progress=100,
+        message="Transcripción y análisis completados con éxito.",
+        eta="0 s",
+        model_info=active_model_label,
+      )
+      self._update_progress(final_prog)
+      delete_active_job_progress(transcription_id)
+
+      return result
+
+    except asyncio.CancelledError:
+      prog = TranscriptionProgress(
+        id=transcription_id,
+        media_id=media_id,
+        status="cancelled",
+        stage="cancelled",
+        progress=0,
+        message="Transcripción cancelada.",
+        model_info=active_model_label,
+      )
+      self._update_progress(prog)
+      delete_active_job_progress(transcription_id)
+      raise
+
+    except Exception as exc:
+      logger.exception(f"Error in transcription job {transcription_id}: {exc}")
+      prog = TranscriptionProgress(
+        id=transcription_id,
+        media_id=media_id,
+        status="failed",
+        stage="failed",
+        progress=0,
+        message=f"Error en la transcripción: {exc}",
+        error=str(exc),
+        model_info=active_model_label,
+      )
+      self._update_progress(prog)
+      raise
 
   def save_to_knowledge_base(
     self,
@@ -348,64 +447,44 @@ class TranscriptionService:
     summary = record.get("summary") or {}
     segments = record.get("segments", [])
 
-    # Format structured searchable content
-    lines = [
-      f"# Minuta y Transcripción: {title}",
-      f"- Fecha: {record.get('created_at', '')}",
-      f"- Idioma: {record.get('language', 'es')}",
-      "",
-      "## Resumen Ejecutivo de la Reunión",
-      f"**Participantes:** {', '.join(summary.get('participants', []))}",
-      "",
-      "**Temas Tratados:**",
-    ]
-    for topic in summary.get("topics", []):
-      lines.append(f"- {topic}")
+    lines = [f"# Transcripción de Reunión: {title}\n"]
+    if summary:
+      lines.append("## Resumen Ejecutivo\n")
+      if summary.get("participants"):
+        lines.append(f"**Participantes:** {', '.join(summary['participants'])}\n")
+      if summary.get("topics"):
+        lines.append(f"**Temas:** {', '.join(summary['topics'])}\n")
+      if summary.get("decisions"):
+        lines.append(f"**Decisiones:** {', '.join(summary['decisions'])}\n")
+      if summary.get("requirements"):
+        lines.append(f"**Requerimientos:** {', '.join(summary['requirements'])}\n")
+      if summary.get("action_items"):
+        lines.append(f"**Compromisos:** {', '.join(summary['action_items'])}\n")
 
-    lines.append("\n**Decisiones Acordadas:**")
-    for d in summary.get("decisions", []):
-      lines.append(f"- {d}")
+    lines.append("## Diálogo Completo Transcrito\n")
+    for s in segments:
+      mins = int(s.get("start", 0) // 60)
+      secs = int(s.get("start", 0) % 60)
+      lines.append(f"[{mins:02d}:{secs:02d}] {s.get('speaker', 'Participante')}: {s.get('text', '')}")
 
-    lines.append("\n**Requerimientos Identificados:**")
-    for req in summary.get("requirements", []):
-      lines.append(f"- {req}")
-
-    if summary.get("action_items"):
-      lines.append("\n**Compromisos y Próximos Pasos:**")
-      for act in summary.get("action_items", []):
-        lines.append(f"- {act}")
-
-    lines.append("\n---\n## Transcripción Completa")
-    for seg in segments:
-      mins = int(seg.get("start", 0) // 60)
-      secs = int(seg.get("start", 0) % 60)
-      lines.append(f"[{mins:02d}:{secs:02d}] {seg.get('speaker', 'Participante')}: {seg.get('text', '')}")
-
-    document_text = "\n".join(lines)
-    tags = ["transcript", "meeting", "funcional", "levantamiento", "inventario"]
-    if custom_tags:
-      tags.extend(custom_tags)
-
-    safe_title = "".join(c if c.isalnum() else "_" for c in title).strip("_")
-    filename = f"Transcripcion_{safe_title}.txt"
-
-    entry = ingest_document(
-      filename=filename,
-      raw=document_text.encode("utf-8"),
-      tags=list(dict.fromkeys(tags)),
+    full_md = "\n".join(lines)
+    tags = ["reunion", "transcripcion", "minuta"] + (custom_tags or [])
+    safe_title = re.sub(r"[^a-zA-Z0-9_\-]", "_", title) or "Reunion"
+    doc_entry = ingest_document(
+      filename=f"Minuta_{safe_title}.md",
+      raw=full_md.encode("utf-8"),
+      tags=list(set(tags)),
     )
 
     record["saved_to_knowledge"] = True
-    record["document_id"] = entry["id"]
+    record["document_id"] = doc_entry.get("id")
     save_transcription_record(record)
 
     return {
       "ok": True,
-      "document_id": entry["id"],
-      "filename": filename,
-      "message": "Transcripción guardada exitosamente en la Biblioteca de Conocimiento.",
+      "document_id": doc_entry.get("id"),
+      "message": "Transcripción guardada e indexada en la Base de Conocimiento.",
     }
 
 
 transcription_service = TranscriptionService()
-

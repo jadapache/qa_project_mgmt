@@ -136,7 +136,7 @@ export const TranscriptionProgressModal: React.FC<TranscriptionProgressModalProp
                     ? 'bg-emerald-500'
                     : isFailed || isCancelled
                     ? 'bg-red-500'
-                    : 'bg-gradient-to-r from-blue-600 to-[#002777]'
+                    : 'bg-[#002777]'
                 }`}
                 style={{ width: `${Math.max(5, progress.progress)}%` }}
               />

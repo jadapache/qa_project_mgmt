@@ -90,7 +90,7 @@ export const ActiveTranscriptionItem: React.FC<ActiveTranscriptionItemProps> = (
         </div>
         <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-600 to-[#002777] rounded-full transition-all duration-500"
+            className="h-full bg-[#002777] rounded-full transition-all duration-500"
             style={{ width: `${Math.max(5, progress.progress)}%` }}
           />
         </div>

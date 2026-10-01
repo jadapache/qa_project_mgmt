@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import uuid
 from typing import Any, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
@@ -148,6 +151,22 @@ async def get_transcription_result(transcription_id: str) -> TranscriptionResult
   return TranscriptionResult(**record)
 
 
+@router.post("/generate-summary/{transcription_id}")
+async def generate_summary(transcription_id: str) -> dict[str, Any]:
+  """Trigger AI summary generation for a completed transcription."""
+  record = get_transcription_record(transcription_id)
+  if not record:
+    raise HTTPException(status_code=404, detail="Transcripción no encontrada.")
+
+  segments = record.get("segments", [])
+  meta = record.get("metadata", {})
+  title = meta.get("title", "Reunión")
+
+  summary = await summarize_transcript(segments, title=title)
+  updated = update_transcription_summary(transcription_id, summary.model_dump())
+  return {"ok": True, "summary": summary, "transcription": updated}
+
+
 @router.put("/summary/{transcription_id}")
 async def update_summary(
   transcription_id: str,
@@ -182,8 +201,10 @@ async def save_to_knowledge_base(
     tags = body.custom_tags if body else []
     return transcription_service.save_to_knowledge_base(transcription_id, custom_tags=tags)
   except ValueError as exc:
+    logger.exception("ValueError in save_to_knowledge_base: %s", exc)
     raise HTTPException(status_code=404, detail=str(exc)) from exc
   except Exception as exc:
+    logger.exception("Unhandled error in save_to_knowledge_base: %s", exc)
     raise HTTPException(status_code=500, detail=f"Error guardando en biblioteca: {exc}") from exc
 
 
