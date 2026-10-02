@@ -11,7 +11,6 @@ import {
   Check,
   BookOpen,
   Volume2,
-  Edit3,
   Download,
   Star,
   FileText,
@@ -424,16 +423,7 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
         <div className="flex items-center gap-2">
           {transcriptionResult && (
             <>
-              <button
-                type="button"
-                onClick={() => setShowRenameModal(true)}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                title="Identificar nombres reales de los participantes"
-              >
-                <Edit3 className="h-3.5 w-3.5 text-[#002777]" />
-                <span className="hidden md:inline">Renombrar Hablantes</span>
-              </button>
-
+              {/* Guardar en Base de Conocimiento */}
               <button
                 type="button"
                 onClick={handleSaveToKB}
@@ -450,6 +440,26 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
                   {transcriptionResult.saved_to_knowledge ? 'En Base de Conocimiento' : 'Guardar en BC'}
                 </span>
               </button>
+
+              {/* Generar Documentos Button (Movido a la cabecera superior) */}
+              <button
+                type="button"
+                onClick={() => setGenerateModalOpen(true)}
+                disabled={!isSummaryReady || isJobActive}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer ${
+                  isSummaryReady && !isJobActive
+                    ? 'bg-[#002777] hover:bg-[#001e5c] text-white'
+                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60'
+                }`}
+                title={
+                  !isSummaryReady
+                    ? 'Genera el resumen para habilitar la creación de entregables'
+                    : 'Generar Inventario (.xlsx) y Levantamiento (.docx)'
+                }
+              >
+                <Sparkles className={`h-3.5 w-3.5 ${isSummaryReady && !isJobActive ? 'text-amber-300' : 'text-slate-400'}`} />
+                <span>Generar</span>
+              </button>
             </>
           )}
         </div>
@@ -460,7 +470,7 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
         {/* Left Panel: Transcripción */}
         <section className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
           {/* Panel Header Toolbar */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
+          <div className="h-11 px-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
             <div className="flex items-center gap-2">
               <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-100 text-[#002777]">
                 <Volume2 className="h-3.5 w-3.5" />
@@ -468,28 +478,32 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
               <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
                 Transcripción
               </h2>
-              {transcriptionResult?.segments && (
-                <span className="text-[11px] font-semibold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-md">
-                  {transcriptionResult.segments.length} turnos
-                </span>
-              )}
             </div>
 
-            {/* Action Buttons: Copiar, Descargar (JSON, TXT) */}
+            {/* Action Buttons: Renombrar interlocutores, Copiar, Descargar (JSON, TXT) */}
             <div className="flex items-center gap-2">
+              {/* Renombrar interlocutores (Icono grupo de personas) */}
+              <button
+                type="button"
+                onClick={() => setShowRenameModal(true)}
+                className="p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40 flex items-center justify-center"
+                title="Renombrar interlocutores"
+              >
+                <Users className="h-3.5 w-3.5 text-[#002777]" />
+              </button>
+
               <button
                 type="button"
                 onClick={handleCopyTranscript}
                 disabled={!transcriptionResult?.segments?.length && !transcriptionResult?.text}
-                className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-40"
-                title="Copiar texto de la transcripción"
+                className="p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40 flex items-center justify-center"
+                title={hasCopiedTranscript ? 'Copiado al portapapeles' : 'Copiar texto de la transcripción'}
               >
                 {hasCopiedTranscript ? (
                   <Check className="h-3.5 w-3.5 text-emerald-600" />
                 ) : (
                   <Copy className="h-3.5 w-3.5 text-slate-500" />
                 )}
-                <span>{hasCopiedTranscript ? 'Copiado' : 'Copiar'}</span>
               </button>
 
               {/* Download Dropdown */}
@@ -498,11 +512,10 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
                   type="button"
                   onClick={() => setShowTranscriptDownloadMenu((prev) => !prev)}
                   disabled={!transcriptionResult?.segments?.length && !transcriptionResult?.text}
-                  className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-40"
+                  className="p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40 flex items-center gap-0.5"
                   title="Descargar transcripción"
                 >
                   <Download className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Descargar</span>
                   <ChevronDown className="h-3 w-3 text-slate-400" />
                 </button>
 
@@ -653,7 +666,7 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
         {/* Right Panel: Resumen */}
         <aside className="w-full lg:w-[480px] xl:w-[540px] flex flex-col min-h-0 bg-white shrink-0">
           {/* Panel Header Toolbar */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
+          <div className="h-11 px-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
             <div className="flex items-center gap-2">
               <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -663,22 +676,21 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
               </h2>
             </div>
 
-            {/* Action Buttons: Copiar, Descargar, Generar Documentos, Regenerar */}
+            {/* Action Buttons: Copiar, Descargar, Regenerar */}
             <div className="flex items-center gap-2">
               {/* Copy Summary Button */}
               <button
                 type="button"
                 onClick={handleCopySummary}
                 disabled={!isSummaryReady}
-                className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-40"
-                title="Copiar resumen"
+                className="p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40 flex items-center justify-center"
+                title={hasCopiedSummary ? 'Copiado al portapapeles' : 'Copiar resumen'}
               >
                 {hasCopiedSummary ? (
                   <Check className="h-3.5 w-3.5 text-emerald-600" />
                 ) : (
                   <Copy className="h-3.5 w-3.5 text-slate-500" />
                 )}
-                <span>{hasCopiedSummary ? 'Copiado' : 'Copiar'}</span>
               </button>
 
               {/* Download Summary Dropdown */}
@@ -687,11 +699,10 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
                   type="button"
                   onClick={() => setShowSummaryDownloadMenu((prev) => !prev)}
                   disabled={!isSummaryReady}
-                  className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-40"
+                  className="p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40 flex items-center gap-0.5"
                   title="Descargar resumen"
                 >
                   <Download className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Descargar</span>
                   <ChevronDown className="h-3 w-3 text-slate-400" />
                 </button>
 
@@ -729,32 +740,12 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
                   type="button"
                   onClick={handleGenerateSummary}
                   disabled={isGeneratingSummary}
-                  className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40"
+                  className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-40 flex items-center justify-center"
                   title="Regenerar resumen con IA"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${isGeneratingSummary ? 'animate-spin text-[#002777]' : ''}`} />
                 </button>
               )}
-
-              {/* Generar Documentos Button (Active when summary is ready) */}
-              <button
-                type="button"
-                onClick={() => setGenerateModalOpen(true)}
-                disabled={!isSummaryReady || isJobActive}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer ${
-                  isSummaryReady && !isJobActive
-                    ? 'bg-[#002777] hover:bg-[#001e5c] text-white'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                }`}
-                title={
-                  !isSummaryReady
-                    ? 'Genera el resumen para habilitar la creación de entregables'
-                    : 'Generar Inventario (.xlsx) y Levantamiento (.docx)'
-                }
-              >
-                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                <span>Generar Documentos</span>
-              </button>
             </div>
           </div>
 
@@ -840,8 +831,8 @@ export const TranscriptionStudio: React.FC<TranscriptionStudioProps> = ({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Edit3 className="h-4 w-4 text-[#002777]" />
-                <span>Identificar y Renombrar Participantes</span>
+                <Users className="h-4 w-4 text-[#002777]" />
+                <span>Renombrar Interlocutores</span>
               </h3>
               <button
                 type="button"
