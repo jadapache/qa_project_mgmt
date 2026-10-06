@@ -8,21 +8,22 @@ Guía completa del diseño, patrones y decisiones arquitectónicas de QA Project
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     React 19 SPA (Vite)                        │
+│                    Tauri 2 Desktop + React 19 SPA              │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Pages (Standup, PRD Checker, QA Features, Ask Product) │  │
-│  │  Components (Settings, Integrations, Knowledge, Chat)   │  │
-│  │  Hooks (useChatPersistence, useDocumentHistory, etc)    │  │
-│  │  Context API (Auth, Toast)                              │  │
+│  │  Pages (Levantamiento STT, Standup, PRD, QA, Ask Product)│  │
+│  │  Tauri Rust Engine (Local STT: Whisper / ffmpeg)         │  │
+│  │  Components & Hooks (transcription.ts, LevantamientoPage)│  │
 │  └──────────────────────────────────────────────────────────┘  │
 └──────────────────┬──────────────────────────────────────────────┘
-                   │ REST / JSON
+                   │ REST / JSON (Solo Texto Transcrito + Metadata)
 ┌──────────────────▼──────────────────────────────────────────────┐
 │                    FastAPI Backend                              │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │  HTTP Layer: app/api/ (routers REST)                   │   │
+│  │  ├─ levantamientos.py (Sesiones, Propuestas & Import)  │   │
 │  │  ├─ auth.py        (Login, Register, Profile)         │   │
 │  │  ├─ features.py    (Standup, Ask, PRD, QA, Impact)    │   │
+
 │  │  ├─ knowledge.py   (Document Upload, Retrieve)        │   │
 │  │  ├─ integrations.py (Jira, GitHub, GitLab, Sync)     │   │
 │  │  └─ doc_agent.py   (Agentic RAG, Document Mutations) │   │

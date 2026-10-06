@@ -13,3 +13,5 @@ export { docAgentApi } from './modules/docAgent'
 export { integrationsApi } from './modules/integrations'
 export { templatesApi } from './modules/templates'
 export { settingsApi } from './modules/settings'
+export { levantamientosApi } from './modules/levantamientos'
+

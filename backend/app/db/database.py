@@ -103,4 +103,38 @@ async def init_db() -> None:
             );
         """)
 
+        # Levantamiento sessions table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS levantamiento_sessions (
+                id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                created_by TEXT,
+                status TEXT DEFAULT 'Transcrito',
+                source_label TEXT,
+                transcript TEXT NOT NULL,
+                summary_optional TEXT,
+                llm_model TEXT,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # Levantamiento story proposals table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS levantamiento_story_proposals (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                acceptance_criteria TEXT,
+                priority TEXT DEFAULT 'MEDIA',
+                status TEXT DEFAULT 'Propuesta',
+                imported_story_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES levantamiento_sessions(id) ON DELETE CASCADE
+            );
+        """)
+
         await db.commit()
+
